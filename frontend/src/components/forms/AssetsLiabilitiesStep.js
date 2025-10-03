@@ -109,7 +109,7 @@ const AssetsLiabilitiesStep = ({
                         />
                       </div>
                       
-                      <div className="form-group">
+                      <div className="form-group checkbox-group">
                         <input
                           type="checkbox"
                           {...register(`borrowers.${borrowerIndex}.assets.${assetIndex}.usedForDownpayment`)}
@@ -353,11 +353,17 @@ const AssetsLiabilitiesStep = ({
                           </label>
                           <select {...register(`borrowers.${borrowerIndex}.reoProperties.${reoIndex}.associatedLiability`)}>
                             <option value="">Select Associated Liability</option>
-                            {liabilityFields.map((liability, liabIndex) => (
-                              <option key={liabIndex} value={liabIndex}>
-                                {liability.liabilityType || `Liability ${liabIndex + 1}`}
-                              </option>
-                            ))}
+                            {liabilityFields.map((liability, liabIndex) => {
+                              const liabilityData = getValues(`borrowers.${borrowerIndex}.liabilities.${liabIndex}`);
+                              const displayName = liabilityData?.creditorName || 
+                                                liabilityData?.liabilityType || 
+                                                `Liability ${liabIndex + 1}`;
+                              return (
+                                <option key={liabIndex} value={liabIndex}>
+                                  {displayName}
+                                </option>
+                              );
+                            })}
                           </select>
                         </div>
                       </div>

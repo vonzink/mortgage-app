@@ -24,25 +24,6 @@ const PropertyDetailsStep = ({ register, errors }) => {
 
       <div className="form-row">
         <div className="form-group">
-          <label htmlFor="constructionType">Construction Type *</label>
-          <select
-            id="constructionType"
-            {...register('constructionType', { required: 'Construction type is required' })}
-            className={errors.constructionType ? 'error' : ''}
-          >
-            <option value="">Select Type</option>
-            <option value="SiteBuilt">Site Built</option>
-            <option value="Manufactured">Manufactured Home</option>
-            <option value="Modular">Modular</option>
-            <option value="Log">Log Home</option>
-            <option value="Other">Other</option>
-          </select>
-          {errors.constructionType && (
-            <span className="error-message">{errors.constructionType.message}</span>
-          )}
-        </div>
-
-        <div className="form-group">
           <label htmlFor="yearBuilt">Year Built *</label>
           <input
             type="number"
@@ -77,42 +58,6 @@ const PropertyDetailsStep = ({ register, errors }) => {
           {errors.unitsCount && (
             <span className="error-message">{errors.unitsCount.message}</span>
           )}
-        </div>
-      </div>
-
-      <div className="form-row">
-        <div className="form-group">
-          <label htmlFor="propertyBedrooms">Number of Bedrooms</label>
-          <input
-            type="number"
-            id="propertyBedrooms"
-            {...register('propertyBedrooms')}
-            placeholder="3"
-            min="0"
-          />
-        </div>
-
-        <div className="form-group">
-          <label htmlFor="propertyBathrooms">Number of Bathrooms</label>
-          <input
-            type="number"
-            id="propertyBathrooms"
-            {...register('propertyBathrooms')}
-            placeholder="2"
-            min="0"
-            step="0.5"
-          />
-        </div>
-
-        <div className="form-group">
-          <label htmlFor="propertySquareFootage">Square Footage</label>
-          <input
-            type="number"
-            id="propertySquareFootage"
-            {...register('propertySquareFootage')}
-            placeholder="2000"
-            min="0"
-          />
         </div>
       </div>
     </FormSection>

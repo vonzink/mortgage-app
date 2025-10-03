@@ -195,6 +195,12 @@
   accent-color: var(--primary-color);
 }
 
+.checkbox-group {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
 /* REO Properties */
 .reo-properties-section {
   margin-top: var(--spacing-lg);

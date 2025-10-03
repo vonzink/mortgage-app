@@ -1,0 +1,512 @@
+/**
+ * Application Form Page Styles
+ * Specific styles for the mortgage application form
+ */
+
+/* Borrower Sections */
+.borrower-section {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-md);
+  padding: var(--spacing-lg);
+  margin-bottom: var(--spacing-lg);
+}
+
+.borrower-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--spacing-lg);
+  padding-bottom: var(--spacing-md);
+  border-bottom: 1px solid var(--border-light);
+}
+
+.borrower-header h4 {
+  color: var(--primary-color);
+  margin-bottom: 0;
+}
+
+.add-borrower-section {
+  text-align: center;
+  margin-top: var(--spacing-lg);
+  padding-top: var(--spacing-lg);
+  border-top: 1px solid var(--border-light);
+}
+
+/* Residence History */
+.residence-history-section {
+  margin-top: var(--spacing-lg);
+}
+
+.residence-history-section h5 {
+  color: var(--primary-color);
+  margin-bottom: var(--spacing-md);
+}
+
+.residence-entry {
+  background: var(--bg-glass);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-md);
+  padding: var(--spacing-md);
+  margin-bottom: var(--spacing-md);
+}
+
+.residence-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--spacing-md);
+  padding-bottom: var(--spacing-sm);
+  border-bottom: 1px solid var(--border-light);
+}
+
+.residence-header h6 {
+  color: var(--text-primary);
+  margin-bottom: 0;
+}
+
+/* Employment History */
+.borrower-employment-section {
+  margin-bottom: var(--spacing-xl);
+}
+
+.borrower-employment-section h4 {
+  color: var(--primary-color);
+  margin-bottom: var(--spacing-lg);
+}
+
+.employment-entry {
+  background: var(--bg-glass);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-md);
+  padding: var(--spacing-md);
+  margin-bottom: var(--spacing-md);
+}
+
+.employment-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--spacing-md);
+  padding-bottom: var(--spacing-sm);
+  border-bottom: 1px solid var(--border-light);
+}
+
+.employment-header h5 {
+  color: var(--text-primary);
+  margin-bottom: 0;
+}
+
+/* Assets & Liabilities */
+.borrower-assets-section {
+  margin-bottom: var(--spacing-xl);
+}
+
+.borrower-assets-section h4 {
+  color: var(--primary-color);
+  margin-bottom: var(--spacing-lg);
+}
+
+.assets-section,
+.liabilities-section {
+  margin-bottom: var(--spacing-lg);
+}
+
+.assets-section h5,
+.liabilities-section h5 {
+  color: var(--primary-color);
+  margin-bottom: var(--spacing-md);
+}
+
+.no-items-message {
+  background: var(--bg-secondary);
+  border: 1px dashed var(--border-light);
+  border-radius: var(--radius-md);
+  padding: var(--spacing-lg);
+  text-align: center;
+  margin-bottom: var(--spacing-md);
+}
+
+.no-items-message p {
+  color: var(--text-muted);
+  margin-bottom: 0;
+  font-style: italic;
+}
+
+/* Asset and Liability Lists */
+.asset-list-section,
+.liability-list-section {
+  background: var(--bg-glass);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  margin-bottom: var(--spacing-md);
+}
+
+.asset-header,
+.liability-header {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr 1fr 1fr auto;
+  gap: var(--spacing-sm);
+  padding: var(--spacing-sm) var(--spacing-md);
+  background: var(--bg-secondary);
+  border-bottom: 1px solid var(--border-light);
+  font-weight: 600;
+  font-size: var(--font-size-sm);
+  color: var(--primary-color);
+}
+
+.liability-header {
+  grid-template-columns: 1fr 1fr 1fr 1fr 1fr auto;
+}
+
+.asset-header-item,
+.liability-header-item {
+  text-align: center;
+}
+
+.asset-entry,
+.liability-entry {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr 1fr 1fr auto;
+  gap: var(--spacing-sm);
+  padding: var(--spacing-sm) var(--spacing-md);
+  border-bottom: 1px solid var(--border-light);
+  align-items: center;
+}
+
+.liability-entry {
+  grid-template-columns: 1fr 1fr 1fr 1fr 1fr auto;
+}
+
+.asset-entry:last-child,
+.liability-entry:last-child {
+  border-bottom: none;
+}
+
+.asset-entry .form-group,
+.liability-entry .form-group {
+  margin-bottom: 0;
+}
+
+.form-checkbox {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--primary-color);
+}
+
+/* REO Properties */
+.reo-properties-section {
+  margin-top: var(--spacing-lg);
+}
+
+.reo-properties-section h5 {
+  color: var(--primary-color);
+  margin-bottom: var(--spacing-md);
+}
+
+.reo-list-section {
+  background: var(--bg-glass);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-md);
+  padding: var(--spacing-md);
+  margin-bottom: var(--spacing-md);
+}
+
+.reo-entry {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-md);
+  padding: var(--spacing-md);
+  margin-bottom: var(--spacing-md);
+}
+
+.reo-entry:last-child {
+  margin-bottom: 0;
+}
+
+.reo-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--spacing-md);
+  padding-bottom: var(--spacing-sm);
+  border-bottom: 1px solid var(--border-light);
+}
+
+.reo-header h6 {
+  color: var(--text-primary);
+  margin-bottom: 0;
+}
+
+/* Declarations */
+.borrower-declarations-section {
+  margin-bottom: var(--spacing-xl);
+}
+
+.borrower-declarations-section h4 {
+  color: var(--primary-color);
+  margin-bottom: var(--spacing-lg);
+}
+
+.declarations-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: var(--spacing-lg);
+}
+
+.declaration-group {
+  background: var(--bg-glass);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-md);
+  padding: var(--spacing-lg);
+}
+
+.declaration-group h5 {
+  color: var(--primary-color);
+  margin-bottom: var(--spacing-md);
+  padding-bottom: var(--spacing-sm);
+  border-bottom: 1px solid var(--border-light);
+}
+
+.declaration-item {
+  margin-bottom: var(--spacing-md);
+}
+
+.declaration-item:last-child {
+  margin-bottom: 0;
+}
+
+/* Review & Submit */
+.review-container {
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+.review-section {
+  background: var(--bg-glass);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-md);
+  padding: var(--spacing-lg);
+  margin-bottom: var(--spacing-lg);
+}
+
+.review-section h4 {
+  color: var(--primary-color);
+  margin-bottom: var(--spacing-md);
+  padding-bottom: var(--spacing-sm);
+  border-bottom: 1px solid var(--border-light);
+}
+
+.review-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: var(--spacing-md);
+}
+
+.review-item {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xs);
+}
+
+.review-item .label {
+  font-weight: 600;
+  color: var(--text-secondary);
+  font-size: var(--font-size-sm);
+}
+
+.review-item .value {
+  color: var(--text-primary);
+  font-size: var(--font-size-sm);
+}
+
+/* Borrower Summary */
+.borrower-summary {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-md);
+  padding: var(--spacing-md);
+  margin-bottom: var(--spacing-md);
+}
+
+.borrower-summary h5 {
+  color: var(--primary-color);
+  margin-bottom: var(--spacing-md);
+}
+
+.summary-details {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: var(--spacing-sm);
+}
+
+.summary-row {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xs);
+}
+
+.summary-row .label {
+  font-weight: 600;
+  color: var(--text-secondary);
+  font-size: var(--font-size-xs);
+}
+
+.summary-row .value {
+  color: var(--text-primary);
+  font-size: var(--font-size-sm);
+}
+
+.employment-summary {
+  grid-column: 1 / -1;
+  margin-top: var(--spacing-md);
+  padding-top: var(--spacing-md);
+  border-top: 1px solid var(--border-light);
+}
+
+.employment-summary h6 {
+  color: var(--primary-color);
+  margin-bottom: var(--spacing-sm);
+}
+
+.employment-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--spacing-xs) 0;
+  border-bottom: 1px solid var(--border-light);
+}
+
+.employment-item:last-child {
+  border-bottom: none;
+}
+
+.employment-item .employer {
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.employment-item .position {
+  color: var(--text-secondary);
+  font-size: var(--font-size-sm);
+}
+
+.employment-item .income {
+  color: var(--primary-color);
+  font-weight: 600;
+}
+
+/* Submit Section */
+.submit-section {
+  background: var(--bg-glass);
+  border: 2px solid var(--primary-color);
+  border-radius: var(--radius-md);
+  padding: var(--spacing-lg);
+  margin-top: var(--spacing-xl);
+}
+
+.agreement-section {
+  margin-bottom: var(--spacing-lg);
+}
+
+.agreement-label {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--spacing-sm);
+  margin-bottom: var(--spacing-md);
+  cursor: pointer;
+}
+
+.agreement-text {
+  flex: 1;
+  font-size: var(--font-size-sm);
+  line-height: 1.5;
+  color: var(--text-primary);
+}
+
+.submit-actions {
+  text-align: center;
+}
+
+/* Address Display */
+.address-display-section {
+  background: linear-gradient(135deg, rgba(40, 167, 69, 0.03), rgba(52, 206, 87, 0.03));
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-md);
+  padding: var(--spacing-md);
+  margin-top: var(--spacing-sm);
+}
+
+.address-display-section h6 {
+  color: var(--primary-color);
+  margin-bottom: var(--spacing-sm);
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+}
+
+.address-info {
+  background: var(--bg-glass);
+  border-radius: var(--radius-sm);
+  padding: var(--spacing-sm);
+  border: 1px solid var(--border-light);
+}
+
+.address-info p {
+  margin-bottom: var(--spacing-xs);
+  font-size: var(--font-size-xs);
+  color: var(--text-primary);
+}
+
+.address-info p:last-of-type {
+  margin-bottom: var(--spacing-sm);
+}
+
+/* Alert Messages */
+.alert {
+  padding: var(--spacing-md);
+  margin-bottom: var(--spacing-md);
+  border: 1px solid transparent;
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-sm);
+  line-height: 1.5;
+}
+
+.alert-warning {
+  background: rgba(255, 193, 7, 0.1);
+  border-color: rgba(255, 193, 7, 0.3);
+  color: #856404;
+}
+
+.alert-danger {
+  background: rgba(220, 53, 69, 0.1);
+  border-color: rgba(220, 53, 69, 0.3);
+  color: #721c24;
+}
+
+.alert-success {
+  background: rgba(40, 167, 69, 0.1);
+  border-color: rgba(40, 167, 69, 0.3);
+  color: #155724;
+}
+
+/* Loading States */
+.loading {
+  opacity: 0.6;
+  pointer-events: none;
+}
+
+.spinner {
+  display: inline-block;
+  width: 1rem;
+  height: 1rem;
+  border: 2px solid transparent;
+  border-top: 2px solid currentColor;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}

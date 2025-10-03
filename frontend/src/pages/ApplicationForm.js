@@ -8,6 +8,7 @@ import {
   FaBriefcase, 
   FaFileAlt, 
   FaCheck, 
+  FaUserTie,
   FaArrowLeft, 
   FaArrowRight,
   FaSpinner
@@ -21,10 +22,8 @@ const ApplicationForm = () => {
         sequenceNumber: 1,
         employmentHistory: [{}],
         incomeSources: [{}],
-        residences: [{}],
-        reoProperties: [{}]
-      }],
-      liabilities: [{}]
+        residences: [{}]
+      }]
     }
   });
   
@@ -32,7 +31,7 @@ const ApplicationForm = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const navigate = useNavigate();
 
-  const totalSteps = 7;
+  const totalSteps = 8;
   
   const steps = [
     { number: 1, title: 'Loan Information', icon: <FaHome />, description: 'Basic loan details' },
@@ -41,7 +40,8 @@ const ApplicationForm = () => {
     { number: 4, title: 'Employment & Income', icon: <FaBriefcase />, description: 'Work and income details' },
     { number: 5, title: 'Assets & Liabilities', icon: <FaFileAlt />, description: 'Assets and liabilities including REO properties' },
     { number: 6, title: 'Declarations', icon: <FaFileAlt />, description: 'Mortgage declarations' },
-    { number: 7, title: 'Review & Submit', icon: <FaCheck />, description: 'Review and submit application' }
+    { number: 7, title: 'Loan Officer Review', icon: <FaUserTie />, description: 'Loan officer review and XML export' },
+    { number: 8, title: 'Review & Submit', icon: <FaCheck />, description: 'Review and submit application' }
   ];
 
   // Field arrays for dynamic sections
@@ -54,21 +54,29 @@ const ApplicationForm = () => {
   const borrower0Employment = useFieldArray({ control, name: "borrowers.0.employmentHistory" });
   const borrower0Income = useFieldArray({ control, name: "borrowers.0.incomeSources" });
   const borrower0Residences = useFieldArray({ control, name: "borrowers.0.residences" });
+  const borrower0Assets = useFieldArray({ control, name: "borrowers.0.assets" });
+  const borrower0Liabilities = useFieldArray({ control, name: "borrowers.0.liabilities" });
   const borrower0Reo = useFieldArray({ control, name: "borrowers.0.reoProperties" });
   
   const borrower1Employment = useFieldArray({ control, name: "borrowers.1.employmentHistory" });
   const borrower1Income = useFieldArray({ control, name: "borrowers.1.incomeSources" });
   const borrower1Residences = useFieldArray({ control, name: "borrowers.1.residences" });
+  const borrower1Assets = useFieldArray({ control, name: "borrowers.1.assets" });
+  const borrower1Liabilities = useFieldArray({ control, name: "borrowers.1.liabilities" });
   const borrower1Reo = useFieldArray({ control, name: "borrowers.1.reoProperties" });
   
   const borrower2Employment = useFieldArray({ control, name: "borrowers.2.employmentHistory" });
   const borrower2Income = useFieldArray({ control, name: "borrowers.2.incomeSources" });
   const borrower2Residences = useFieldArray({ control, name: "borrowers.2.residences" });
+  const borrower2Assets = useFieldArray({ control, name: "borrowers.2.assets" });
+  const borrower2Liabilities = useFieldArray({ control, name: "borrowers.2.liabilities" });
   const borrower2Reo = useFieldArray({ control, name: "borrowers.2.reoProperties" });
   
   const borrower3Employment = useFieldArray({ control, name: "borrowers.3.employmentHistory" });
   const borrower3Income = useFieldArray({ control, name: "borrowers.3.incomeSources" });
   const borrower3Residences = useFieldArray({ control, name: "borrowers.3.residences" });
+  const borrower3Assets = useFieldArray({ control, name: "borrowers.3.assets" });
+  const borrower3Liabilities = useFieldArray({ control, name: "borrowers.3.liabilities" });
   const borrower3Reo = useFieldArray({ control, name: "borrowers.3.reoProperties" });
   
   // Helper function to get field array for a borrower
@@ -78,25 +86,33 @@ const ApplicationForm = () => {
         { 
           employmentHistory: borrower0Employment, 
           incomeSources: borrower0Income, 
-          residences: borrower0Residences, 
+          residences: borrower0Residences,
+          assets: borrower0Assets,
+          liabilities: borrower0Liabilities,
           reoProperties: borrower0Reo 
         },
         { 
           employmentHistory: borrower1Employment, 
           incomeSources: borrower1Income, 
-          residences: borrower1Residences, 
+          residences: borrower1Residences,
+          assets: borrower1Assets,
+          liabilities: borrower1Liabilities,
           reoProperties: borrower1Reo 
         },
         { 
           employmentHistory: borrower2Employment, 
           incomeSources: borrower2Income, 
-          residences: borrower2Residences, 
+          residences: borrower2Residences,
+          assets: borrower2Assets,
+          liabilities: borrower2Liabilities,
           reoProperties: borrower2Reo 
         },
         { 
           employmentHistory: borrower3Employment, 
           incomeSources: borrower3Income, 
-          residences: borrower3Residences, 
+          residences: borrower3Residences,
+          assets: borrower3Assets,
+          liabilities: borrower3Liabilities,
           reoProperties: borrower3Reo 
         }
       ];
@@ -139,13 +155,12 @@ const ApplicationForm = () => {
 
   // Helper functions
   const addBorrower = () => {
-    if (borrowerFields.length < 2) {
+    if (borrowerFields.length < 4) {
       appendBorrower({ 
         sequenceNumber: borrowerFields.length + 1,
         employmentHistory: [{}],
         incomeSources: [{}],
-        residences: [{}],
-        reoProperties: [{}]
+        residences: [{}]
       });
     }
   };
@@ -156,23 +171,49 @@ const ApplicationForm = () => {
     }
   };
 
-  const populateSubjectPropertyFromCurrent = (borrowerIndex) => {
-    const currentAddress = getValues(`borrowers.${borrowerIndex}.currentAddressLine`);
-    const currentCity = getValues(`borrowers.${borrowerIndex}.currentCity`);
-    const currentState = getValues(`borrowers.${borrowerIndex}.currentState`);
-    const currentZip = getValues(`borrowers.${borrowerIndex}.currentZipCode`);
+  const populateSubjectPropertyFromResidence = (borrowerIndex, residenceIndex) => {
+    const address = getValues(`borrowers.${borrowerIndex}.residences.${residenceIndex}.addressLine`);
+    const city = getValues(`borrowers.${borrowerIndex}.residences.${residenceIndex}.city`);
+    const state = getValues(`borrowers.${borrowerIndex}.residences.${residenceIndex}.state`);
+    const zip = getValues(`borrowers.${borrowerIndex}.residences.${residenceIndex}.zipCode`);
     
-    if (currentAddress && currentCity && currentState && currentZip) {
-      setValue('propertyAddress', currentAddress);
-      setValue('propertyCity', currentCity);
-      setValue('propertyState', currentState);
-      setValue('propertyZip', currentZip);
+    if (address && city && state && zip) {
+      setValue('propertyAddress', address);
+      setValue('propertyCity', city);
+      setValue('propertyState', state);
+      setValue('propertyZip', zip);
       
       // Show success message
-      toast.success('Subject property address populated from current address!');
+      toast.success('Subject property address populated from residence history!');
     } else {
-      toast.warning('Please fill in your current address first.');
+      toast.warning('Please fill in the residence address first.');
     }
+  };
+
+  // Helper function to calculate total residence history duration
+  const calculateResidenceHistoryDuration = (borrowerIndex) => {
+    const residences = getValues(`borrowers.${borrowerIndex}.residences`) || [];
+    const totalMonths = residences.reduce((total, residence) => {
+      const duration = parseInt(residence.durationMonths) || 0;
+      return total + duration;
+    }, 0);
+    return totalMonths;
+  };
+
+  // Helper function to calculate total employment history duration
+  const calculateEmploymentHistoryDuration = (borrowerIndex) => {
+    const employments = getValues(`borrowers.${borrowerIndex}.employmentHistory`) || [];
+    const totalMonths = employments.reduce((total, employment) => {
+      const startDate = new Date(employment.startDate);
+      const endDate = employment.employmentStatus === 'Present' ? new Date() : new Date(employment.endDate || new Date());
+      
+      if (startDate && endDate && !isNaN(startDate.getTime()) && !isNaN(endDate.getTime())) {
+        const months = (endDate.getFullYear() - startDate.getFullYear()) * 12 + (endDate.getMonth() - startDate.getMonth());
+        return total + Math.max(0, months);
+      }
+      return total;
+    }, 0);
+    return totalMonths;
   };
 
   const handleNext = async () => {
@@ -224,6 +265,173 @@ const ApplicationForm = () => {
       setTimeout(() => {
         stepElement.style.transform = '';
       }, 150);
+    }
+  };
+
+  // XML Export Function
+  const exportToXML = () => {
+    try {
+      const formData = getValues();
+      
+      // Create XML structure
+      const xmlData = `<?xml version="1.0" encoding="UTF-8"?>
+<MortgageApplication>
+  <LoanInformation>
+    <LoanType>${formData.loanType || ''}</LoanType>
+    <LoanAmount>${formData.loanAmount || ''}</LoanAmount>
+    <PropertyValue>${formData.propertyValue || ''}</PropertyValue>
+    <DownPayment>${formData.downPayment || ''}</DownPayment>
+    <DownPaymentSource>${formData.downPaymentSource || ''}</DownPaymentSource>
+    <PropertyUse>${formData.propertyUse || ''}</PropertyUse>
+    <PropertyType>${formData.propertyType || ''}</PropertyType>
+    <Occupancy>${formData.occupancy || ''}</Occupancy>
+  </LoanInformation>
+  
+  <PropertyDetails>
+    <PropertyAddress>${formData.propertyAddress || ''}</PropertyAddress>
+    <PropertyCity>${formData.propertyCity || ''}</PropertyCity>
+    <PropertyState>${formData.propertyState || ''}</PropertyState>
+    <PropertyZip>${formData.propertyZip || ''}</PropertyZip>
+    <PropertyCounty>${formData.propertyCounty || ''}</PropertyCounty>
+    <PropertyYearBuilt>${formData.propertyYearBuilt || ''}</PropertyYearBuilt>
+    <PropertyBedrooms>${formData.propertyBedrooms || ''}</PropertyBedrooms>
+    <PropertyBathrooms>${formData.propertyBathrooms || ''}</PropertyBathrooms>
+    <PropertySquareFootage>${formData.propertySquareFootage || ''}</PropertySquareFootage>
+  </PropertyDetails>
+  
+  <Borrowers>
+    ${formData.borrowers?.map((borrower, index) => `
+    <Borrower index="${index + 1}">
+      <PersonalInformation>
+        <FirstName>${borrower.firstName || ''}</FirstName>
+        <LastName>${borrower.lastName || ''}</LastName>
+        <MiddleName>${borrower.middleName || ''}</MiddleName>
+        <SSN>${borrower.ssn || ''}</SSN>
+        <DateOfBirth>${borrower.dateOfBirth || ''}</DateOfBirth>
+        <MaritalStatus>${borrower.maritalStatus || ''}</MaritalStatus>
+        <Dependents>${borrower.dependents || ''}</Dependents>
+        <Email>${borrower.email || ''}</Email>
+        <Phone>${borrower.phone || ''}</Phone>
+      </PersonalInformation>
+      
+      <ResidenceHistory>
+        ${borrower.residences?.map((residence, resIndex) => `
+        <Residence index="${resIndex + 1}">
+          <AddressLine>${residence.addressLine || ''}</AddressLine>
+          <City>${residence.city || ''}</City>
+          <State>${residence.state || ''}</State>
+          <ZipCode>${residence.zipCode || ''}</ZipCode>
+          <ResidencyType>${residence.residencyType || ''}</ResidencyType>
+          <ResidencyBasis>${residence.residencyBasis || ''}</ResidencyBasis>
+          <DurationMonths>${residence.durationMonths || ''}</DurationMonths>
+          <MonthlyRent>${residence.monthlyRent || ''}</MonthlyRent>
+        </Residence>
+        `).join('') || '<Residence index="1"><AddressLine></AddressLine></Residence>'}
+      </ResidenceHistory>
+      
+      <EmploymentHistory>
+        ${borrower.employmentHistory?.map((employment, empIndex) => `
+        <Employment index="${empIndex + 1}">
+          <EmployerName>${employment.employerName || ''}</EmployerName>
+          <Position>${employment.position || ''}</Position>
+          <StartDate>${employment.startDate || ''}</StartDate>
+          <EndDate>${employment.endDate || ''}</EndDate>
+          <EmploymentStatus>${employment.employmentStatus || ''}</EmploymentStatus>
+          <MonthlyIncome>${employment.monthlyIncome || ''}</MonthlyIncome>
+          <EmployerAddress>${employment.employerAddress || ''}</EmployerAddress>
+          <EmployerPhone>${employment.employerPhone || ''}</EmployerPhone>
+        </Employment>
+        `).join('') || '<Employment index="1"><EmployerName></EmployerName></Employment>'}
+      </EmploymentHistory>
+      
+      <Assets>
+        ${borrower.assets?.map((asset, assetIndex) => `
+        <Asset index="${assetIndex + 1}">
+          <AssetType>${asset.assetType || ''}</AssetType>
+          <AccountNumber>${asset.accountNumber || ''}</AccountNumber>
+          <BankName>${asset.bankName || ''}</BankName>
+          <AssetValue>${asset.assetValue || ''}</AssetValue>
+          <Verified>${asset.verified || ''}</Verified>
+          <UsedForDownpayment>${asset.usedForDownpayment || false}</UsedForDownpayment>
+        </Asset>
+        `).join('') || '<Asset index="1"><AssetType></AssetType></Asset>'}
+      </Assets>
+      
+      <Liabilities>
+        ${borrower.liabilities?.map((liability, liabIndex) => `
+        <Liability index="${liabIndex + 1}">
+          <LiabilityType>${liability.liabilityType || ''}</LiabilityType>
+          <CreditorName>${liability.creditorName || ''}</CreditorName>
+          <AccountNumber>${liability.accountNumber || ''}</AccountNumber>
+          <MonthlyPayment>${liability.monthlyPayment || ''}</MonthlyPayment>
+          <UnpaidBalance>${liability.unpaidBalance || ''}</UnpaidBalance>
+        </Liability>
+        `).join('') || '<Liability index="1"><LiabilityType></LiabilityType></Liability>'}
+      </Liabilities>
+      
+      <REOProperties>
+        ${borrower.reoProperties?.map((reo, reoIndex) => `
+        <REOProperty index="${reoIndex + 1}">
+          <AddressLine>${reo.addressLine || ''}</AddressLine>
+          <City>${reo.city || ''}</City>
+          <State>${reo.state || ''}</State>
+          <ZipCode>${reo.zipCode || ''}</ZipCode>
+          <PropertyType>${reo.propertyType || ''}</PropertyType>
+          <PropertyValue>${reo.propertyValue || ''}</PropertyValue>
+          <MonthlyRentalIncome>${reo.monthlyRentalIncome || ''}</MonthlyRentalIncome>
+          <MonthlyPayment>${reo.monthlyPayment || ''}</MonthlyPayment>
+          <UnpaidBalance>${reo.unpaidBalance || ''}</UnpaidBalance>
+          <AssociatedLiability>${reo.associatedLiability || ''}</AssociatedLiability>
+        </REOProperty>
+        `).join('') || ''}
+      </REOProperties>
+    </Borrower>
+    `).join('') || '<Borrower index="1"><PersonalInformation><FirstName></FirstName></PersonalInformation></Borrower>'}
+  </Borrowers>
+  
+  <Declarations>
+    <Bankruptcy>${formData.bankruptcy || false}</Bankruptcy>
+    <Foreclosure>${formData.foreclosure || false}</Foreclosure>
+    <Lawsuit>${formData.lawsuit || false}</Lawsuit>
+    <ObligatedOnLoan>${formData.obligatedOnLoan || false}</ObligatedOnLoan>
+    <DelinquentFederalDebt>${formData.delinquentFederalDebt || false}</DelinquentFederalDebt>
+    <DownPaymentBorrowed>${formData.downPaymentBorrowed || false}</DownPaymentBorrowed>
+    <CoMakerEndorser>${formData.coMakerEndorser || false}</CoMakerEndorser>
+    <USCitizen>${formData.usCitizen || false}</USCitizen>
+    <PermanentResident>${formData.permanentResident || false}</PermanentResident>
+    <PrimaryResidence>${formData.primaryResidence || false}</PrimaryResidence>
+    <OwnershipInterest>${formData.ownershipInterest || false}</OwnershipInterest>
+    <PropertyTitle>${formData.propertyTitle || ''}</PropertyTitle>
+    <OutstandingJudgments>${formData.outstandingJudgments || false}</OutstandingJudgments>
+    <PartyToLawsuit>${formData.partyToLawsuit || false}</PartyToLawsuit>
+    <PropertyForeclosed>${formData.propertyForeclosed || false}</PropertyForeclosed>
+    <DeclaredBankruptcy>${formData.declaredBankruptcy || false}</DeclaredBankruptcy>
+    <AlimonyChildSupport>${formData.alimonyChildSupport || false}</AlimonyChildSupport>
+    <DownPaymentGift>${formData.downPaymentGift || false}</DownPaymentGift>
+    <CoBorrowerRelationship>${formData.coBorrowerRelationship || ''}</CoBorrowerRelationship>
+  </Declarations>
+  
+  <ExportInformation>
+    <ExportDate>${new Date().toISOString()}</ExportDate>
+    <ApplicationVersion>1.0</ApplicationVersion>
+  </ExportInformation>
+</MortgageApplication>`;
+
+      // Create and download the XML file
+      const blob = new Blob([xmlData], { type: 'application/xml' });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `mortgage-application-${new Date().toISOString().split('T')[0]}.xml`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+      
+      toast.success('XML file exported successfully!');
+    } catch (error) {
+      console.error('Error exporting XML:', error);
+      toast.error('Failed to export XML file');
     }
   };
 
@@ -312,26 +520,36 @@ const ApplicationForm = () => {
       <h3><FaHome /> Property Details</h3>
       <p>Tell us about the property you're looking to finance.</p>
       
-      {/* Populate from current address buttons */}
+      {/* Populate from residence history buttons */}
       <div className="address-populate-section">
         <h4>Quick Fill Options</h4>
-        <p>Use a borrower's current address to populate the subject property address:</p>
+        <p>Use a borrower's residence history to populate the subject property address:</p>
         <div className="populate-buttons">
           {borrowerFields.map((borrowerField, borrowerIndex) => {
             const borrower = getValues(`borrowers.${borrowerIndex}`);
             const borrowerName = borrower?.firstName && borrower?.lastName 
               ? `${borrower.firstName} ${borrower.lastName}` 
               : `Borrower ${borrowerIndex + 1}`;
+            const residences = getValues(`borrowers.${borrowerIndex}.residences`) || [];
             
             return (
+              <div key={borrowerIndex} className="borrower-populate-options">
+                <h5>{borrowerName}</h5>
+                {residences.length > 0 ? (
+                  residences.map((residence, resIndex) => (
               <button
-                key={borrowerIndex}
+                      key={resIndex}
                 type="button"
-                onClick={() => populateSubjectPropertyFromCurrent(borrowerIndex)}
+                      onClick={() => populateSubjectPropertyFromResidence(borrowerIndex, resIndex)}
                 className="btn btn-outline-secondary btn-sm"
               >
-                Use {borrowerName}'s Current Address
+                      Use Residence {resIndex + 1}
               </button>
+                  ))
+                ) : (
+                  <p className="text-muted">No residence history available</p>
+                )}
+              </div>
             );
           })}
         </div>
@@ -575,77 +793,24 @@ const ApplicationForm = () => {
               </div>
             </div>
 
-            {/* Current Address Section */}
-            <div className="address-section">
-              <h5>Current Address</h5>
-              <div className="form-row">
-                <div className="form-group">
-                  <label htmlFor={`borrowers.${borrowerIndex}.currentAddressLine`}>Street Address</label>
-                  <input
-                    type="text"
-                    id={`borrowers.${borrowerIndex}.currentAddressLine`}
-                    {...register(`borrowers.${borrowerIndex}.currentAddressLine`)}
-                    placeholder="123 Main Street"
-                  />
-                </div>
-              </div>
-              
-              <div className="form-row">
-                <div className="form-group">
-                  <label htmlFor={`borrowers.${borrowerIndex}.currentCity`}>City</label>
-                  <input
-                    type="text"
-                    id={`borrowers.${borrowerIndex}.currentCity`}
-                    {...register(`borrowers.${borrowerIndex}.currentCity`)}
-                    placeholder="Anytown"
-                  />
-                </div>
-                
-                <div className="form-group">
-                  <label htmlFor={`borrowers.${borrowerIndex}.currentState`}>State</label>
-                  <input
-                    type="text"
-                    id={`borrowers.${borrowerIndex}.currentState`}
-                    {...register(`borrowers.${borrowerIndex}.currentState`)}
-                    placeholder="CA"
-                    maxLength="2"
-                  />
-                </div>
-                
-                <div className="form-group">
-                  <label htmlFor={`borrowers.${borrowerIndex}.currentZipCode`}>ZIP Code</label>
-                  <input
-                    type="text"
-                    id={`borrowers.${borrowerIndex}.currentZipCode`}
-                    {...register(`borrowers.${borrowerIndex}.currentZipCode`)}
-                    placeholder="12345"
-                  />
-                </div>
-              </div>
-              
-              {borrowerIndex === 0 && (
-                <div className="form-row">
-                  <div className="form-group">
-                    <button
-                      type="button"
-                      onClick={() => populateSubjectPropertyFromCurrent(borrowerIndex)}
-                      className="btn btn-secondary"
-                    >
-                      Use Current Address for Subject Property
-                    </button>
-                  </div>
-                </div>
-              )}
-            </div>
 
             {/* Residence History Section */}
             <div className="residence-history-section">
               <h5>Residence History</h5>
               {(() => {
                 const { fields: resFields, append: appendRes, remove: removeRes } = getFieldArray(borrowerIndex, 'residences');
+                const totalDuration = calculateResidenceHistoryDuration(borrowerIndex);
+                const hasWarning = totalDuration < 24; // Less than 2 years
                 
                 return (
                   <>
+                    {hasWarning && (
+                      <div className="alert alert-warning">
+                        <strong>Warning:</strong> Your residence history covers {Math.round(totalDuration)} months. 
+                        Most lenders require at least 24 months (2 years) of residence history.
+                      </div>
+                    )}
+                    
                     {resFields.map((resField, resIndex) => (
                       <div key={resField.id} className="residence-entry">
                         <div className="residence-header">
@@ -744,16 +909,23 @@ const ApplicationForm = () => {
                             />
                           </div>
                           
+                          {watch(`borrowers.${borrowerIndex}.residences.${resIndex}.residencyBasis`) === 'Rent' && (
                           <div className="form-group">
-                            <label htmlFor={`borrowers.${borrowerIndex}.residences.${resIndex}.monthlyRent`}>Monthly Rent</label>
+                              <label htmlFor={`borrowers.${borrowerIndex}.residences.${resIndex}.monthlyRent`}>Monthly Rent *</label>
                             <input
                               type="number"
                               id={`borrowers.${borrowerIndex}.residences.${resIndex}.monthlyRent`}
                               step="0.01"
-                              {...register(`borrowers.${borrowerIndex}.residences.${resIndex}.monthlyRent`)}
+                                {...register(`borrowers.${borrowerIndex}.residences.${resIndex}.monthlyRent`, {
+                                  required: watch(`borrowers.${borrowerIndex}.residences.${resIndex}.residencyBasis`) === 'Rent' ? 'Monthly rent is required for rental properties' : false
+                                })}
                               placeholder="1500"
                             />
+                              {errors.borrowers?.[borrowerIndex]?.residences?.[resIndex]?.monthlyRent && (
+                                <span className="error-message">{errors.borrowers[borrowerIndex].residences[resIndex].monthlyRent.message}</span>
+                              )}
                           </div>
+                          )}
                         </div>
                       </div>
                     ))}
@@ -772,6 +944,36 @@ const ApplicationForm = () => {
                             Add Another Residence
                           </button>
                         </div>
+                        
+                        {borrowerIndex > 0 && (
+                          <div className="form-group">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const borrower1CurrentResidence = getValues('borrowers.0.residences.0');
+                                if (borrower1CurrentResidence?.addressLine && borrower1CurrentResidence?.city && borrower1CurrentResidence?.state && borrower1CurrentResidence?.zipCode) {
+                                  appendRes({
+                                    sequenceNumber: resFields.length + 1,
+                                    residencyType: 'Prior',
+                                    addressLine: borrower1CurrentResidence.addressLine,
+                                    city: borrower1CurrentResidence.city,
+                                    state: borrower1CurrentResidence.state,
+                                    zipCode: borrower1CurrentResidence.zipCode,
+                                    residencyBasis: borrower1CurrentResidence.residencyBasis,
+                                    monthlyRent: borrower1CurrentResidence.monthlyRent,
+                                    durationMonths: borrower1CurrentResidence.durationMonths
+                                  });
+                                  toast.success(`Borrower ${borrowerIndex + 1}'s residence populated from Borrower 1's current residence!`);
+                                } else {
+                                  toast.warning('Borrower 1 must have a complete current residence to use this feature.');
+                                }
+                              }}
+                              className="btn btn-outline-secondary"
+                            >
+                              Use Borrower 1's Current Residence
+                            </button>
+                          </div>
+                        )}
                       </div>
                     )}
                   </>
@@ -782,7 +984,7 @@ const ApplicationForm = () => {
         );
       })}
       
-      {borrowerFields.length < 2 && (
+      {borrowerFields.length < 4 && (
         <div className="form-row">
           <div className="form-group">
             <button
@@ -790,7 +992,7 @@ const ApplicationForm = () => {
               onClick={addBorrower}
               className="btn btn-outline-primary"
             >
-              Add Co-Borrower
+              Add Co-Borrower {borrowerFields.length + 1}
             </button>
           </div>
         </div>
@@ -806,10 +1008,19 @@ const ApplicationForm = () => {
       
       {borrowerFields.map((borrowerField, borrowerIndex) => {
         const { fields: empFields, append: appendEmp, remove: removeEmp } = getFieldArray(borrowerIndex, 'employmentHistory');
+        const totalEmploymentDuration = calculateEmploymentHistoryDuration(borrowerIndex);
+        const hasEmploymentWarning = totalEmploymentDuration < 24; // Less than 2 years
         
         return (
           <div key={borrowerField.id} className="borrower-employment-section">
             <h4>Borrower {borrowerIndex + 1} - Employment History</h4>
+            
+            {hasEmploymentWarning && (
+              <div className="alert alert-warning">
+                <strong>Warning:</strong> Your employment history covers approximately {Math.round(totalEmploymentDuration)} months. 
+                Most lenders require at least 24 months (2 years) of employment history.
+              </div>
+            )}
             
             {empFields.map((empField, empIndex) => (
               <div key={empField.id} className="employment-entry">
@@ -901,31 +1112,22 @@ const ApplicationForm = () => {
                     )}
                   </div>
 
-                  <div className="form-group">
-                    <label>
-                      <input
-                        type="checkbox"
-                        {...register(`borrowers.${borrowerIndex}.employmentHistory.${empIndex}.isPresent`)}
-                        onChange={(e) => {
-                          if (e.target.checked) {
-                            setValue(`borrowers.${borrowerIndex}.employmentHistory.${empIndex}.endDate`, '');
-                          }
-                        }}
-                      />
-                      Present (currently employed)
-                    </label>
-                  </div>
                 </div>
 
-                {!watch(`borrowers.${borrowerIndex}.employmentHistory.${empIndex}.isPresent`) && (
+                {watch(`borrowers.${borrowerIndex}.employmentHistory.${empIndex}.employmentStatus`) !== 'Present' && (
                   <div className="form-row">
                     <div className="form-group">
-                      <label htmlFor={`borrowers.${borrowerIndex}.employmentHistory.${empIndex}.endDate`}>End Date</label>
+                      <label htmlFor={`borrowers.${borrowerIndex}.employmentHistory.${empIndex}.endDate`}>End Date *</label>
                       <input
                         type="date"
                         id={`borrowers.${borrowerIndex}.employmentHistory.${empIndex}.endDate`}
-                        {...register(`borrowers.${borrowerIndex}.employmentHistory.${empIndex}.endDate`)}
+                        {...register(`borrowers.${borrowerIndex}.employmentHistory.${empIndex}.endDate`, { 
+                          required: watch(`borrowers.${borrowerIndex}.employmentHistory.${empIndex}.employmentStatus`) !== 'Present' ? 'End date is required for prior employment' : false
+                        })}
                       />
+                      {errors.borrowers?.[borrowerIndex]?.employmentHistory?.[empIndex]?.endDate && (
+                        <span className="error-message">{errors.borrowers[borrowerIndex].employmentHistory[empIndex].endDate.message}</span>
+                      )}
                     </div>
                   </div>
                 )}
@@ -1085,12 +1287,329 @@ const ApplicationForm = () => {
             {/* Assets Section */}
             <div className="assets-section">
               <h5>Assets</h5>
+              <p>Please list all your assets including bank accounts, investments, and other valuable assets.</p>
               
-              {/* REO Properties */}
+              {/* Borrower Selection for Multiple Borrowers */}
+              {borrowerFields.length > 1 && (
+                <div className="form-row">
+                  <div className="form-group">
+                    <label>Select Borrower(s) for Assets:</label>
+                    <div className="checkbox-group">
+                      {borrowerFields.map((borrower, idx) => (
+                        <label key={idx} className="checkbox-label">
+                          <input
+                            type="checkbox"
+                            defaultChecked={idx === borrowerIndex}
+                            onChange={(e) => {
+                              if (e.target.checked && idx !== borrowerIndex) {
+                                // Copy assets from this borrower to the current borrower
+                                const sourceAssets = getValues(`borrowers.${idx}.assets`) || [];
+                                const { append: appendAsset } = getFieldArray(borrowerIndex, 'assets');
+                                sourceAssets.forEach(asset => appendAsset(asset));
+                                toast.success(`Assets from Borrower ${idx + 1} added to Borrower ${borrowerIndex + 1}`);
+                              }
+                            }}
+                          />
+                          <span>Borrower {idx + 1}</span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
+              
+              {/* Asset List */}
+              <div className="asset-list-section">
+                <h6>Asset List</h6>
+                {(() => {
+                  const { fields: assetFields, append: appendAsset, remove: removeAsset } = getFieldArray(borrowerIndex, 'assets');
+                  return (
+                    <>
+                      {assetFields.length > 0 ? (
+                        assetFields.map((assetField, assetIndex) => (
+                          <div key={assetField.id} className="asset-entry">
+                            <div className="asset-header">
+                              <h6>Asset {assetIndex + 1}</h6>
+                              <button
+                                type="button"
+                                onClick={() => removeAsset(assetIndex)}
+                                className="btn btn-danger btn-sm"
+                              >
+                                Remove Asset
+                              </button>
+                            </div>
+                            
+                            <div className="form-row">
+                              <div className="form-group">
+                                <label htmlFor={`borrowers.${borrowerIndex}.assets.${assetIndex}.assetType`}>Asset Type</label>
+                                <select
+                                  id={`borrowers.${borrowerIndex}.assets.${assetIndex}.assetType`}
+                                  {...register(`borrowers.${borrowerIndex}.assets.${assetIndex}.assetType`)}
+                                >
+                                  <option value="">Select Asset Type</option>
+                                  <option value="CheckingAccount">Checking Account</option>
+                                  <option value="SavingsAccount">Savings Account</option>
+                                  <option value="InvestmentAccount">Investment Account</option>
+                                  <option value="Vehicle">Vehicle</option>
+                                  <option value="RetirementAccount">Retirement Account (401k, IRA, etc.)</option>
+                                  <option value="EarnestMoney">Earnest Money</option>
+                                  <option value="Other">Other</option>
+                                </select>
+                              </div>
+                              
+                              <div className="form-group">
+                                <label htmlFor={`borrowers.${borrowerIndex}.assets.${assetIndex}.accountNumber`}>Account Number</label>
+                                <input
+                                  type="text"
+                                  id={`borrowers.${borrowerIndex}.assets.${assetIndex}.accountNumber`}
+                                  {...register(`borrowers.${borrowerIndex}.assets.${assetIndex}.accountNumber`)}
+                                  placeholder="Account number, VIN, etc."
+                                />
+                              </div>
+                            </div>
+                            
+                            <div className="form-row">
+                              <div className="form-group">
+                                <label htmlFor={`borrowers.${borrowerIndex}.assets.${assetIndex}.bankName`}>Bank Name</label>
+                                <input
+                                  type="text"
+                                  id={`borrowers.${borrowerIndex}.assets.${assetIndex}.bankName`}
+                                  {...register(`borrowers.${borrowerIndex}.assets.${assetIndex}.bankName`)}
+                                  placeholder="Chase Bank, Toyota Financial, etc."
+                                />
+                              </div>
+                              
+                              <div className="form-group">
+                                <label htmlFor={`borrowers.${borrowerIndex}.assets.${assetIndex}.assetValue`}>Amount</label>
+                                <input
+                                  type="number"
+                                  id={`borrowers.${borrowerIndex}.assets.${assetIndex}.assetValue`}
+                                  step="0.01"
+                                  {...register(`borrowers.${borrowerIndex}.assets.${assetIndex}.assetValue`, { 
+                                    min: { value: 0.01, message: 'Amount must be greater than 0' }
+                                  })}
+                                  placeholder="50000"
+                                />
+                              </div>
+                            </div>
+                            
+                            <div className="form-row">
+                              <div className="form-group">
+                                <label htmlFor={`borrowers.${borrowerIndex}.assets.${assetIndex}.verified`}>Verified?</label>
+                                <select
+                                  id={`borrowers.${borrowerIndex}.assets.${assetIndex}.verified`}
+                                  {...register(`borrowers.${borrowerIndex}.assets.${assetIndex}.verified`)}
+                                >
+                                  <option value="">Select Verification Status</option>
+                                  <option value="true">Yes - Verified</option>
+                                  <option value="false">No - Not Verified</option>
+                                </select>
+                              </div>
+                              
+                              <div className="form-group">
+                                <label className="checkbox-label">
+                                  <input
+                                    type="checkbox"
+                                    id={`borrowers.${borrowerIndex}.assets.${assetIndex}.usedForDownpayment`}
+                                    {...register(`borrowers.${borrowerIndex}.assets.${assetIndex}.usedForDownpayment`)}
+                                  />
+                                  <span>Used for Down Payment</span>
+                                </label>
+                              </div>
+                            </div>
+                          </div>
+                        ))
+                      ) : (
+                        <p className="no-items-message">No assets added yet.</p>
+                      )}
+                      
+                      <div className="form-row">
+                        <div className="form-group">
+                          <button
+                            type="button"
+                            onClick={() => appendAsset({ 
+                              assetType: '', 
+                              accountNumber: '', 
+                              bankName: '', 
+                              assetValue: '', 
+                              verified: '',
+                              usedForDownpayment: false
+                            })}
+                            className="btn btn-outline-primary"
+                          >
+                            Add Asset
+                          </button>
+                        </div>
+                      </div>
+                    </>
+                  );
+                })()}
+              </div>
+              
+            </div>
+            
+            {/* Liabilities Section */}
+            <div className="liabilities-section">
+              <h5>Liabilities</h5>
+              <p>Please list all your debts and financial obligations.</p>
+              
+              {/* Borrower Selection for Multiple Borrowers */}
+              {borrowerFields.length > 1 && (
+                <div className="form-row">
+                  <div className="form-group">
+                    <label>Select Borrower(s) for Liabilities:</label>
+                    <div className="checkbox-group">
+                      {borrowerFields.map((borrower, idx) => (
+                        <label key={idx} className="checkbox-label">
+                          <input
+                            type="checkbox"
+                            defaultChecked={idx === borrowerIndex}
+                            onChange={(e) => {
+                              if (e.target.checked && idx !== borrowerIndex) {
+                                // Copy liabilities from this borrower to the current borrower
+                                const sourceLiabilities = getValues(`borrowers.${idx}.liabilities`) || [];
+                                const { append: appendLiability } = getFieldArray(borrowerIndex, 'liabilities');
+                                sourceLiabilities.forEach(liability => appendLiability(liability));
+                                toast.success(`Liabilities from Borrower ${idx + 1} added to Borrower ${borrowerIndex + 1}`);
+                              }
+                            }}
+                          />
+                          <span>Borrower {idx + 1}</span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
+              
+              {/* Liability List */}
+              <div className="liability-list-section">
+                <h6>Liability List</h6>
+                {(() => {
+                  const { fields: liabilityFields, append: appendLiability, remove: removeLiability } = getFieldArray(borrowerIndex, 'liabilities');
+                  return (
+                    <>
+                      {liabilityFields.length > 0 ? (
+                        liabilityFields.map((liabilityField, liabilityIndex) => (
+                          <div key={liabilityField.id} className="liability-entry">
+                            <div className="liability-header">
+                              <h6>Liability {liabilityIndex + 1}</h6>
+                              <button
+                                type="button"
+                                onClick={() => removeLiability(liabilityIndex)}
+                                className="btn btn-danger btn-sm"
+                              >
+                                Remove Liability
+                              </button>
+                            </div>
+                            
+                            <div className="form-row">
+                              <div className="form-group">
+                                <label htmlFor={`borrowers.${borrowerIndex}.liabilities.${liabilityIndex}.liabilityType`}>Liability Type *</label>
+                                <select
+                                  id={`borrowers.${borrowerIndex}.liabilities.${liabilityIndex}.liabilityType`}
+                                  {...register(`borrowers.${borrowerIndex}.liabilities.${liabilityIndex}.liabilityType`, { required: 'Liability type is required' })}
+                                >
+                                  <option value="">Select Liability Type</option>
+                                  <option value="CreditCard">Credit Card</option>
+                                  <option value="AutoLoan">Auto Loan</option>
+                                  <option value="StudentLoan">Student Loan</option>
+                                  <option value="PersonalLoan">Personal Loan</option>
+                                  <option value="Mortgage">Mortgage</option>
+                                  <option value="Other">Other</option>
+                                </select>
+                              </div>
+                              
+                              <div className="form-group">
+                                <label htmlFor={`borrowers.${borrowerIndex}.liabilities.${liabilityIndex}.creditorName`}>Creditor Name *</label>
+                                <input
+                                  type="text"
+                                  id={`borrowers.${borrowerIndex}.liabilities.${liabilityIndex}.creditorName`}
+                                  {...register(`borrowers.${borrowerIndex}.liabilities.${liabilityIndex}.creditorName`, { required: 'Creditor name is required' })}
+                                  placeholder="e.g., Chase Bank, Toyota Financial, etc."
+                                />
+                              </div>
+                            </div>
+                            
+                            <div className="form-row">
+                              <div className="form-group">
+                                <label htmlFor={`borrowers.${borrowerIndex}.liabilities.${liabilityIndex}.accountNumber`}>Account Number</label>
+                                <input
+                                  type="text"
+                                  id={`borrowers.${borrowerIndex}.liabilities.${liabilityIndex}.accountNumber`}
+                                  {...register(`borrowers.${borrowerIndex}.liabilities.${liabilityIndex}.accountNumber`)}
+                                  placeholder="Account number"
+                                />
+                              </div>
+                              
+                              <div className="form-group">
+                                <label htmlFor={`borrowers.${borrowerIndex}.liabilities.${liabilityIndex}.monthlyPayment`}>Monthly Payment *</label>
+                                <input
+                                  type="number"
+                                  id={`borrowers.${borrowerIndex}.liabilities.${liabilityIndex}.monthlyPayment`}
+                                  step="0.01"
+                                  {...register(`borrowers.${borrowerIndex}.liabilities.${liabilityIndex}.monthlyPayment`, { 
+                                    required: 'Monthly payment is required',
+                                    min: { value: 0.01, message: 'Monthly payment must be greater than 0' }
+                                  })}
+                                  placeholder="500"
+                                />
+                              </div>
+                            </div>
+                            
+                            <div className="form-row">
+                              <div className="form-group">
+                                <label htmlFor={`borrowers.${borrowerIndex}.liabilities.${liabilityIndex}.unpaidBalance`}>Unpaid Balance *</label>
+                                <input
+                                  type="number"
+                                  id={`borrowers.${borrowerIndex}.liabilities.${liabilityIndex}.unpaidBalance`}
+                                  step="0.01"
+                                  {...register(`borrowers.${borrowerIndex}.liabilities.${liabilityIndex}.unpaidBalance`, { 
+                                    required: 'Unpaid balance is required',
+                                    min: { value: 0.01, message: 'Unpaid balance must be greater than 0' }
+                                  })}
+                                  placeholder="15000"
+                                />
+                              </div>
+                            </div>
+                          </div>
+                        ))
+                      ) : (
+                        <p className="no-items-message">No liabilities added yet.</p>
+                      )}
+                      
+                      <div className="form-row">
+                        <div className="form-group">
+                          <button
+                            type="button"
+                            onClick={() => appendLiability({ 
+                              liabilityType: '', 
+                              creditorName: '', 
+                              accountNumber: '', 
+                              monthlyPayment: '', 
+                              unpaidBalance: '' 
+                            })}
+                            className="btn btn-outline-primary"
+                          >
+                            Add Liability
+                          </button>
+                        </div>
+                      </div>
+                    </>
+                  );
+                })()}
+              </div>
+            </div>
+            
+            {/* REO Properties Section - Only show when REOs exist */}
+            {reoResFields.length > 0 && (
               <div className="reo-properties-section">
-                <h6>Real Estate Owned (REO) Properties</h6>
-                {reoResFields.length > 0 ? (
-                  reoResFields.map((reoField, reoIndex) => (
+                <h5>Real Estate Owned (REO) Properties</h5>
+                <p>Properties you currently own that are not your primary residence.</p>
+                
+                {reoResFields.map((reoField, reoIndex) => {
+                  const liabilities = getValues(`borrowers.${borrowerIndex}.liabilities`) || [];
+                  return (
                     <div key={reoField.id} className="reo-entry">
                       <div className="reo-header">
                         <h6>REO Property {reoIndex + 1}</h6>
@@ -1210,35 +1729,50 @@ const ApplicationForm = () => {
                           />
                         </div>
                       </div>
+                      
+                      {/* Link to Associated Liability */}
+                      {liabilities.length > 0 && (
+                        <div className="form-row">
+                          <div className="form-group">
+                            <label htmlFor={`borrowers.${borrowerIndex}.reoProperties.${reoIndex}.associatedLiability`}>Associated Liability (Optional)</label>
+                            <select
+                              id={`borrowers.${borrowerIndex}.reoProperties.${reoIndex}.associatedLiability`}
+                              {...register(`borrowers.${borrowerIndex}.reoProperties.${reoIndex}.associatedLiability`)}
+                            >
+                              <option value="">Select Associated Liability</option>
+                              {liabilities.map((liability, liabilityIndex) => (
+                                <option key={liabilityIndex} value={liabilityIndex}>
+                                  {liability.creditorName} - {liability.liabilityType} (${liability.unpaidBalance})
+                                </option>
+                              ))}
+                            </select>
                     </div>
-                  ))
-                ) : (
-                  <p className="no-items-message">No REO properties added yet.</p>
+                        </div>
                 )}
+                    </div>
+                  );
+                })}
                 
-                {/* Add REO Property Button */}
-                <div className="form-row">
-                  <div className="form-group">
-                    <button
-                      type="button"
-                      onClick={() => appendReo({ 
-                        sequenceNumber: reoResFields.length + 1,
-                        propertyType: 'Investment'
-                      })}
-                      className="btn btn-outline-primary"
-                    >
-                      Add REO Property
-                    </button>
-                  </div>
-                </div>
               </div>
-            </div>
+            )}
             
-            {/* Liabilities Section */}
-            <div className="liabilities-section">
-              <h5>Liabilities</h5>
-              <p className="info-message">Liabilities can be added here. This section can be expanded with additional liability types as needed.</p>
+            {/* Add REO Property Button - Only show when no REOs exist */}
+            {reoResFields.length === 0 && (
+              <div className="form-row">
+                <div className="form-group">
+                  <button
+                    type="button"
+                    onClick={() => appendReo({ 
+                      sequenceNumber: reoResFields.length + 1,
+                      propertyType: 'Investment'
+                    })}
+                    className="btn btn-outline-primary"
+                  >
+                    Add REO Property
+                  </button>
             </div>
+              </div>
+            )}
           </div>
         );
       })}
@@ -1523,6 +2057,118 @@ const ApplicationForm = () => {
     </div>
   );
 
+  // Step 7: Loan Officer Review
+  const renderLoanOfficerReview = () => (
+    <div className="step-content">
+      <h3><FaUserTie /> Loan Officer Review</h3>
+      <p>Review the application data and export to XML for processing.</p>
+      
+      <div className="loan-officer-section">
+        <div className="application-summary">
+          <h4>Application Summary</h4>
+          
+          <div className="summary-grid">
+            <div className="summary-item">
+              <h5>Loan Information</h5>
+              <p><strong>Loan Type:</strong> {getValues('loanType') || 'Not specified'}</p>
+              <p><strong>Loan Amount:</strong> ${getValues('loanAmount') || '0'}</p>
+              <p><strong>Property Value:</strong> ${getValues('propertyValue') || '0'}</p>
+              <p><strong>Down Payment:</strong> ${getValues('downPayment') || '0'}</p>
+            </div>
+            
+            <div className="summary-item">
+              <h5>Property Details</h5>
+              <p><strong>Address:</strong> {getValues('propertyAddress') || 'Not specified'}</p>
+              <p><strong>City:</strong> {getValues('propertyCity') || 'Not specified'}</p>
+              <p><strong>State:</strong> {getValues('propertyState') || 'Not specified'}</p>
+              <p><strong>ZIP:</strong> {getValues('propertyZip') || 'Not specified'}</p>
+            </div>
+            
+            <div className="summary-item">
+              <h5>Borrowers</h5>
+              {getValues('borrowers')?.map((borrower, index) => (
+                <p key={index}><strong>Borrower {index + 1}:</strong> {borrower.firstName || ''} {borrower.lastName || ''}</p>
+              ))}
+            </div>
+            
+            <div className="summary-item">
+              <h5>Assets & Liabilities</h5>
+              <p><strong>Total Assets:</strong> {getValues('borrowers')?.reduce((total, borrower) => 
+                total + (borrower.assets?.reduce((sum, asset) => sum + (parseFloat(asset.assetValue) || 0), 0) || 0), 0
+              ).toLocaleString()}</p>
+              <p><strong>Total Liabilities:</strong> {getValues('borrowers')?.reduce((total, borrower) => 
+                total + (borrower.liabilities?.reduce((sum, liability) => sum + (parseFloat(liability.unpaidBalance) || 0), 0) || 0), 0
+              ).toLocaleString()}</p>
+            </div>
+          </div>
+        </div>
+        
+        <div className="export-section">
+          <h4>Export Options</h4>
+          <p>Export the complete application data in XML format for further processing.</p>
+          
+          <div className="export-actions">
+            <button
+              type="button"
+              onClick={exportToXML}
+              className="btn btn-primary export-btn"
+            >
+              <FaFileAlt /> Export to XML
+            </button>
+            
+            <div className="export-info">
+              <p><strong>Export includes:</strong></p>
+              <ul>
+                <li>Complete loan information</li>
+                <li>All borrower details and history</li>
+                <li>Property information</li>
+                <li>Employment and income data</li>
+                <li>Assets and liabilities</li>
+                <li>Real estate owned properties</li>
+                <li>All declarations and consents</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+        
+        <div className="loan-officer-notes">
+          <h4>Loan Officer Notes</h4>
+          <div className="form-group">
+            <label htmlFor="loanOfficerNotes">Additional Notes</label>
+            <textarea
+              id="loanOfficerNotes"
+              {...register('loanOfficerNotes')}
+              placeholder="Add any additional notes or observations about this application..."
+              rows="6"
+            />
+          </div>
+          
+          <div className="form-row">
+            <div className="form-group">
+              <label htmlFor="loanOfficerName">Loan Officer Name</label>
+              <input
+                type="text"
+                id="loanOfficerName"
+                {...register('loanOfficerName')}
+                placeholder="Enter your name"
+              />
+            </div>
+            
+            <div className="form-group">
+              <label htmlFor="reviewDate">Review Date</label>
+              <input
+                type="date"
+                id="reviewDate"
+                {...register('reviewDate')}
+                defaultValue={new Date().toISOString().split('T')[0]}
+              />
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+
   const renderStepContent = () => {
     switch (currentStep) {
       case 1:
@@ -1538,6 +2184,8 @@ const ApplicationForm = () => {
       case 6:
         return renderDeclarations();
       case 7:
+        return renderLoanOfficerReview();
+      case 8:
         return renderReviewSubmit();
       default:
         return null;

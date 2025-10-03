@@ -86,26 +86,6 @@ public interface LoanApplicationMapper {
     @IterableMapping(elementTargetType = REOPropertyDTO.class)
     java.util.List<REOPropertyDTO> toREOPropertyDTOList(java.util.List<REOProperty> entities);
 
-    // Custom mapping methods for complex relationships
-    @Mapping(target = "application", ignore = true)
-    @Mapping(target = "borrower", source = "borrower")
-    Employment toEntityWithBorrower(EmploymentDTO dto, Borrower borrower);
-
-    @Mapping(target = "application", ignore = true)
-    @Mapping(target = "borrower", source = "borrower")
-    IncomeSource toEntityWithBorrower(IncomeSourceDTO dto, Borrower borrower);
-
-    @Mapping(target = "application", ignore = true)
-    @Mapping(target = "borrower", source = "borrower")
-    Residence toEntityWithBorrower(ResidenceDTO dto, Borrower borrower);
-
-    @Mapping(target = "application", ignore = true)
-    @Mapping(target = "borrower", source = "borrower")
-    Declaration toEntityWithBorrower(DeclarationDTO dto, Borrower borrower);
-
-    @Mapping(target = "application", source = "application")
-    Liability toEntityWithApplication(LiabilityDTO dto, LoanApplication application);
-
-    @Mapping(target = "application", source = "application")
-    Property toEntityWithApplication(PropertyDTO dto, LoanApplication application);
+    // Note: Complex relationship mappings will be handled in service layer
+    // MapStruct works best with simple DTO to Entity mappings
 }

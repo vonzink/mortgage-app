@@ -9,7 +9,6 @@ import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
-import java.util.Objects;
 
 /**
  * Optimized Liability entity with Lombok annotations and improved structure
@@ -22,7 +21,7 @@ import java.util.Objects;
 @AllArgsConstructor
 @Builder
 @EqualsAndHashCode(of = "id")
-@ToString(exclude = {"application", "borrower"})
+@ToString
 public class LiabilityOptimized {
     
     @Id
@@ -112,7 +111,7 @@ public class LiabilityOptimized {
         if (monthlyIncome == null || monthlyIncome.compareTo(BigDecimal.ZERO) == 0) {
             return BigDecimal.ZERO;
         }
-        return monthlyPayment.divide(monthlyIncome, 4, BigDecimal.ROUND_HALF_UP);
+        return monthlyPayment.divide(monthlyIncome, 4, java.math.RoundingMode.HALF_UP);
     }
     
     /**
@@ -157,7 +156,7 @@ public class LiabilityOptimized {
         }
         
         BigDecimal paymentImpact = monthlyPayment != null ? monthlyPayment : BigDecimal.ZERO;
-        BigDecimal balanceImpact = unpaidBalance != null ? unpaidBalance.divide(BigDecimal.valueOf(12), 2, BigDecimal.ROUND_HALF_UP) : BigDecimal.ZERO;
+        BigDecimal balanceImpact = unpaidBalance != null ? unpaidBalance.divide(BigDecimal.valueOf(12), 2, java.math.RoundingMode.HALF_UP) : BigDecimal.ZERO;
         
         return paymentImpact.add(balanceImpact);
     }

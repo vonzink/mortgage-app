@@ -61,7 +61,7 @@ const ApplicationForm = () => {
 
   const { borrowers, getFieldArray } = useBorrowerFieldArrays(control);
   
-  const { validateStep } = useFormValidation(getValues, watch);
+  useFormValidation(getValues, watch);
 
   // Step definitions
   const steps = [
@@ -185,7 +185,7 @@ const ApplicationForm = () => {
         }))
       };
 
-      const response = await mortgageService.createApplication(applicationData);
+      await mortgageService.createApplication(applicationData);
       
       toast.success('Application submitted successfully!');
       navigate('/applications');

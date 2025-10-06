@@ -85,7 +85,9 @@ public class LoanApplicationServiceRefactored implements BaseService<LoanApplica
     public LoanApplication updateFromDTO(Long id, LoanApplicationDTO applicationDTO) {
         log.info("Updating loan application from DTO with ID: {}", id);
         
-        LoanApplication existingApplication = findByIdOrThrow(id);
+        // Verify application exists
+        findByIdOrThrow(id);
+        
         LoanApplication updatedApplication = loanApplicationMapper.toEntity(applicationDTO);
         updatedApplication.setId(id);
         

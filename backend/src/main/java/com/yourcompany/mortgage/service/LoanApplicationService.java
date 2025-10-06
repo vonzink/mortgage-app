@@ -31,8 +31,6 @@ public class LoanApplicationService {
     @Autowired
     private LiabilityRepository liabilityRepository;
     
-    @Autowired
-    private DocumentRepository documentRepository;
     
     @Autowired
     private IncomeSourceRepository incomeSourceRepository;

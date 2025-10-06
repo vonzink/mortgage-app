@@ -91,7 +91,7 @@ public class Liability {
         if (monthlyIncome == null || monthlyIncome.compareTo(BigDecimal.ZERO) == 0) {
             return BigDecimal.ZERO;
         }
-        return monthlyPayment.divide(monthlyIncome, 4, BigDecimal.ROUND_HALF_UP);
+        return monthlyPayment.divide(monthlyIncome, 4, java.math.RoundingMode.HALF_UP);
     }
     
     public boolean isRevolving() {

@@ -1,15 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { 
   FaHome, 
   FaChartLine, 
-  FaFileAlt, 
-  FaList, 
-  FaShieldAlt, 
   FaClock, 
-  FaMobileAlt, 
   FaHeadset,
-  FaRocket,
   FaCheckCircle,
   FaDollarSign,
   FaMapMarkerAlt,
@@ -18,13 +13,12 @@ import {
   FaPhone,
   FaEnvelope,
   FaUpload,
-  FaEye,
-  FaEdit
+  FaEye
 } from 'react-icons/fa';
 
 const HomePage = () => {
   // Mock loan data - in a real app, this would come from an API
-  const [loanData, setLoanData] = useState({
+  const [loanData] = useState({
     loanAmount: 450000,
     propertyValue: 500000,
     propertyAddress: "123 Maple Street, Springfield, IL 62701",
@@ -48,7 +42,7 @@ const HomePage = () => {
     ]
   });
 
-  const [isLoggedIn, setIsLoggedIn] = useState(false); // Mock login state
+  // Mock login state - removed unused variable
 
   return (
     <div className="homepage-container">

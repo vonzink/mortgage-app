@@ -10,7 +10,8 @@ import org.mapstruct.*;
  */
 @Mapper(componentModel = "spring", 
         nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE,
-        unmappedTargetPolicy = ReportingPolicy.IGNORE)
+        unmappedTargetPolicy = ReportingPolicy.IGNORE,
+        uses = {})
 public interface LoanApplicationMapper {
 
     // Main application mapping

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { 
   FaFileAlt, 
@@ -6,11 +6,7 @@ import {
   FaClock, 
   FaCheckCircle, 
   FaTimesCircle,
-  FaPlus,
-  FaEye,
-  FaEdit,
   FaDollarSign,
-  FaMapMarkerAlt,
   FaUser,
   FaPhone,
   FaEnvelope,
@@ -23,14 +19,10 @@ import {
   FaCalendarAlt,
   FaPercent
 } from 'react-icons/fa';
-import { toast } from 'react-toastify';
-import mortgageService from '../services/mortgageService';
 
 const Dashboard = () => {
-  const [loading, setLoading] = useState(false);
-  
   // Mock loan progress data - in a real app, this would come from an API
-  const [loanProgress, setLoanProgress] = useState({
+  const [loanProgress] = useState({
     applicationId: "APP-2024-001",
     status: "Under Review",
     progress: 75,
@@ -150,16 +142,6 @@ const Dashboard = () => {
     }
   };
 
-  if (loading) {
-    return (
-      <div className="dashboard-container">
-        <div className="card">
-          <h2><FaChartLine /> Loan Progress Dashboard</h2>
-          <p>Loading loan progress...</p>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="dashboard-container">

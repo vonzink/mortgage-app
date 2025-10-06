@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import mortgageService from '../services/mortgageService';
@@ -9,11 +9,7 @@ const ApplicationDetails = () => {
   const [application, setApplication] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    fetchApplication();
-  }, [id]);
-
-  const fetchApplication = async () => {
+  const fetchApplication = useCallback(async () => {
     try {
       const data = await mortgageService.getApplication(id);
       setApplication(data);
@@ -24,7 +20,11 @@ const ApplicationDetails = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [id, navigate]);
+
+  useEffect(() => {
+    fetchApplication();
+  }, [fetchApplication]);
 
   const formatCurrency = (amount) => {
     return new Intl.NumberFormat('en-US', {

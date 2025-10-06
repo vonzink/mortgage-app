@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { toast } from 'react-toastify';
-import { FaFileAlt, FaEye, FaEdit, FaPlus, FaClock, FaCheckCircle, FaTimesCircle } from 'react-icons/fa';
+import { FaFileAlt, FaEye, FaPlus, FaClock, FaCheckCircle, FaTimesCircle } from 'react-icons/fa';
 import mortgageService from '../services/mortgageService';
 
 const ApplicationList = () => {

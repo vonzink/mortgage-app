@@ -34,7 +34,7 @@ public class LoanApplicationValidator implements ConstraintValidator<ValidLoanAp
             
             // Validate loan-to-value ratio (should not exceed 100%)
             BigDecimal ltv = loanApplication.getLoanAmount()
-                    .divide(loanApplication.getPropertyValue(), 4, BigDecimal.ROUND_HALF_UP)
+                    .divide(loanApplication.getPropertyValue(), 4, java.math.RoundingMode.HALF_UP)
                     .multiply(BigDecimal.valueOf(100));
             
             if (ltv.compareTo(BigDecimal.valueOf(100)) > 0) {

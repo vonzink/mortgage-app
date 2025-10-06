@@ -71,7 +71,7 @@ public class Employment {
     
     @Column(name = "employment_status", nullable = false)
     @NotBlank(message = "Employment status is required")
-    @Pattern(regexp = "Present|Prior|Current|Previous", message = "Employment status must be Present, Prior, Current, or Previous")
+    @Pattern(regexp = "Present|Prior", message = "Employment status must be Present or Prior")
     private String employmentStatus;
     
     @Column(name = "is_present")
@@ -121,7 +121,7 @@ public class Employment {
     }
     
     public boolean isCurrent() {
-        return "Current".equals(employmentStatus) || "Present".equals(employmentStatus);
+        return "Present".equals(employmentStatus);
     }
     
     public String getFullEmployerAddress() {

@@ -67,14 +67,12 @@ const EmploymentStep = ({
                 <div className="form-row">
                   <div className="form-group">
                     <label htmlFor={`borrowers.${borrowerIndex}.employmentHistory.${empIndex}.employerName`}>
-                      Employer Name *
+                      Employer Name
                     </label>
                     <input
                       type="text"
                       id={`borrowers.${borrowerIndex}.employmentHistory.${empIndex}.employerName`}
-                      {...register(`borrowers.${borrowerIndex}.employmentHistory.${empIndex}.employerName`, {
-                        required: 'Employer name is required'
-                      })}
+                      {...register(`borrowers.${borrowerIndex}.employmentHistory.${empIndex}.employerName`)}
                       placeholder="ABC Company"
                       className={errors.borrowers?.[borrowerIndex]?.employmentHistory?.[empIndex]?.employerName ? 'error' : ''}
                     />
@@ -87,14 +85,12 @@ const EmploymentStep = ({
 
                   <div className="form-group">
                     <label htmlFor={`borrowers.${borrowerIndex}.employmentHistory.${empIndex}.position`}>
-                      Position/Title *
+                      Position/Title
                     </label>
                     <input
                       type="text"
                       id={`borrowers.${borrowerIndex}.employmentHistory.${empIndex}.position`}
-                      {...register(`borrowers.${borrowerIndex}.employmentHistory.${empIndex}.position`, {
-                        required: 'Position is required'
-                      })}
+                      {...register(`borrowers.${borrowerIndex}.employmentHistory.${empIndex}.position`)}
                       placeholder="Software Engineer"
                       className={errors.borrowers?.[borrowerIndex]?.employmentHistory?.[empIndex]?.position ? 'error' : ''}
                     />
@@ -109,14 +105,12 @@ const EmploymentStep = ({
                 <div className="form-row">
                   <div className="form-group">
                     <label htmlFor={`borrowers.${borrowerIndex}.employmentHistory.${empIndex}.startDate`}>
-                      Start Date *
+                      Start Date
                     </label>
                     <input
                       type="date"
                       id={`borrowers.${borrowerIndex}.employmentHistory.${empIndex}.startDate`}
-                      {...register(`borrowers.${borrowerIndex}.employmentHistory.${empIndex}.startDate`, {
-                        required: 'Start date is required'
-                      })}
+                      {...register(`borrowers.${borrowerIndex}.employmentHistory.${empIndex}.startDate`)}
                       className={errors.borrowers?.[borrowerIndex]?.employmentHistory?.[empIndex]?.startDate ? 'error' : ''}
                     />
                     {errors.borrowers?.[borrowerIndex]?.employmentHistory?.[empIndex]?.startDate && (
@@ -128,13 +122,11 @@ const EmploymentStep = ({
 
                   <div className="form-group">
                     <label htmlFor={`borrowers.${borrowerIndex}.employmentHistory.${empIndex}.employmentStatus`}>
-                      Employment Status *
+                      Employment Status
                     </label>
                     <select
                       id={`borrowers.${borrowerIndex}.employmentHistory.${empIndex}.employmentStatus`}
-                      {...register(`borrowers.${borrowerIndex}.employmentHistory.${empIndex}.employmentStatus`, {
-                        required: 'Employment status is required'
-                      })}
+                      {...register(`borrowers.${borrowerIndex}.employmentHistory.${empIndex}.employmentStatus`)}
                       className={errors.borrowers?.[borrowerIndex]?.employmentHistory?.[empIndex]?.employmentStatus ? 'error' : ''}
                     >
                       <option value="">Select Status</option>
@@ -151,14 +143,12 @@ const EmploymentStep = ({
                   {watch(`borrowers.${borrowerIndex}.employmentHistory.${empIndex}.employmentStatus`) === 'Prior' && (
                     <div className="form-group">
                       <label htmlFor={`borrowers.${borrowerIndex}.employmentHistory.${empIndex}.endDate`}>
-                        End Date *
+                        End Date
                       </label>
                       <input
                         type="date"
                         id={`borrowers.${borrowerIndex}.employmentHistory.${empIndex}.endDate`}
-                        {...register(`borrowers.${borrowerIndex}.employmentHistory.${empIndex}.endDate`, {
-                          required: watch(`borrowers.${borrowerIndex}.employmentHistory.${empIndex}.employmentStatus`) === 'Prior' ? 'End date is required for prior employment' : false
-                        })}
+                        {...register(`borrowers.${borrowerIndex}.employmentHistory.${empIndex}.endDate`)}
                         className={errors.borrowers?.[borrowerIndex]?.employmentHistory?.[empIndex]?.endDate ? 'error' : ''}
                       />
                       {errors.borrowers?.[borrowerIndex]?.employmentHistory?.[empIndex]?.endDate && (
@@ -173,13 +163,12 @@ const EmploymentStep = ({
                 <div className="form-row">
                   <div className="form-group">
                     <label htmlFor={`borrowers.${borrowerIndex}.employmentHistory.${empIndex}.monthlyIncome`}>
-                      Monthly Income *
+                      Monthly Income
                     </label>
                     <input
                       type="number"
                       id={`borrowers.${borrowerIndex}.employmentHistory.${empIndex}.monthlyIncome`}
                       {...register(`borrowers.${borrowerIndex}.employmentHistory.${empIndex}.monthlyIncome`, {
-                        required: 'Monthly income is required',
                         min: { value: 0, message: 'Income cannot be negative' }
                       })}
                       placeholder="5000"
@@ -191,6 +180,16 @@ const EmploymentStep = ({
                         {errors.borrowers[borrowerIndex].employmentHistory[empIndex].monthlyIncome.message}
                       </span>
                     )}
+                  </div>
+
+                  <div className="form-group">
+                    <label>
+                      <input
+                        type="checkbox"
+                        {...register(`borrowers.${borrowerIndex}.employmentHistory.${empIndex}.selfEmployed`)}
+                      />
+                      {' '}Self-Employed
+                    </label>
                   </div>
                 </div>
 

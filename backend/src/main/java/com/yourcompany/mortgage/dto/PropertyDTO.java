@@ -1,30 +1,22 @@
 package com.yourcompany.mortgage.dto;
 
-import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.DecimalMin;
 import java.math.BigDecimal;
 
 public class PropertyDTO {
     
-    @NotBlank(message = "Address line is required")
     private String addressLine;
     
-    @NotBlank(message = "City is required")
     private String city;
     
-    @NotBlank(message = "State is required")
     private String state;
     
-    @NotBlank(message = "ZIP code is required")
     private String zipCode;
     
     private String county;
     
-    @NotBlank(message = "Property type is required")
     private String propertyType;
     
-    @NotNull(message = "Property value is required")
     @DecimalMin(value = "0.0", inclusive = false, message = "Property value must be greater than 0")
     private BigDecimal propertyValue;
     

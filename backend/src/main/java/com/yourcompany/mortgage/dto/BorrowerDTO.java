@@ -8,7 +8,6 @@ import java.util.List;
 
 public class BorrowerDTO {
     
-    @NotNull(message = "Sequence number is required")
     private Integer sequenceNumber;
     
     @NotBlank(message = "First name is required")
@@ -17,13 +16,10 @@ public class BorrowerDTO {
     @NotBlank(message = "Last name is required")
     private String lastName;
     
-    @NotBlank(message = "SSN is required")
     private String ssn;
     
-    @NotNull(message = "Birth date is required")
     private LocalDate birthDate;
     
-    @NotBlank(message = "Marital status is required")
     private String maritalStatus;
     
     @Email(message = "Valid email is required")
@@ -33,7 +29,6 @@ public class BorrowerDTO {
     @NotBlank(message = "Phone is required")
     private String phone;
     
-    @NotBlank(message = "Citizenship type is required")
     private String citizenshipType;
     
     private Integer dependentsCount = 0;

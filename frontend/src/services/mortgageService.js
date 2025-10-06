@@ -6,10 +6,20 @@ const mortgageService = {
   // Create a new mortgage application
   createApplication: async (applicationData) => {
     try {
+      console.log('[DEBUG] Sending application data:', JSON.stringify(applicationData, null, 2));
       const response = await axios.post(`${API_BASE_URL}/loan-applications`, applicationData);
       return response.data;
     } catch (error) {
-      throw new Error(error.response?.data?.message || 'Failed to create application');
+      console.error('API Error:', error.response?.data);
+      console.error('Full error response:', JSON.stringify(error.response?.data, null, 2));
+      if (error.response?.data?.fieldErrors) {
+        console.error('Field validation errors:', error.response.data.fieldErrors);
+      }
+      const errorMessage = error.response?.data?.message || 
+                          error.response?.data?.error || 
+                          error.response?.data || 
+                          'Failed to create application';
+      throw new Error(typeof errorMessage === 'string' ? errorMessage : 'Request validation failed');
     }
   },
 

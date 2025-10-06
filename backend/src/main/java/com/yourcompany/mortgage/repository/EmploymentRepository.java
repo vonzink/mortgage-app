@@ -31,6 +31,6 @@ public interface EmploymentRepository extends JpaRepository<Employment, Long> {
     @Query("SELECT e FROM Employment e WHERE e.selfEmployed = true")
     List<Employment> findBySelfEmployedTrue();
     
-    @Query("SELECT e FROM Employment e WHERE e.borrower.id = :borrowerId AND e.employmentStatus = 'Current'")
+    @Query("SELECT e FROM Employment e WHERE e.borrower.id = :borrowerId AND e.employmentStatus = 'Present'")
     List<Employment> findCurrentEmploymentByBorrowerId(@Param("borrowerId") Long borrowerId);
 }

@@ -6,7 +6,8 @@ import React from 'react';
 import { FaHome } from 'react-icons/fa';
 import FormSection from '../shared/FormSection';
 
-const LoanInformationStep = ({ register, errors }) => {
+const LoanInformationStep = ({ register, errors, watch }) => {
+  const loanPurpose = watch('loanPurpose');
   return (
     <FormSection
       title="Loan Information"
@@ -32,10 +33,10 @@ const LoanInformationStep = ({ register, errors }) => {
         </div>
 
         <div className="form-group">
-          <label htmlFor="loanType">Loan Type *</label>
+          <label htmlFor="loanType">Loan Type</label>
           <select
             id="loanType"
-            {...register('loanType', { required: 'Loan type is required' })}
+            {...register('loanType')}
             className={errors.loanType ? 'error' : ''}
           >
             <option value="">Select Loan Type</option>
@@ -52,12 +53,11 @@ const LoanInformationStep = ({ register, errors }) => {
 
       <div className="form-row">
         <div className="form-group">
-          <label htmlFor="loanAmount">Loan Amount *</label>
+          <label htmlFor="loanAmount">Loan Amount</label>
           <input
             type="number"
             id="loanAmount"
             {...register('loanAmount', { 
-              required: 'Loan amount is required',
               min: { value: 1, message: 'Loan amount must be greater than 0' }
             })}
             placeholder="500000"
@@ -69,12 +69,11 @@ const LoanInformationStep = ({ register, errors }) => {
         </div>
 
         <div className="form-group">
-          <label htmlFor="propertyValue">Property Value *</label>
+          <label htmlFor="propertyValue">Property Value</label>
           <input
             type="number"
             id="propertyValue"
             {...register('propertyValue', { 
-              required: 'Property value is required',
               min: { value: 1, message: 'Property value must be greater than 0' }
             })}
             placeholder="600000"
@@ -86,50 +85,51 @@ const LoanInformationStep = ({ register, errors }) => {
         </div>
       </div>
 
+      {loanPurpose === 'Purchase' && (
+        <div className="form-row">
+          <div className="form-group">
+            <label htmlFor="downPayment">Down Payment</label>
+            <input
+              type="number"
+              id="downPayment"
+              {...register('downPayment', { 
+                min: { value: 0, message: 'Down payment cannot be negative' }
+              })}
+              placeholder="100000"
+              className={errors.downPayment ? 'error' : ''}
+            />
+            {errors.downPayment && (
+              <span className="error-message">{errors.downPayment.message}</span>
+            )}
+          </div>
+
+          <div className="form-group">
+            <label htmlFor="downPaymentSource">Down Payment Source</label>
+            <select
+              id="downPaymentSource"
+              {...register('downPaymentSource')}
+              className={errors.downPaymentSource ? 'error' : ''}
+            >
+              <option value="">Select Source</option>
+              <option value="Savings">Savings</option>
+              <option value="Gift">Gift</option>
+              <option value="SaleOfProperty">Sale of Property</option>
+              <option value="Borrowed">Borrowed</option>
+              <option value="Other">Other</option>
+            </select>
+            {errors.downPaymentSource && (
+              <span className="error-message">{errors.downPaymentSource.message}</span>
+            )}
+          </div>
+        </div>
+      )}
+
       <div className="form-row">
         <div className="form-group">
-          <label htmlFor="downPayment">Down Payment *</label>
-          <input
-            type="number"
-            id="downPayment"
-            {...register('downPayment', { 
-              required: 'Down payment is required',
-              min: { value: 0, message: 'Down payment cannot be negative' }
-            })}
-            placeholder="100000"
-            className={errors.downPayment ? 'error' : ''}
-          />
-          {errors.downPayment && (
-            <span className="error-message">{errors.downPayment.message}</span>
-          )}
-        </div>
-
-        <div className="form-group">
-          <label htmlFor="downPaymentSource">Down Payment Source *</label>
-          <select
-            id="downPaymentSource"
-            {...register('downPaymentSource', { required: 'Down payment source is required' })}
-            className={errors.downPaymentSource ? 'error' : ''}
-          >
-            <option value="">Select Source</option>
-            <option value="Savings">Savings</option>
-            <option value="Gift">Gift</option>
-            <option value="SaleOfProperty">Sale of Property</option>
-            <option value="Borrowed">Borrowed</option>
-            <option value="Other">Other</option>
-          </select>
-          {errors.downPaymentSource && (
-            <span className="error-message">{errors.downPaymentSource.message}</span>
-          )}
-        </div>
-      </div>
-
-      <div className="form-row">
-        <div className="form-group">
-          <label htmlFor="propertyUse">Property Use *</label>
+          <label htmlFor="propertyUse">Property Use</label>
           <select
             id="propertyUse"
-            {...register('propertyUse', { required: 'Property use is required' })}
+            {...register('propertyUse')}
             className={errors.propertyUse ? 'error' : ''}
           >
             <option value="">Select Use</option>
@@ -143,10 +143,10 @@ const LoanInformationStep = ({ register, errors }) => {
         </div>
 
         <div className="form-group">
-          <label htmlFor="propertyType">Property Type *</label>
+          <label htmlFor="propertyType">Property Type</label>
           <select
             id="propertyType"
-            {...register('propertyType', { required: 'Property type is required' })}
+            {...register('propertyType')}
             className={errors.propertyType ? 'error' : ''}
           >
             <option value="">Select Type</option>
@@ -165,10 +165,10 @@ const LoanInformationStep = ({ register, errors }) => {
 
       <div className="form-row">
         <div className="form-group">
-          <label htmlFor="occupancy">Occupancy *</label>
+          <label htmlFor="occupancy">Occupancy</label>
           <select
             id="occupancy"
-            {...register('occupancy', { required: 'Occupancy is required' })}
+            {...register('occupancy')}
             className={errors.occupancy ? 'error' : ''}
           >
             <option value="">Select Occupancy</option>

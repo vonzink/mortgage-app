@@ -21,13 +21,9 @@ export const useFormValidation = (getValues, watch) => {
     const borrower = getValues(`borrowers.${borrowerIndex}`);
     const errors = [];
 
-    // Required fields validation
+    // Required fields validation - only firstName, lastName, email, and phone
     if (!borrower.firstName) errors.push('First name is required');
     if (!borrower.lastName) errors.push('Last name is required');
-    if (!borrower.ssn) errors.push('SSN is required');
-    if (!borrower.dateOfBirth) errors.push('Date of birth is required');
-    if (!borrower.maritalStatus) errors.push('Marital status is required');
-    if (!borrower.citizenshipType) errors.push('Citizenship type is required');
     if (!borrower.email) errors.push('Email is required');
     if (!borrower.phone) errors.push('Phone number is required');
 
@@ -57,27 +53,13 @@ export const useFormValidation = (getValues, watch) => {
     const residences = getValues(`borrowers.${borrowerIndex}.residences`) || [];
     const errors = [];
     
-    // Check each residence
-    residences.forEach((residence, index) => {
-      if (!residence.addressLine) {
-        errors.push(`Residence ${index + 1}: Address is required`);
-      }
-      if (!residence.city) {
-        errors.push(`Residence ${index + 1}: City is required`);
-      }
-      if (!residence.state) {
-        errors.push(`Residence ${index + 1}: State is required`);
-      }
-      if (!residence.zipCode) {
-        errors.push(`Residence ${index + 1}: ZIP code is required`);
-      }
-    });
-
-    // Check duration warning
+    // No required fields for residence - all optional
+    
+    // Check duration warning (informational only)
     const warning = checkResidenceHistoryWarning(residences);
 
     return {
-      isValid: errors.length === 0,
+      isValid: true, // Always valid since no required fields
       errors,
       warning
     };
@@ -92,32 +74,13 @@ export const useFormValidation = (getValues, watch) => {
     const employmentHistory = getValues(`borrowers.${borrowerIndex}.employmentHistory`) || [];
     const errors = [];
     
-    // Check each employment
-    employmentHistory.forEach((employment, index) => {
-      if (!employment.employerName) {
-        errors.push(`Employment ${index + 1}: Employer name is required`);
-      }
-      if (!employment.position) {
-        errors.push(`Employment ${index + 1}: Position is required`);
-      }
-      if (!employment.startDate) {
-        errors.push(`Employment ${index + 1}: Start date is required`);
-      }
-      if (!employment.monthlyIncome) {
-        errors.push(`Employment ${index + 1}: Monthly income is required`);
-      }
-      
-      // Validate employment status and end date
-      if (employment.employmentStatus === 'Prior' && !employment.endDate) {
-        errors.push(`Employment ${index + 1}: End date is required for prior employment`);
-      }
-    });
+    // No required fields for employment - all optional
 
-    // Check duration warning
+    // Check duration warning (informational only)
     const warning = checkEmploymentHistoryWarning(employmentHistory);
 
     return {
-      isValid: errors.length === 0,
+      isValid: true, // Always valid since no required fields
       errors,
       warning
     };
@@ -131,18 +94,10 @@ export const useFormValidation = (getValues, watch) => {
     const property = getValues();
     const errors = [];
 
-    if (!property.propertyAddress) errors.push('Property address is required');
-    if (!property.propertyCity) errors.push('Property city is required');
-    if (!property.propertyState) errors.push('Property state is required');
-    if (!property.propertyZip) errors.push('Property ZIP code is required');
-    if (!property.propertyType) errors.push('Property type is required');
-    if (!property.propertyValue) errors.push('Property value is required');
-    if (!property.constructionType) errors.push('Construction type is required');
-    if (!property.yearBuilt) errors.push('Year built is required');
-    if (!property.unitsCount) errors.push('Number of units is required');
+    // No required fields for property - all optional
 
     return {
-      isValid: errors.length === 0,
+      isValid: true, // Always valid since no required fields
       errors
     };
   }, [getValues]);
@@ -155,14 +110,8 @@ export const useFormValidation = (getValues, watch) => {
     const loanInfo = getValues();
     const errors = [];
 
+    // Only loanPurpose is required
     if (!loanInfo.loanPurpose) errors.push('Loan purpose is required');
-    if (!loanInfo.loanType) errors.push('Loan type is required');
-    if (!loanInfo.loanAmount) errors.push('Loan amount is required');
-    if (!loanInfo.propertyValue) errors.push('Property value is required');
-    if (!loanInfo.downPayment) errors.push('Down payment is required');
-    if (!loanInfo.downPaymentSource) errors.push('Down payment source is required');
-    if (!loanInfo.propertyUse) errors.push('Property use is required');
-    if (!loanInfo.occupancy) errors.push('Occupancy is required');
 
     return {
       isValid: errors.length === 0,

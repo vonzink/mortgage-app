@@ -69,13 +69,12 @@ const PersonalInfoField = ({
       <div className="form-row">
         <div className="form-group">
           <label htmlFor={getFieldName('ssn')}>
-            Social Security Number {required && '*'}
+            Social Security Number
           </label>
           <input
             type="text"
             id={getFieldName('ssn')}
             {...register(getFieldName('ssn'), { 
-              required: required ? 'SSN is required' : false,
               pattern: {
                 value: /^\d{3}-?\d{2}-?\d{4}$/,
                 message: 'Invalid SSN format'
@@ -91,14 +90,12 @@ const PersonalInfoField = ({
 
         <div className="form-group">
           <label htmlFor={getFieldName('dateOfBirth')}>
-            Date of Birth {required && '*'}
+            Date of Birth
           </label>
           <input
             type="date"
             id={getFieldName('dateOfBirth')}
-            {...register(getFieldName('dateOfBirth'), { 
-              required: required ? 'Date of birth is required' : false 
-            })}
+            {...register(getFieldName('dateOfBirth'))}
             className={getError('dateOfBirth') ? 'error' : ''}
           />
           {getError('dateOfBirth') && (
@@ -108,13 +105,11 @@ const PersonalInfoField = ({
 
         <div className="form-group">
           <label htmlFor={getFieldName('maritalStatus')}>
-            Marital Status {required && '*'}
+            Marital Status
           </label>
           <select
             id={getFieldName('maritalStatus')}
-            {...register(getFieldName('maritalStatus'), { 
-              required: required ? 'Marital status is required' : false 
-            })}
+            {...register(getFieldName('maritalStatus'))}
             className={getError('maritalStatus') ? 'error' : ''}
           >
             <option value="">Select Status</option>
@@ -142,28 +137,6 @@ const PersonalInfoField = ({
             placeholder="0"
             min="0"
           />
-        </div>
-
-        <div className="form-group">
-          <label htmlFor={getFieldName('citizenshipType')}>
-            Citizenship Type {required && '*'}
-          </label>
-          <select
-            id={getFieldName('citizenshipType')}
-            {...register(getFieldName('citizenshipType'), { 
-              required: required ? 'Citizenship type is required' : false 
-            })}
-            className={getError('citizenshipType') ? 'error' : ''}
-          >
-            <option value="">Select Type</option>
-            <option value="USCitizen">US Citizen</option>
-            <option value="PermanentResident">Permanent Resident</option>
-            <option value="NonResidentAlien">Non-Resident Alien</option>
-            <option value="Other">Other</option>
-          </select>
-          {getError('citizenshipType') && (
-            <span className="error-message">{getError('citizenshipType').message}</span>
-          )}
         </div>
       </div>
 

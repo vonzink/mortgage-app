@@ -78,6 +78,30 @@ const BorrowerInformationStep = ({
               required={borrowerIndex === 0}
             />
 
+            {/* Relationship to Primary Borrower (only for co-borrowers) */}
+            {borrowerIndex > 0 && (
+              <div className="form-row">
+                <div className="form-group">
+                  <label htmlFor={`borrowers.${borrowerIndex}.relationshipToPrimaryBorrower`}>
+                    Relationship to Primary Borrower
+                  </label>
+                  <select
+                    id={`borrowers.${borrowerIndex}.relationshipToPrimaryBorrower`}
+                    {...register(`borrowers.${borrowerIndex}.relationshipToPrimaryBorrower`)}
+                  >
+                    <option value="">Select Relationship</option>
+                    <option value="Spouse">Spouse</option>
+                    <option value="Parent">Parent</option>
+                    <option value="Child">Child</option>
+                    <option value="Sibling">Sibling</option>
+                    <option value="Friend">Friend</option>
+                    <option value="BusinessPartner">Business Partner</option>
+                    <option value="Other">Other</option>
+                  </select>
+                </div>
+              </div>
+            )}
+
             {/* Residence History Section */}
             <div className="residence-history-section">
               <h5>Residence History</h5>
@@ -113,20 +137,18 @@ const BorrowerInformationStep = ({
                           register={register}
                           errors={errors}
                           prefix={`borrowers.${borrowerIndex}.residences.${resIndex}`}
-                          required={true}
+                          required={false}
                           label="Residence Address"
                         />
 
                         <div className="form-row">
                           <div className="form-group">
                             <label htmlFor={`borrowers.${borrowerIndex}.residences.${resIndex}.residencyType`}>
-                              Residency Type *
+                              Residency Type
                             </label>
                             <select
                               id={`borrowers.${borrowerIndex}.residences.${resIndex}.residencyType`}
-                              {...register(`borrowers.${borrowerIndex}.residences.${resIndex}.residencyType`, {
-                                required: 'Residency type is required'
-                              })}
+                              {...register(`borrowers.${borrowerIndex}.residences.${resIndex}.residencyType`)}
                             >
                               <option value="">Select Type</option>
                               <option value="Current">Current</option>
@@ -136,13 +158,11 @@ const BorrowerInformationStep = ({
 
                           <div className="form-group">
                             <label htmlFor={`borrowers.${borrowerIndex}.residences.${resIndex}.residencyBasis`}>
-                              Residency Basis *
+                              Residency Basis
                             </label>
                             <select
                               id={`borrowers.${borrowerIndex}.residences.${resIndex}.residencyBasis`}
-                              {...register(`borrowers.${borrowerIndex}.residences.${resIndex}.residencyBasis`, {
-                                required: 'Residency basis is required'
-                              })}
+                              {...register(`borrowers.${borrowerIndex}.residences.${resIndex}.residencyBasis`)}
                             >
                               <option value="">Select Basis</option>
                               <option value="Own">Own</option>
@@ -152,57 +172,90 @@ const BorrowerInformationStep = ({
                           </div>
                         </div>
                         
-                        <div className="form-row">
-                          <div className="form-group">
-                            <label htmlFor={`borrowers.${borrowerIndex}.residences.${resIndex}.durationYears`}>Years</label>
-                            <input
-                              type="number"
-                              id={`borrowers.${borrowerIndex}.residences.${resIndex}.durationYears`}
-                              {...register(`borrowers.${borrowerIndex}.residences.${resIndex}.durationYears`)}
-                              placeholder="2"
-                              min="0"
-                              onChange={(e) => {
-                                const years = parseInt(e.target.value) || 0;
-                                const months = parseInt(getValues(`borrowers.${borrowerIndex}.residences.${resIndex}.durationMonthsOnly`)) || 0;
-                                const totalMonths = (years * 12) + months;
-                                setValue(`borrowers.${borrowerIndex}.residences.${resIndex}.durationMonths`, totalMonths);
-                              }}
-                            />
-                          </div>
-                          
-                          <div className="form-group">
-                            <label htmlFor={`borrowers.${borrowerIndex}.residences.${resIndex}.durationMonthsOnly`}>Months</label>
-                            <input
-                              type="number"
-                              id={`borrowers.${borrowerIndex}.residences.${resIndex}.durationMonthsOnly`}
-                              {...register(`borrowers.${borrowerIndex}.residences.${resIndex}.durationMonthsOnly`)}
-                              placeholder="6"
-                              min="0"
-                              max="11"
-                              onChange={(e) => {
-                                const months = parseInt(e.target.value) || 0;
-                                const years = parseInt(getValues(`borrowers.${borrowerIndex}.residences.${resIndex}.durationYears`)) || 0;
-                                const totalMonths = (years * 12) + months;
-                                setValue(`borrowers.${borrowerIndex}.residences.${resIndex}.durationMonths`, totalMonths);
-                              }}
-                            />
-                          </div>
-                          
-                          {watch(`borrowers.${borrowerIndex}.residences.${resIndex}.residencyBasis`) === 'Rent' && (
+                        {watch(`borrowers.${borrowerIndex}.residences.${resIndex}.residencyType`) === 'Prior' ? (
+                          <div className="form-row">
                             <div className="form-group">
-                              <label htmlFor={`borrowers.${borrowerIndex}.residences.${resIndex}.monthlyRent`}>Monthly Rent *</label>
+                              <label htmlFor={`borrowers.${borrowerIndex}.residences.${resIndex}.startDate`}>Start Date</label>
                               <input
-                                type="number"
-                                id={`borrowers.${borrowerIndex}.residences.${resIndex}.monthlyRent`}
-                                {...register(`borrowers.${borrowerIndex}.residences.${resIndex}.monthlyRent`, {
-                                  required: watch(`borrowers.${borrowerIndex}.residences.${resIndex}.residencyBasis`) === 'Rent' ? 'Monthly rent is required' : false
-                                })}
-                                placeholder="1500"
-                                min="0"
+                                type="date"
+                                id={`borrowers.${borrowerIndex}.residences.${resIndex}.startDate`}
+                                {...register(`borrowers.${borrowerIndex}.residences.${resIndex}.startDate`)}
                               />
                             </div>
-                          )}
-                        </div>
+                            
+                            <div className="form-group">
+                              <label htmlFor={`borrowers.${borrowerIndex}.residences.${resIndex}.endDate`}>End Date</label>
+                              <input
+                                type="date"
+                                id={`borrowers.${borrowerIndex}.residences.${resIndex}.endDate`}
+                                {...register(`borrowers.${borrowerIndex}.residences.${resIndex}.endDate`)}
+                              />
+                            </div>
+                            
+                            {watch(`borrowers.${borrowerIndex}.residences.${resIndex}.residencyBasis`) === 'Rent' && (
+                              <div className="form-group">
+                                <label htmlFor={`borrowers.${borrowerIndex}.residences.${resIndex}.monthlyRent`}>Monthly Rent</label>
+                                <input
+                                  type="number"
+                                  id={`borrowers.${borrowerIndex}.residences.${resIndex}.monthlyRent`}
+                                  {...register(`borrowers.${borrowerIndex}.residences.${resIndex}.monthlyRent`)}
+                                  placeholder="1500"
+                                  min="0"
+                                />
+                              </div>
+                            )}
+                          </div>
+                        ) : (
+                          <div className="form-row">
+                            <div className="form-group">
+                              <label htmlFor={`borrowers.${borrowerIndex}.residences.${resIndex}.durationYears`}>Years</label>
+                              <input
+                                type="number"
+                                id={`borrowers.${borrowerIndex}.residences.${resIndex}.durationYears`}
+                                {...register(`borrowers.${borrowerIndex}.residences.${resIndex}.durationYears`)}
+                                placeholder="2"
+                                min="0"
+                                onChange={(e) => {
+                                  const years = parseInt(e.target.value) || 0;
+                                  const months = parseInt(getValues(`borrowers.${borrowerIndex}.residences.${resIndex}.durationMonthsOnly`)) || 0;
+                                  const totalMonths = (years * 12) + months;
+                                  setValue(`borrowers.${borrowerIndex}.residences.${resIndex}.durationMonths`, totalMonths);
+                                }}
+                              />
+                            </div>
+                            
+                            <div className="form-group">
+                              <label htmlFor={`borrowers.${borrowerIndex}.residences.${resIndex}.durationMonthsOnly`}>Months</label>
+                              <input
+                                type="number"
+                                id={`borrowers.${borrowerIndex}.residences.${resIndex}.durationMonthsOnly`}
+                                {...register(`borrowers.${borrowerIndex}.residences.${resIndex}.durationMonthsOnly`)}
+                                placeholder="6"
+                                min="0"
+                                max="11"
+                                onChange={(e) => {
+                                  const months = parseInt(e.target.value) || 0;
+                                  const years = parseInt(getValues(`borrowers.${borrowerIndex}.residences.${resIndex}.durationYears`)) || 0;
+                                  const totalMonths = (years * 12) + months;
+                                  setValue(`borrowers.${borrowerIndex}.residences.${resIndex}.durationMonths`, totalMonths);
+                                }}
+                              />
+                            </div>
+                            
+                            {watch(`borrowers.${borrowerIndex}.residences.${resIndex}.residencyBasis`) === 'Rent' && (
+                              <div className="form-group">
+                                <label htmlFor={`borrowers.${borrowerIndex}.residences.${resIndex}.monthlyRent`}>Monthly Rent</label>
+                                <input
+                                  type="number"
+                                  id={`borrowers.${borrowerIndex}.residences.${resIndex}.monthlyRent`}
+                                  {...register(`borrowers.${borrowerIndex}.residences.${resIndex}.monthlyRent`)}
+                                  placeholder="1500"
+                                  min="0"
+                                />
+                              </div>
+                            )}
+                          </div>
+                        )}
                       </div>
                     ))}
 

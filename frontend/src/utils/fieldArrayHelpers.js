@@ -116,7 +116,8 @@ export const createDefaultEmployment = (sequenceNumber) => ({
   employmentStatus: 'Present',
   monthlyIncome: '',
   employerAddress: '',
-  employerPhone: ''
+  employerPhone: '',
+  selfEmployed: false
 });
 
 /**

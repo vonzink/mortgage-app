@@ -16,6 +16,7 @@ const AssetsLiabilitiesStep = ({
   errors, 
   watch, 
   getValues, 
+  setValue,
   getFieldArray,
   borrowerFields
 }) => {
@@ -351,7 +352,32 @@ const AssetsLiabilitiesStep = ({
                           <label htmlFor={`borrowers.${borrowerIndex}.reoProperties.${reoIndex}.associatedLiability`}>
                             Associated Liability
                           </label>
-                          <select {...register(`borrowers.${borrowerIndex}.reoProperties.${reoIndex}.associatedLiability`)}>
+                          <select 
+                            {...register(`borrowers.${borrowerIndex}.reoProperties.${reoIndex}.associatedLiability`)}
+                            onChange={(e) => {
+                              const liabIndex = e.target.value;
+                              setValue(`borrowers.${borrowerIndex}.reoProperties.${reoIndex}.associatedLiability`, liabIndex);
+                              
+                              if (liabIndex !== '') {
+                                const liability = getValues(`borrowers.${borrowerIndex}.liabilities.${liabIndex}`);
+                                if (liability) {
+                                  // Prefill monthly payment and unpaid balance from the selected liability
+                                  if (liability.monthlyPayment) {
+                                    const currentValue = getValues(`borrowers.${borrowerIndex}.reoProperties.${reoIndex}.monthlyPayment`);
+                                    if (!currentValue) {
+                                      setValue(`borrowers.${borrowerIndex}.reoProperties.${reoIndex}.monthlyPayment`, liability.monthlyPayment);
+                                    }
+                                  }
+                                  if (liability.unpaidBalance) {
+                                    const currentValue = getValues(`borrowers.${borrowerIndex}.reoProperties.${reoIndex}.unpaidBalance`);
+                                    if (!currentValue) {
+                                      setValue(`borrowers.${borrowerIndex}.reoProperties.${reoIndex}.unpaidBalance`, liability.unpaidBalance);
+                                    }
+                                  }
+                                }
+                              }
+                            }}
+                          >
                             <option value="">Select Associated Liability</option>
                             {liabilityFields.map((liability, liabIndex) => {
                               const liabilityData = getValues(`borrowers.${borrowerIndex}.liabilities.${liabIndex}`);

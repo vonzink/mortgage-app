@@ -50,7 +50,7 @@ public class EmploymentDTO {
     private BigDecimal monthlyIncome;
     
     @NotBlank(message = "Employment status is required")
-    @Pattern(regexp = "Present|Prior|Current|Previous", message = "Employment status must be Present, Prior, Current, or Previous")
+    @Pattern(regexp = "Present|Prior", message = "Employment status must be Present or Prior")
     private String employmentStatus;
     
     private Boolean isPresent = false;
@@ -100,7 +100,7 @@ public class EmploymentDTO {
     }
     
     public boolean isCurrent() {
-        return "Current".equals(employmentStatus) || "Present".equals(employmentStatus);
+        return "Present".equals(employmentStatus);
     }
     
     // Getters and Setters

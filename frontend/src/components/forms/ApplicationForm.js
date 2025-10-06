@@ -100,19 +100,21 @@ const ApplicationForm = () => {
       const applicationData = {
         loanPurpose: data.loanPurpose,
         loanType: data.loanType,
-        loanAmount: parseFloat(data.loanAmount),
-        propertyValue: parseFloat(data.propertyValue),
-        property: {
-          addressLine: data.propertyAddress,
-          city: data.propertyCity,
-          state: data.propertyState,
-          zipCode: data.propertyZip,
-          propertyType: data.propertyType,
-          propertyValue: parseFloat(data.propertyValue),
+        loanAmount: parseFloat(data.loanAmount) || null,
+        propertyValue: parseFloat(data.propertyValue) || null,
+        // Only include property if not TBD and has required fields
+        property: (!data.propertyTBD && data.property?.addressLine && data.property?.city && 
+                   data.property?.state && data.property?.zipCode) ? {
+          addressLine: data.property.addressLine,
+          city: data.property.city,
+          state: data.property.state,
+          zipCode: data.property.zipCode,
+          propertyType: data.propertyType || 'SingleFamily',
+          propertyValue: parseFloat(data.propertyValue) || parseFloat(data.loanAmount) || 100000,
           constructionType: data.constructionType,
-          yearBuilt: parseInt(data.yearBuilt),
-          unitsCount: parseInt(data.unitsCount) || 1
-        },
+          yearBuilt: parseInt(data.yearBuilt) || null,
+          unitsCount: parseInt(data.unitsCount) || null
+        } : null,
         borrowers: data.borrowers.map((borrower, index) => ({
           sequenceNumber: index + 1,
           firstName: borrower.firstName,
@@ -201,7 +203,7 @@ const ApplicationForm = () => {
   const renderStepContent = () => {
     switch (currentStep) {
       case 1:
-        return <LoanInformationStep register={register} errors={errors} />;
+        return <LoanInformationStep register={register} errors={errors} watch={watch} />;
       case 2:
         return (
           <BorrowerInformationStep
@@ -217,7 +219,7 @@ const ApplicationForm = () => {
           />
         );
       case 3:
-        return <PropertyDetailsStep register={register} errors={errors} />;
+        return <PropertyDetailsStep register={register} errors={errors} watch={watch} getValues={getValues} setValue={setValue} />;
       case 4:
         return (
           <EmploymentStep
@@ -236,6 +238,7 @@ const ApplicationForm = () => {
             errors={errors}
             watch={watch}
             getValues={getValues}
+            setValue={setValue}
             getFieldArray={getFieldArray}
             borrowerFields={borrowers.fields}
           />
@@ -272,7 +275,7 @@ const ApplicationForm = () => {
           steps={steps}
           currentStep={currentStep}
           onStepClick={handleStepClick}
-          clickableSteps={false}
+          clickableSteps={true}
         />
 
         <div className="step-content-container">

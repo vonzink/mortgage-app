@@ -14,7 +14,6 @@ import java.util.Optional;
 
 @RestController
 @RequestMapping("/loan-applications")
-@CrossOrigin(origins = "http://localhost:3000")
 public class LoanApplicationController {
     
     @Autowired

@@ -2,7 +2,7 @@
  * Borrower Information Step Component
  * Step 2: Personal details and residence history
  */
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { FaUser, FaPlus, FaTimes } from 'react-icons/fa';
 import { toast } from 'react-toastify';
 import FormSection from '../shared/FormSection';
@@ -29,14 +29,32 @@ const BorrowerInformationStep = ({
 }) => {
   const loanPurpose = watch('loanPurpose');
   const [activeBorrowerTab, setActiveBorrowerTab] = useState(0);
+  const isAddingRef = useRef(false);
+
+  // Track borrower count changes
+  useEffect(() => {
+    console.log('[DEBUG] borrowerFields changed. Count:', borrowerFields.length);
+  }, [borrowerFields.length]);
 
   const addBorrower = () => {
-    console.log('[DEBUG] Before add - borrowerFields.length:', borrowerFields.length);
+    if (isAddingRef.current) {
+      console.log('[DEBUG] Already adding borrower, ignoring duplicate call');
+      return;
+    }
+    
+    console.log('[DEBUG] addBorrower called. Current count:', borrowerFields.length);
+    
     if (borrowerFields.length < 4) {
+      isAddingRef.current = true;
       appendBorrower(createDefaultBorrower(borrowerFields.length + 1));
-      console.log('[DEBUG] Added borrower. New length should be:', borrowerFields.length + 1);
+      console.log('[DEBUG] appendBorrower called. New length should be:', borrowerFields.length + 1);
       // Switch to the new borrower tab
       setActiveBorrowerTab(borrowerFields.length);
+      
+      // Reset the flag after a short delay
+      setTimeout(() => {
+        isAddingRef.current = false;
+      }, 500);
     }
   };
 

@@ -4,7 +4,7 @@ import { toast } from 'react-toastify';
 import { useDropzone } from 'react-dropzone';
 import { FaUpload, FaFile, FaDownload, FaTrash, FaCheckCircle, FaTimes, FaFileAlt, FaExclamationTriangle, FaInfoCircle } from 'react-icons/fa';
 import mortgageService from '../services/mortgageService';
-import { generateDocumentRecommendations } from '../utils/documentRecommendations';
+import { generateDocumentRecommendations, calculateCoverageStats } from '../utils/documentRecommendations';
 
 const DOCUMENT_TYPES = [
   'Pay Stub',
@@ -32,6 +32,7 @@ const ApplicationDetails = () => {
   const [uploading, setUploading] = useState(false);
   const [pendingFiles, setPendingFiles] = useState([]);
   const [recommendations, setRecommendations] = useState(null);
+  const [stats, setStats] = useState(null);
 
   const fetchApplication = useCallback(async () => {
     try {
@@ -63,7 +64,9 @@ const ApplicationDetails = () => {
   useEffect(() => {
     if (application) {
       const recs = generateDocumentRecommendations(application);
+      const coverage = calculateCoverageStats(application.borrowers || []);
       setRecommendations(recs);
+      setStats(coverage);
     }
   }, [application]);
 
@@ -185,6 +188,38 @@ const ApplicationDetails = () => {
       hour: '2-digit',
       minute: '2-digit'
     });
+  };
+
+  const getDocStatusClass = (status) => {
+    switch (status) {
+      case 'Required':
+      case 'required':
+        return 'status-required';
+      case 'Conditional':
+      case 'conditional':
+        return 'status-conditional';
+      case 'Review':
+      case 'review':
+        return 'status-review';
+      case 'OK':
+      case 'ok':
+        return 'status-ok';
+      default:
+        return '';
+    }
+  };
+
+  const getDocStatusIcon = (status) => {
+    switch (status) {
+      case 'Required':
+      case 'required':
+        return <FaExclamationTriangle />;
+      case 'OK':
+      case 'ok':
+        return <FaCheckCircle />;
+      default:
+        return <FaInfoCircle />;
+    }
   };
 
   const getStatusClass = (status) => {
@@ -357,63 +392,182 @@ const ApplicationDetails = () => {
       </div>
 
       {/* Recommended Documents Section */}
-      {recommendations && (
+      {recommendations && stats && (
         <div className="card" style={{ marginTop: '2rem' }}>
-          <h2><FaFileAlt /> Recommended Documents Checklist</h2>
-          <p style={{ marginBottom: '1.5rem', color: 'var(--text-secondary)' }}>
-            Based on your application details, here are the recommended documents you should upload:
-          </p>
-
-          {/* Document Categories */}
-          {Object.entries(recommendations).map(([category, items]) => {
-            if (items.length === 0) return null;
-            
-            return (
-              <div key={category} className="recommendation-section" style={{ marginBottom: '2rem' }}>
-                <h3 style={{ marginBottom: '1rem', fontSize: '1.1rem', color: 'var(--primary-color)' }}>
-                  {category.replace(/([A-Z])/g, ' $1').trim()}
-                </h3>
-                <div className="recommendation-list">
-                  {items.map((item, index) => (
-                    <div key={index} className="recommendation-item" style={{
-                      display: 'flex',
-                      alignItems: 'flex-start',
-                      gap: '0.75rem',
-                      padding: '0.75rem',
-                      marginBottom: '0.5rem',
-                      backgroundColor: 'var(--bg-secondary)',
-                      borderRadius: 'var(--border-radius)',
-                      border: '1px solid var(--border-color)'
-                    }}>
-                      {item.status === 'Required' ? (
-                        <FaExclamationTriangle style={{ color: 'var(--error-color)', marginTop: '0.25rem', flexShrink: 0 }} />
-                      ) : (
-                        <FaInfoCircle style={{ color: 'var(--secondary-color)', marginTop: '0.25rem', flexShrink: 0 }} />
-                      )}
-                      <div style={{ flex: 1 }}>
-                        <div style={{ fontWeight: '500', marginBottom: '0.25rem' }}>{item.document}</div>
-                        <div style={{ fontSize: '0.9rem', color: 'var(--text-secondary)' }}>
-                          <span className={`status-chip status-${item.status.toLowerCase()}`} style={{
-                            display: 'inline-block',
-                            padding: '0.15rem 0.5rem',
-                            borderRadius: '3px',
-                            fontSize: '0.75rem',
-                            fontWeight: '600',
-                            marginRight: '0.5rem',
-                            backgroundColor: item.status === 'Required' ? 'var(--error-color)' : 'var(--secondary-color)',
-                            color: 'white'
-                          }}>
-                            {item.status}
-                          </span>
-                          {item.reason}
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
+          <h2><FaFileAlt /> Loan Document Checklist</h2>
+          
+          {/* Application Snapshot */}
+          <div className="doc-summary-section" style={{ marginBottom: '2rem', padding: '1.5rem', backgroundColor: 'var(--bg-secondary)', borderRadius: 'var(--border-radius)' }}>
+            <h3 style={{ marginBottom: '1rem' }}>Application Snapshot</h3>
+            <div className="summary-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem', marginBottom: '1rem' }}>
+              <div className="summary-item">
+                <span className="summary-label" style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', display: 'block' }}>Borrowers</span>
+                <span className="summary-value" style={{ fontWeight: '500' }}>
+                  {(application.borrowers || []).map(b => `${b.firstName} ${b.lastName}`).join(', ') || '—'}
+                </span>
               </div>
-            );
-          })}
+              <div className="summary-item">
+                <span className="summary-label" style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', display: 'block' }}>Purpose</span>
+                <span className="summary-value" style={{ fontWeight: '500' }}>{application.loanPurpose || '—'}</span>
+              </div>
+              <div className="summary-item">
+                <span className="summary-label" style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', display: 'block' }}>Loan Type</span>
+                <span className="summary-value" style={{ fontWeight: '500' }}>{application.loanType || '—'}</span>
+              </div>
+              <div className="summary-item">
+                <span className="summary-label" style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', display: 'block' }}>Loan Amount</span>
+                <span className="summary-value" style={{ fontWeight: '500' }}>
+                  {application.loanAmount ? formatCurrency(application.loanAmount) : '—'}
+                </span>
+              </div>
+            </div>
+
+            {/* Coverage Chips */}
+            <div className="coverage-chips" style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+              <div className={`coverage-chip ${stats.employmentCoverage.needed > 0 ? 'need' : 'ok'}`} style={{
+                padding: '0.5rem 1rem',
+                borderRadius: 'var(--border-radius)',
+                fontSize: '0.85rem',
+                fontWeight: '500',
+                backgroundColor: stats.employmentCoverage.needed > 0 ? '#fff3cd' : '#d4edda',
+                color: stats.employmentCoverage.needed > 0 ? '#856404' : '#155724',
+                border: `1px solid ${stats.employmentCoverage.needed > 0 ? '#ffeaa7' : '#c3e6cb'}`
+              }}>
+                {stats.employmentCoverage.needed > 0 
+                  ? `Employment: need +${stats.employmentCoverage.needed} mo`
+                  : 'Employment: 24 mo ✓'}
+              </div>
+              <div className={`coverage-chip ${stats.residenceCoverage.needed > 0 ? 'need' : 'ok'}`} style={{
+                padding: '0.5rem 1rem',
+                borderRadius: 'var(--border-radius)',
+                fontSize: '0.85rem',
+                fontWeight: '500',
+                backgroundColor: stats.residenceCoverage.needed > 0 ? '#fff3cd' : '#d4edda',
+                color: stats.residenceCoverage.needed > 0 ? '#856404' : '#155724',
+                border: `1px solid ${stats.residenceCoverage.needed > 0 ? '#ffeaa7' : '#c3e6cb'}`
+              }}>
+                {stats.residenceCoverage.needed > 0 
+                  ? `Residence: need +${stats.residenceCoverage.needed} mo`
+                  : 'Residence: 24 mo ✓'}
+              </div>
+              <div className={`coverage-chip ${stats.reoCount > 0 ? 'warn' : 'ok'}`} style={{
+                padding: '0.5rem 1rem',
+                borderRadius: 'var(--border-radius)',
+                fontSize: '0.85rem',
+                fontWeight: '500',
+                backgroundColor: stats.reoCount > 0 ? '#d1ecf1' : '#d4edda',
+                color: stats.reoCount > 0 ? '#0c5460' : '#155724',
+                border: `1px solid ${stats.reoCount > 0 ? '#bee5eb' : '#c3e6cb'}`
+              }}>
+                {stats.reoCount > 0 ? `REO: ${stats.reoCount}` : 'REO: none'}
+              </div>
+              <div className={`coverage-chip ${stats.hasDeclarationFlags ? 'warn' : 'ok'}`} style={{
+                padding: '0.5rem 1rem',
+                borderRadius: 'var(--border-radius)',
+                fontSize: '0.85rem',
+                fontWeight: '500',
+                backgroundColor: stats.hasDeclarationFlags ? '#d1ecf1' : '#d4edda',
+                color: stats.hasDeclarationFlags ? '#0c5460' : '#155724',
+                border: `1px solid ${stats.hasDeclarationFlags ? '#bee5eb' : '#c3e6cb'}`
+              }}>
+                {stats.hasDeclarationFlags ? 'Declarations: flags present' : 'Declarations: clear'}
+              </div>
+            </div>
+          </div>
+
+          {/* Status Legend */}
+          <div className="doc-section-note" style={{ marginBottom: '1.5rem', padding: '1rem', backgroundColor: 'var(--bg-secondary)', borderRadius: 'var(--border-radius)' }}>
+            <strong>Document Statuses:</strong>{' '}
+            <span className="status status-required" style={{ 
+              display: 'inline-block', 
+              padding: '0.25rem 0.5rem', 
+              margin: '0 0.5rem', 
+              borderRadius: '3px', 
+              fontSize: '0.85rem',
+              backgroundColor: 'var(--error-color)',
+              color: 'white'
+            }}>Required</span>
+            <span className="status status-conditional" style={{ 
+              display: 'inline-block', 
+              padding: '0.25rem 0.5rem', 
+              margin: '0 0.5rem', 
+              borderRadius: '3px', 
+              fontSize: '0.85rem',
+              backgroundColor: 'var(--secondary-color)',
+              color: 'white'
+            }}>Conditional</span>
+            <span className="status status-review" style={{ 
+              display: 'inline-block', 
+              padding: '0.25rem 0.5rem', 
+              margin: '0 0.5rem', 
+              borderRadius: '3px', 
+              fontSize: '0.85rem',
+              backgroundColor: '#f0ad4e',
+              color: 'white'
+            }}>Review</span>
+            <span className="status status-ok" style={{ 
+              display: 'inline-block', 
+              padding: '0.25rem 0.5rem', 
+              margin: '0 0.5rem', 
+              borderRadius: '3px', 
+              fontSize: '0.85rem',
+              backgroundColor: 'var(--success-color)',
+              color: 'white'
+            }}>OK</span>
+          </div>
+
+          {/* Document Tables by Category */}
+          <div className="doc-sections">
+            {Object.entries(recommendations).map(([category, items]) => {
+              if (!items || items.length === 0) return null;
+              
+              return (
+                <div key={category} className="doc-section" style={{ marginBottom: '2rem' }}>
+                  <h3 style={{ marginBottom: '1rem', fontSize: '1.2rem', color: 'var(--primary-color)', borderBottom: '2px solid var(--border-color)', paddingBottom: '0.5rem' }}>
+                    {category.charAt(0).toUpperCase() + category.slice(1).replace(/([A-Z])/g, ' $1')}
+                  </h3>
+                  <table className="doc-table" style={{ width: '100%', borderCollapse: 'collapse' }}>
+                    <thead>
+                      <tr style={{ backgroundColor: 'var(--bg-secondary)' }}>
+                        <th style={{ padding: '0.75rem', textAlign: 'left', borderBottom: '2px solid var(--border-color)' }}>Document</th>
+                        <th style={{ padding: '0.75rem', textAlign: 'left', borderBottom: '2px solid var(--border-color)', width: '120px' }}>Status</th>
+                        <th style={{ padding: '0.75rem', textAlign: 'left', borderBottom: '2px solid var(--border-color)' }}>Reason</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {items.map((doc, idx) => (
+                        <tr key={idx} style={{ borderBottom: '1px solid var(--border-color)' }}>
+                          <td style={{ padding: '0.75rem', fontWeight: '500' }}>{doc.document}</td>
+                          <td style={{ padding: '0.75rem' }}>
+                            <span className={`status ${getDocStatusClass(doc.status)}`} style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '0.35rem',
+                              padding: '0.35rem 0.75rem',
+                              borderRadius: '20px',
+                              fontSize: '0.8rem',
+                              fontWeight: '600',
+                              whiteSpace: 'nowrap',
+                              backgroundColor: 
+                                doc.status === 'Required' ? 'var(--error-color)' :
+                                doc.status === 'Conditional' ? 'var(--secondary-color)' :
+                                doc.status === 'Review' ? '#f0ad4e' :
+                                'var(--success-color)',
+                              color: 'white'
+                            }}>
+                              {getDocStatusIcon(doc.status)}
+                              {doc.status}
+                            </span>
+                          </td>
+                          <td style={{ padding: '0.75rem', color: 'var(--text-secondary)', fontSize: '0.9rem' }}>{doc.reason}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              );
+            })}
+          </div>
         </div>
       )}
 

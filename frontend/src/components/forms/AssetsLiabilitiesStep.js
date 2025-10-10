@@ -2,7 +2,7 @@
  * Assets & Liabilities Step Component
  * Step 5: Assets and liabilities including REO properties
  */
-import React from 'react';
+import React, { useState } from 'react';
 import { FaFileAlt } from 'react-icons/fa';
 import FormSection from '../shared/FormSection';
 import { 
@@ -20,21 +20,65 @@ const AssetsLiabilitiesStep = ({
   getFieldArray,
   borrowerFields
 }) => {
+  const [activeBorrowerTab, setActiveBorrowerTab] = useState(0);
+
+  const getBorrowerName = (index) => {
+    const firstName = watch(`borrowers.${index}.firstName`);
+    const lastName = watch(`borrowers.${index}.lastName`);
+    if (firstName || lastName) {
+      return `${firstName || ''} ${lastName || ''}`.trim() || `Borrower ${index + 1}`;
+    }
+    return `Borrower ${index + 1}`;
+  };
+
   return (
     <FormSection
       title="Assets & Liabilities"
       icon={<FaFileAlt />}
       description="Assets, liabilities, and real estate owned properties for all borrowers."
     >
+      {/* Borrower Tabs */}
+      <div className="borrower-tabs" style={{ 
+        display: 'flex', 
+        gap: '0.5rem', 
+        marginBottom: '2rem',
+        borderBottom: '2px solid var(--border-color)',
+        flexWrap: 'wrap'
+      }}>
+        {borrowerFields.map((borrowerField, borrowerIndex) => (
+          <button
+            key={borrowerField.id}
+            type="button"
+            onClick={() => setActiveBorrowerTab(borrowerIndex)}
+            className={`borrower-tab ${activeBorrowerTab === borrowerIndex ? 'active' : ''}`}
+            style={{
+              padding: '0.75rem 1.5rem',
+              border: 'none',
+              borderBottom: activeBorrowerTab === borrowerIndex ? '3px solid var(--primary-color)' : '3px solid transparent',
+              background: activeBorrowerTab === borrowerIndex ? 'var(--bg-secondary)' : 'transparent',
+              cursor: 'pointer',
+              fontWeight: activeBorrowerTab === borrowerIndex ? '600' : '400',
+              color: activeBorrowerTab === borrowerIndex ? 'var(--primary-color)' : 'var(--text-secondary)',
+              transition: 'all 0.2s',
+              position: 'relative',
+              marginBottom: '-2px'
+            }}
+          >
+            {getBorrowerName(borrowerIndex)}
+          </button>
+        ))}
+      </div>
+
       {borrowerFields.map((borrowerField, borrowerIndex) => {
-        // Always show borrower 1 (primary) and any borrowers that exist in the fields array
+        // Only show the active borrower tab
+        if (borrowerIndex !== activeBorrowerTab) return null;
+
         const { fields: assetFields, append: appendAsset, remove: removeAsset } = getFieldArray(borrowerIndex, 'assets');
         const { fields: liabilityFields, append: appendLiability, remove: removeLiability } = getFieldArray(borrowerIndex, 'liabilities');
         const { fields: reoFields, append: appendReo, remove: removeReo } = getFieldArray(borrowerIndex, 'reoProperties');
 
         return (
           <div key={borrowerField.id} className="borrower-assets-section">
-            <h4>Borrower {borrowerIndex + 1} - Assets & Liabilities</h4>
 
             {/* Assets Section */}
             <div className="assets-section">

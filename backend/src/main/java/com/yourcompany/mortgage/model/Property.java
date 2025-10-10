@@ -213,17 +213,27 @@ public class Property {
 
     // Utility methods
     public String getFullAddress() {
-        StringBuilder address = new StringBuilder(addressLine);
+        if (addressLine == null && city == null && state == null && zipCode == null) {
+            return null;
+        }
+        
+        StringBuilder address = new StringBuilder();
+        if (addressLine != null) {
+            address.append(addressLine);
+        }
         if (city != null) {
-            address.append(", ").append(city);
+            if (address.length() > 0) address.append(", ");
+            address.append(city);
         }
         if (state != null) {
-            address.append(", ").append(state);
+            if (address.length() > 0) address.append(", ");
+            address.append(state);
         }
         if (zipCode != null) {
-            address.append(" ").append(zipCode);
+            if (address.length() > 0) address.append(" ");
+            address.append(zipCode);
         }
-        return address.toString();
+        return address.length() > 0 ? address.toString() : null;
     }
     
     public boolean isMultiUnit() {

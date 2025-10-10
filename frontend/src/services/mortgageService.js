@@ -87,6 +87,62 @@ const mortgageService = {
     } catch (error) {
       throw new Error(error.response?.data?.message || 'Logout failed');
     }
+  },
+
+  // Document management methods
+  uploadDocument: async (applicationId, documentType, file) => {
+    try {
+      const formData = new FormData();
+      formData.append('applicationId', applicationId);
+      formData.append('documentType', documentType);
+      formData.append('file', file);
+
+      const response = await axios.post(`${API_BASE_URL}/documents/upload`, formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+      return response.data;
+    } catch (error) {
+      throw new Error(error.response?.data?.message || 'Failed to upload document');
+    }
+  },
+
+  getApplicationDocuments: async (applicationId) => {
+    try {
+      const response = await axios.get(`${API_BASE_URL}/documents/application/${applicationId}`);
+      return response.data;
+    } catch (error) {
+      throw new Error(error.response?.data?.message || 'Failed to fetch documents');
+    }
+  },
+
+  downloadDocument: async (documentId, fileName) => {
+    try {
+      const response = await axios.get(`${API_BASE_URL}/documents/download/${documentId}`, {
+        responseType: 'blob',
+      });
+      
+      // Create a download link
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', fileName);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      throw new Error(error.response?.data?.message || 'Failed to download document');
+    }
+  },
+
+  deleteDocument: async (documentId) => {
+    try {
+      await axios.delete(`${API_BASE_URL}/documents/${documentId}`);
+    } catch (error) {
+      throw new Error(error.response?.data?.message || 'Failed to delete document');
+    }
   }
 };
 

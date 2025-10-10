@@ -266,7 +266,7 @@ const EmploymentStep = ({
                     onClick={() => appendEmp(createDefaultEmployment(empFields.length + 1))}
                     className="btn btn-outline-primary"
                   >
-                    Add Another Employer
+                    Add Employer
                   </button>
                 </div>
               </div>

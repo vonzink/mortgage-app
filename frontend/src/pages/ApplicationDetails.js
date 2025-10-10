@@ -65,6 +65,8 @@ const ApplicationDetails = () => {
     if (application) {
       const recs = generateDocumentRecommendations(application);
       const coverage = calculateCoverageStats(application.borrowers || []);
+      console.log('[DEBUG] Document recommendations:', recs);
+      console.log('[DEBUG] Coverage stats:', coverage);
       setRecommendations(recs);
       setStats(coverage);
     }
@@ -537,7 +539,7 @@ const ApplicationDetails = () => {
                     <tbody>
                       {items.map((doc, idx) => (
                         <tr key={idx} style={{ borderBottom: '1px solid var(--border-color)' }}>
-                          <td style={{ padding: '0.75rem', fontWeight: '500' }}>{doc.document}</td>
+                          <td style={{ padding: '0.75rem', fontWeight: '500' }}>{doc.name || doc.document}</td>
                           <td style={{ padding: '0.75rem' }}>
                             <span className={`status ${getDocStatusClass(doc.status)}`} style={{
                               display: 'inline-flex',
@@ -549,9 +551,9 @@ const ApplicationDetails = () => {
                               fontWeight: '600',
                               whiteSpace: 'nowrap',
                               backgroundColor: 
-                                doc.status === 'Required' ? 'var(--error-color)' :
-                                doc.status === 'Conditional' ? 'var(--secondary-color)' :
-                                doc.status === 'Review' ? '#f0ad4e' :
+                                doc.status?.toLowerCase() === 'required' ? 'var(--error-color)' :
+                                doc.status?.toLowerCase() === 'conditional' ? 'var(--secondary-color)' :
+                                doc.status?.toLowerCase() === 'review' ? '#f0ad4e' :
                                 'var(--success-color)',
                               color: 'white'
                             }}>

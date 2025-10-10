@@ -29,6 +29,14 @@ const AssetsLiabilitiesStep = ({
     return `Borrower ${index + 1}`;
   };
 
+  const getREOPropertyName = (reoIndex) => {
+    const addressLine = watch(`borrowers.0.reoProperties.${reoIndex}.addressLine`);
+    if (addressLine && addressLine.trim()) {
+      return addressLine;
+    }
+    return `REO Property ${reoIndex + 1}`;
+  };
+
   // Get field arrays for primary borrower (index 0) - all items will be added here
   const { fields: assetFields, append: appendAsset, remove: removeAsset } = getFieldArray(0, 'assets');
   const { fields: liabilityFields, append: appendLiability, remove: removeLiability } = getFieldArray(0, 'liabilities');
@@ -283,7 +291,7 @@ const AssetsLiabilitiesStep = ({
                   {reoFields.map((reoField, reoIndex) => (
                     <div key={reoField.id} className="reo-entry">
                       <div className="reo-header">
-                        <h6>REO Property {reoIndex + 1}</h6>
+                        <h6>{getREOPropertyName(reoIndex)}</h6>
                         <button
                           type="button"
                           onClick={() => removeReo(reoIndex)}

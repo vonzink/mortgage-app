@@ -86,10 +86,14 @@ const EmploymentStep = ({
               </div>
             )}
             
-            {empFields.map((empField, empIndex) => (
+            {empFields.map((empField, empIndex) => {
+              const employerName = watch(`borrowers.${borrowerIndex}.employmentHistory.${empIndex}.employerName`);
+              const displayName = employerName || `Employer ${empIndex + 1}`;
+              
+              return (
               <div key={empField.id} className="employment-entry">
                 <div className="employment-header">
-                  <h5>Employer {empIndex + 1}</h5>
+                  <h5>{displayName}</h5>
                   {empFields.length > 1 && (
                     <button
                       type="button"
@@ -256,7 +260,8 @@ const EmploymentStep = ({
                   </div>
                 </div>
               </div>
-            ))}
+              );
+            })}
 
             {empFields.length < 5 && (
               <div className="form-row">

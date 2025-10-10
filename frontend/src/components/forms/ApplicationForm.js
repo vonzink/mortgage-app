@@ -72,10 +72,12 @@ const ApplicationForm = () => {
     const loadApplicationData = async () => {
       if (editId) {
         try {
+          console.log('[DEBUG] ========== EDIT MODE ACTIVATED ==========');
+          console.log('[DEBUG] Loading application ID:', editId);
           setIsEditing(true);
           const applicationData = await mortgageService.getApplication(editId);
           
-          console.log('[DEBUG] Loaded application data:', applicationData);
+          console.log('[DEBUG] Loaded application data from backend:', applicationData);
           
           // Map backend data to form structure
           const formData = {
@@ -305,14 +307,21 @@ const ApplicationForm = () => {
 
       // Always create a new application (even when editing)
       // This preserves the original and creates a new edited version
+      if (isEditing && editId) {
+        console.log('[DEBUG] EDIT MODE: Creating new version of application', editId);
+      } else {
+        console.log('[DEBUG] NEW APPLICATION: Creating fresh application');
+      }
+      
       console.log('[DEBUG] Calling mortgageService.createApplication...');
       const createdApplication = await mortgageService.createApplication(applicationData);
       console.log('[DEBUG] Application created successfully! Response:', createdApplication);
-      
-      console.log('[DEBUG] Application created successfully:', createdApplication);
+      console.log('[DEBUG] Original application ID:', editId || 'N/A (new app)');
+      console.log('[DEBUG] New application ID:', createdApplication.id);
+      console.log('[DEBUG] New application number:', createdApplication.applicationNumber);
       
       if (isEditing && editId) {
-        toast.success('Edited application saved as new version!');
+        toast.success(`Edited application saved as new version! (Original: ${editId}, New: ${createdApplication.id})`);
       } else {
         toast.success('Application submitted successfully!');
       }

@@ -188,9 +188,13 @@ const ApplicationForm = () => {
 
   // Form submission
   const onSubmit = async (data) => {
+    console.log('[DEBUG] ========== FORM SUBMISSION STARTED ==========');
+    console.log('[DEBUG] Raw form data:', data);
+    
     setIsSubmitting(true);
     try {
       // Transform the form data to match backend DTO structure
+      console.log('[DEBUG] Transforming form data to backend DTO structure...');
       const applicationData = {
         loanPurpose: data.loanPurpose || 'Purchase',
         loanType: data.loanType || 'Conventional',
@@ -293,11 +297,15 @@ const ApplicationForm = () => {
             )
       };
 
-      console.log('[DEBUG] Sending application data:', JSON.stringify(applicationData, null, 2));
+      console.log('[DEBUG] Final application data to send:', JSON.stringify(applicationData, null, 2));
+      console.log('[DEBUG] Number of borrowers:', applicationData.borrowers?.length);
+      console.log('[DEBUG] Number of liabilities:', applicationData.liabilities?.length);
 
       // Always create a new application (even when editing)
       // This preserves the original and creates a new edited version
+      console.log('[DEBUG] Calling mortgageService.createApplication...');
       const createdApplication = await mortgageService.createApplication(applicationData);
+      console.log('[DEBUG] Application created successfully! Response:', createdApplication);
       
       console.log('[DEBUG] Application created successfully:', createdApplication);
       

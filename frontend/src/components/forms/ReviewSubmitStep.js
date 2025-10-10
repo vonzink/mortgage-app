@@ -237,7 +237,11 @@ const ReviewSubmitStep = ({ register, errors, getValues, onSubmit, isSubmitting,
             </div>
             <button
               type="button"
-              onClick={onSubmit}
+              onClick={() => {
+                console.log('[DEBUG] Submit button clicked in ReviewSubmitStep');
+                console.log('[DEBUG] Current form data:', formData);
+                onSubmit();
+              }}
               className="btn btn-primary btn-large"
               disabled={isSubmitting}
             >

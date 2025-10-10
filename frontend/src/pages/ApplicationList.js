@@ -1,19 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { toast } from 'react-toastify';
-import { FaFileAlt, FaEye, FaClock, FaCheckCircle, FaTimesCircle, FaFileCode, FaEdit, FaListAlt, FaUpload } from 'react-icons/fa';
+import { FaFileAlt, FaEye, FaClock, FaCheckCircle, FaTimesCircle, FaFileCode, FaEdit, FaListAlt } from 'react-icons/fa';
 import mortgageService from '../services/mortgageService';
 import { downloadXML } from '../utils/urlaExport';
 import RecommendedDocuments from '../components/RecommendedDocuments';
-import DocumentUpload from '../components/DocumentUpload';
 
 const ApplicationList = () => {
   const [applications, setApplications] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showDocsModal, setShowDocsModal] = useState(false);
   const [selectedApplication, setSelectedApplication] = useState(null);
-  const [showUploadModal, setShowUploadModal] = useState(false);
-  const [selectedApplicationForUpload, setSelectedApplicationForUpload] = useState(null);
 
   useEffect(() => {
     fetchApplications();
@@ -95,16 +92,6 @@ const ApplicationList = () => {
     setSelectedApplication(null);
   };
 
-  const handleShowUploadModal = (applicationId) => {
-    setSelectedApplicationForUpload(applicationId);
-    setShowUploadModal(true);
-  };
-
-  const handleCloseUploadModal = () => {
-    setShowUploadModal(false);
-    setSelectedApplicationForUpload(null);
-  };
-
   if (loading) {
     return (
       <div className="applications-container">
@@ -176,14 +163,12 @@ const ApplicationList = () => {
                 </div>
                 
                 <div className="application-actions">
-                  <button
-                    type="button"
-                    onClick={() => handleShowUploadModal(application.id)}
+                  <Link 
+                    to={`/applications/${application.id}`} 
                     className="btn btn-primary"
-                    title="Upload Documents"
                   >
-                    <FaUpload /> Upload Docs
-                  </button>
+                    <FaEye /> View & Upload Docs
+                  </Link>
                   <button
                     type="button"
                     onClick={() => handleShowRecommendedDocs(application.id)}
@@ -192,12 +177,6 @@ const ApplicationList = () => {
                   >
                     <FaListAlt /> Recommended Docs
                   </button>
-                  <Link 
-                    to={`/applications/${application.id}`} 
-                    className="btn btn-outline-secondary"
-                  >
-                    <FaEye /> View Details
-                  </Link>
                   <Link 
                     to={`/apply?edit=${application.id}`} 
                     className="btn btn-outline-primary"
@@ -225,14 +204,6 @@ const ApplicationList = () => {
         <RecommendedDocuments
           applicationData={selectedApplication}
           onClose={handleCloseDocsModal}
-        />
-      )}
-
-      {/* Document Upload Modal */}
-      {showUploadModal && selectedApplicationForUpload && (
-        <DocumentUpload
-          applicationId={selectedApplicationForUpload}
-          onClose={handleCloseUploadModal}
         />
       )}
     </div>

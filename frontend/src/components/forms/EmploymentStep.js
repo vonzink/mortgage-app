@@ -27,14 +27,7 @@ const EmploymentStep = ({
       description="Employment history and income details for all borrowers."
     >
       {borrowerFields.map((borrowerField, borrowerIndex) => {
-        const borrower = getValues(`borrowers.${borrowerIndex}`);
-        const hasBorrowerData = borrower?.firstName || borrower?.lastName || borrower?.email;
-        
-        // Only show first borrower by default, or borrowers with some data
-        if (borrowerIndex > 0 && !hasBorrowerData) {
-          return null;
-        }
-        
+        // Always show borrower 1 (primary) and any borrowers that exist in the fields array
         const { fields: empFields, append: appendEmp, remove: removeEmp } = getFieldArray(borrowerIndex, 'employmentHistory');
         const warning = checkEmploymentHistoryWarning(empFields);
         

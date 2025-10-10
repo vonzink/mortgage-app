@@ -75,6 +75,16 @@ export const getFieldArray = (control, borrowerIndex, fieldName) => {
  */
 export const createDefaultBorrower = (sequenceNumber) => ({
   sequenceNumber,
+  firstName: '',
+  lastName: '',
+  middleName: '',
+  email: '',
+  phone: '',
+  ssn: '',
+  dateOfBirth: '',
+  maritalStatus: '',
+  dependents: 0,
+  citizenshipType: '',
   employmentHistory: [{}],
   incomeSources: [{}],
   residences: [{}],

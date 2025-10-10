@@ -85,9 +85,9 @@ export const createDefaultBorrower = (sequenceNumber) => ({
   maritalStatus: '',
   dependents: 0,
   citizenshipType: '',
-  employmentHistory: [{}],
-  incomeSources: [{}],
-  residences: [{}],
+  employmentHistory: [],
+  incomeSources: [],
+  residences: [],
   assets: [],
   liabilities: [],
   reoProperties: []

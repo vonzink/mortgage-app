@@ -5,10 +5,13 @@ import { useState, useCallback } from 'react';
 
 export const useFormSteps = (totalSteps = 7) => {
   const [currentStep, setCurrentStep] = useState(1);
+  const [visitedSteps, setVisitedSteps] = useState(new Set([1]));
 
   const nextStep = useCallback(() => {
-    setCurrentStep(prev => Math.min(prev + 1, totalSteps));
-  }, [totalSteps]);
+    const nextStepNum = Math.min(currentStep + 1, totalSteps);
+    setCurrentStep(nextStepNum);
+    setVisitedSteps(prev => new Set([...prev, nextStepNum]));
+  }, [currentStep, totalSteps]);
 
   const prevStep = useCallback(() => {
     setCurrentStep(prev => Math.max(prev - 1, 1));
@@ -17,6 +20,7 @@ export const useFormSteps = (totalSteps = 7) => {
   const goToStep = useCallback((step) => {
     if (step >= 1 && step <= totalSteps) {
       setCurrentStep(step);
+      setVisitedSteps(prev => new Set([...prev, step]));
     }
   }, [totalSteps]);
 
@@ -35,6 +39,7 @@ export const useFormSteps = (totalSteps = 7) => {
     canGoPrev,
     isLastStep,
     isFirstStep,
-    setCurrentStep
+    setCurrentStep,
+    visitedSteps
   };
 };

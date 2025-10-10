@@ -5,8 +5,6 @@ import 'react-toastify/dist/ReactToastify.css';
 
 // Components
 import Header from './components/Header';
-import HomePage from './pages/HomePage';
-import Dashboard from './pages/Dashboard';
 import ApplicationForm from './pages/ApplicationForm';
 import ApplicationList from './pages/ApplicationList';
 import ApplicationDetails from './pages/ApplicationDetails';
@@ -21,8 +19,7 @@ function App() {
         <Header />
         <main className="main-content">
           <Routes>
-            <Route path="/" element={<HomePage />} />
-            <Route path="/dashboard" element={<Dashboard />} />
+            <Route path="/" element={<ApplicationForm />} />
             <Route path="/apply" element={<ApplicationForm />} />
             <Route path="/applications" element={<ApplicationList />} />
             <Route path="/applications/:id" element={<ApplicationDetails />} />

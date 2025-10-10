@@ -3,12 +3,24 @@
  * Step 7: Review and submit application
  */
 import React from 'react';
-import { FaCheck } from 'react-icons/fa';
+import { FaCheck, FaFilePdf } from 'react-icons/fa';
 import FormSection from '../shared/FormSection';
 import { formatCurrency, formatDate } from '../../utils/formHelpers';
+import { printURLAFormat } from '../../utils/urlaExport';
+import { toast } from 'react-toastify';
 
-const ReviewSubmitStep = ({ register, errors, getValues, onSubmit, isSubmitting }) => {
+const ReviewSubmitStep = ({ register, errors, getValues, onSubmit, isSubmitting, isEditing }) => {
   const formData = getValues();
+
+  const handlePrintPDF = () => {
+    try {
+      printURLAFormat(formData);
+      toast.success('Generating PDF print preview...');
+    } catch (error) {
+      toast.error('Failed to generate PDF. Please try again.');
+      console.error('PDF generation error:', error);
+    }
+  };
 
   const renderBorrowerSummary = (borrower, index) => {
     if (!borrower.firstName && !borrower.lastName) return null;
@@ -212,13 +224,27 @@ const ReviewSubmitStep = ({ register, errors, getValues, onSubmit, isSubmitting 
           </div>
 
           <div className="submit-actions">
+            <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center', marginBottom: '1.5rem' }}>
+              <button
+                type="button"
+                onClick={handlePrintPDF}
+                className="btn btn-secondary"
+                disabled={isSubmitting}
+                title="Print to PDF (URLA Format)"
+              >
+                <FaFilePdf /> Print to PDF
+              </button>
+            </div>
             <button
               type="button"
               onClick={onSubmit}
               className="btn btn-primary btn-large"
               disabled={isSubmitting}
             >
-              {isSubmitting ? 'Submitting Application...' : 'Submit Application'}
+              {isSubmitting 
+                ? (isEditing ? 'Saving New Version...' : 'Submitting Application...') 
+                : (isEditing ? 'Save as New Version' : 'Submit Application')
+              }
             </button>
           </div>
         </div>

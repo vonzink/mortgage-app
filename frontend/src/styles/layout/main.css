@@ -22,7 +22,7 @@
   backdrop-filter: blur(20px);
   box-shadow: var(--shadow-lg);
   position: relative;
-  overflow: hidden;
+  overflow: visible;
 }
 
 .application-form-container::before {
@@ -49,6 +49,7 @@
 /* Progress Indicator Styles */
 .progress-indicator {
   margin-bottom: var(--spacing-xl);
+  overflow: visible;
 }
 
 .progress-header {
@@ -76,10 +77,11 @@
   position: relative;
   width: 100%;
   box-sizing: border-box;
-  padding: 0 var(--spacing-md);
+  padding: 8px var(--spacing-md);
   gap: var(--spacing-xs);
   flex-wrap: nowrap;
   overflow-x: auto;
+  overflow-y: visible;
 }
 
 .progress-step {
@@ -136,6 +138,7 @@
   background: rgba(255, 255, 255, 0.03);
   border: 2px solid rgba(108, 117, 125, 0.3);
   opacity: 0.7;
+  cursor: not-allowed;
 }
 
 .progress-step:not(.active):not(.completed):hover {
@@ -219,6 +222,10 @@
   border-radius: 50%;
   opacity: 0;
   transition: opacity var(--transition-normal);
+}
+
+.progress-step.clickable {
+  cursor: pointer;
 }
 
 .progress-step.clickable:hover .step-icon::before {

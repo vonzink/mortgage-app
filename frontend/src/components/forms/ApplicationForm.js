@@ -2,10 +2,10 @@
  * Main Application Form Component
  * Orchestrates all form steps and handles submission
  */
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { toast } from 'react-toastify';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   FaHome,
   FaUser,
@@ -38,10 +38,13 @@ import { createDefaultBorrower } from '../../utils/fieldArrayHelpers';
 
 const ApplicationForm = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const editId = searchParams.get('edit');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
 
   // Form setup
-  const { register, handleSubmit, control, formState: { errors }, trigger, getValues, watch, setValue } = useForm({
+  const { register, handleSubmit, control, formState: { errors }, trigger, getValues, watch, setValue, reset } = useForm({
     defaultValues: {
       borrowers: [createDefaultBorrower(1)]
     }
@@ -56,12 +59,96 @@ const ApplicationForm = () => {
     goToStep,
     canGoNext,
     canGoPrev,
-    isLastStep
+    isLastStep,
+    visitedSteps
   } = useFormSteps(7);
 
   const { borrowers, getFieldArray } = useBorrowerFieldArrays(control);
 
   useFormValidation(getValues, watch);
+
+  // Load application data if editing
+  useEffect(() => {
+    const loadApplicationData = async () => {
+      if (editId) {
+        try {
+          setIsEditing(true);
+          const applicationData = await mortgageService.getApplication(editId);
+          
+          console.log('[DEBUG] Loaded application data:', applicationData);
+          
+          // Map backend data to form structure
+          const formData = {
+            loanPurpose: applicationData.loanPurpose,
+            loanType: applicationData.loanType,
+            loanAmount: applicationData.loanAmount,
+            propertyValue: applicationData.propertyValue,
+            
+            // Property fields
+            property: applicationData.property,
+            yearBuilt: applicationData.property?.yearBuilt,
+            unitsCount: applicationData.property?.unitsCount,
+            constructionType: applicationData.property?.constructionType,
+            propertyUse: applicationData.property?.propertyType,
+            
+            // Borrowers with all nested data
+            borrowers: (applicationData.borrowers || []).map(borrower => ({
+              firstName: borrower.firstName,
+              lastName: borrower.lastName,
+              middleName: borrower.middleName,
+              ssn: borrower.ssn,
+              dateOfBirth: borrower.birthDate,
+              maritalStatus: borrower.maritalStatus,
+              email: borrower.email,
+              phone: borrower.phone,
+              citizenshipType: borrower.citizenshipType,
+              dependents: borrower.dependentsCount,
+              
+              // Employment history
+              employmentHistory: borrower.employmentHistory || [],
+              
+              // Income sources
+              incomeSources: borrower.incomeSources || [],
+              
+              // Residences
+              residences: borrower.residences || [],
+              
+              // Assets (if available)
+              assets: borrower.assets || [],
+              
+              // Liabilities (if associated with borrower)
+              liabilities: borrower.liabilities || [],
+              
+              // REO Properties
+              reoProperties: borrower.reoProperties || []
+            }))
+          };
+          
+          // Add top-level liabilities if they exist
+          if (applicationData.liabilities && applicationData.liabilities.length > 0) {
+            // Merge with first borrower's liabilities or create structure
+            if (formData.borrowers.length === 0) {
+              formData.borrowers = [createDefaultBorrower(1)];
+            }
+          }
+          
+          console.log('[DEBUG] Mapped form data:', formData);
+          
+          // Populate form with application data
+          reset(formData);
+          
+          toast.success('Application loaded for editing');
+        } catch (error) {
+          toast.error('Failed to load application for editing');
+          console.error('Error loading application:', error);
+          navigate('/applications');
+        }
+      }
+    };
+    
+    loadApplicationData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editId]);
 
   // Step definitions
   const steps = [
@@ -105,10 +192,11 @@ const ApplicationForm = () => {
     try {
       // Transform the form data to match backend DTO structure
       const applicationData = {
-        loanPurpose: data.loanPurpose,
-        loanType: data.loanType,
-        loanAmount: parseFloat(data.loanAmount),
-        propertyValue: parseFloat(data.propertyValue),
+        loanPurpose: data.loanPurpose || 'Purchase',
+        loanType: data.loanType || 'Conventional',
+        loanAmount: parseFloat(data.loanAmount) || 0,
+        propertyValue: parseFloat(data.propertyValue) || 0,
+        status: 'DRAFT',
           property: {
               addressLine: data.property?.addressLine || null,
               city: data.property?.city || null,
@@ -207,9 +295,16 @@ const ApplicationForm = () => {
 
       console.log('[DEBUG] Sending application data:', JSON.stringify(applicationData, null, 2));
 
+      // Always create a new application (even when editing)
+      // This preserves the original and creates a new edited version
       await mortgageService.createApplication(applicationData);
-
-      toast.success('Application submitted successfully!');
+      
+      if (isEditing && editId) {
+        toast.success('Edited application saved as new version!');
+      } else {
+        toast.success('Application submitted successfully!');
+      }
+      
       navigate('/applications');
     } catch (error) {
       console.error('Submission error:', error);
@@ -281,6 +376,7 @@ const ApplicationForm = () => {
                         getValues={getValues}
                         onSubmit={handleSubmit(onSubmit)}
                         isSubmitting={isSubmitting}
+                        isEditing={isEditing}
                     />
                 );
             default:
@@ -295,7 +391,9 @@ const ApplicationForm = () => {
               steps={steps}
               currentStep={currentStep}
               onStepClick={handleStepClick}
-              clickableSteps={false}
+              clickableSteps={true}
+              isEditing={isEditing}
+              visitedSteps={visitedSteps}
           />
 
           <div className="step-content-container">

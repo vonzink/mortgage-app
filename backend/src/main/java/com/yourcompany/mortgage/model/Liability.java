@@ -21,7 +21,6 @@ public class Liability {
     @NotNull(message = "Application is required")
     private LoanApplication application;
 
-    @JsonBackReference
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "borrower_id")
     private Borrower borrower;

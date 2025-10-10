@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { toast } from 'react-toastify';
-import { FaFileAlt, FaEye, FaPlus, FaClock, FaCheckCircle, FaTimesCircle } from 'react-icons/fa';
+import { FaFileAlt, FaEye, FaClock, FaCheckCircle, FaTimesCircle, FaFileCode, FaEdit } from 'react-icons/fa';
 import mortgageService from '../services/mortgageService';
+import { downloadXML } from '../utils/urlaExport';
 
 const ApplicationList = () => {
   const [applications, setApplications] = useState([]);
@@ -61,6 +62,17 @@ const ApplicationList = () => {
     }
   };
 
+  const handleExportXML = async (applicationId) => {
+    try {
+      const applicationData = await mortgageService.getApplication(applicationId);
+      downloadXML(applicationData);
+      toast.success('XML file downloaded successfully!');
+    } catch (error) {
+      toast.error('Failed to export XML. Please try again.');
+      console.error('XML export error:', error);
+    }
+  };
+
   if (loading) {
     return (
       <div className="applications-container">
@@ -77,9 +89,6 @@ const ApplicationList = () => {
       <div className="card">
         <div className="applications-header">
           <h2><FaFileAlt /> My Applications</h2>
-          <Link to="/apply" className="btn btn-primary">
-            <FaPlus /> New Application
-          </Link>
         </div>
         
         {applications.length === 0 ? (
@@ -141,6 +150,21 @@ const ApplicationList = () => {
                   >
                     <FaEye /> View Details
                   </Link>
+                  <Link 
+                    to={`/apply?edit=${application.id}`} 
+                    className="btn btn-outline-primary"
+                    title="Edit Application"
+                  >
+                    <FaEdit /> Edit
+                  </Link>
+                  <button
+                    type="button"
+                    onClick={() => handleExportXML(application.id)}
+                    className="btn btn-outline-primary"
+                    title="Export to XML (MISMO Format)"
+                  >
+                    <FaFileCode /> Export XML
+                  </button>
                 </div>
               </div>
             ))}

@@ -5,39 +5,39 @@
 
 :root {
   /* Colors */
-  --primary-color: #28a745;
-  --primary-dark: #1e7e34;
-  --primary-light: #34ce57;
-  --secondary-color: #6c757d;
-  --success-color: #28a745;
-  --danger-color: #dc3545;
-  --warning-color: #ffc107;
-  --info-color: #17a2b8;
-  --light-color: #f8f9fa;
-  --dark-color: #343a40;
+  --primary-color: #2c5f2d;
+  --primary-dark: #1a3d1b;
+  --primary-light: #4a7c4d;
+  --secondary-color: #5a5a5a;
+  --success-color: #2e7d32;
+  --danger-color: #c62828;
+  --warning-color: #f57c00;
+  --info-color: #0277bd;
+  --light-color: #fafafa;
+  --dark-color: #2c2c2c;
 
-  /* Background Colors */
-  --bg-primary: linear-gradient(135deg, #0f2027 0%, #203a43 25%, #2c5364 50%, #1a4b3a 75%, #0f2818 100%);
-  --bg-secondary: rgba(255, 255, 255, 0.05);
-  --bg-card: rgba(255, 255, 255, 0.08);
-  --bg-glass: rgba(255, 255, 255, 0.1);
+  /* Background Colors - Paper-like theme */
+  --bg-primary: linear-gradient(135deg, #f5f1e8 0%, #f9f6f0 25%, #fdfcf9 50%, #f7f4ed 75%, #f3efe6 100%);
+  --bg-secondary: #fefdfb;
+  --bg-card: #ffffff;
+  --bg-glass: #fcfbf8;
 
-  /* Text Colors */
-  --text-primary: #e8f5e8;
-  --text-secondary: #666;
-  --text-muted: #999;
+  /* Text Colors - High contrast for readability */
+  --text-primary: #2c2c2c;
+  --text-secondary: #4a4a4a;
+  --text-muted: #757575;
   --text-white: #ffffff;
 
-  /* Border Colors */
-  --border-primary: rgba(40, 167, 69, 0.25);
-  --border-secondary: rgba(255, 255, 255, 0.15);
-  --border-light: rgba(255, 255, 255, 0.1);
+  /* Border Colors - Subtle but visible */
+  --border-primary: #d4c5a9;
+  --border-secondary: #e0ddd5;
+  --border-light: #e8e6df;
 
-  /* Shadows */
-  --shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.1);
-  --shadow-md: 0 4px 8px rgba(0, 0, 0, 0.15);
-  --shadow-lg: 0 8px 16px rgba(0, 0, 0, 0.2);
-  --shadow-glow: 0 0 20px rgba(40, 167, 69, 0.3);
+  /* Shadows - Paper-like depth */
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.08);
+  --shadow-md: 0 2px 6px rgba(0, 0, 0, 0.1);
+  --shadow-lg: 0 4px 12px rgba(0, 0, 0, 0.12);
+  --shadow-glow: 0 0 0 1px rgba(44, 95, 45, 0.1);
 
   /* Border Radius */
   --radius-sm: 4px;

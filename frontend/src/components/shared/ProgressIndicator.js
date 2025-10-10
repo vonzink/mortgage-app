@@ -9,10 +9,12 @@ const ProgressIndicator = ({
   steps, 
   currentStep, 
   onStepClick,
-  clickableSteps = false 
+  clickableSteps = false,
+  isEditing = false,
+  visitedSteps = new Set([1])
 }) => {
   const handleStepClick = (stepNumber) => {
-    if (clickableSteps && stepNumber <= currentStep) {
+    if (clickableSteps && visitedSteps.has(stepNumber)) {
       onStepClick(stepNumber);
     }
   };
@@ -20,15 +22,15 @@ const ProgressIndicator = ({
   return (
     <div className="progress-indicator">
       <div className="progress-header">
-        <h2>Mortgage Application</h2>
-        <p>Complete all steps to submit your application</p>
+        <h2>{isEditing ? 'Create New Version from Existing Application' : 'Mortgage Application'}</h2>
+        <p>{isEditing ? 'Make changes and save as a new version. Your original will be preserved.' : 'Complete all steps to submit your application'}</p>
       </div>
       
       <div className="progress-steps">
         {steps.map((step) => {
           const isActive = step.number === currentStep;
           const isCompleted = step.number < currentStep;
-          const isClickable = clickableSteps && step.number <= currentStep;
+          const isClickable = clickableSteps && visitedSteps.has(step.number);
           
           return (
             <div

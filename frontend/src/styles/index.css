@@ -18,6 +18,7 @@
 
 /* Page Styles */
 @import './pages/application-form.css';
+@import './pages/application-list.css';
 
 /* Responsive Styles */
 @import './layout/responsive.css';

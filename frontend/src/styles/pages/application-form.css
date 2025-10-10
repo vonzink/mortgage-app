@@ -195,6 +195,14 @@
   margin-bottom: 0;
 }
 
+.asset-entry .form-group input,
+.asset-entry .form-group select,
+.liability-entry .form-group input,
+.liability-entry .form-group select {
+  font-size: 0.85rem;
+  padding: 0.4rem 0.6rem;
+}
+
 .form-checkbox {
   width: 18px;
   height: 18px;

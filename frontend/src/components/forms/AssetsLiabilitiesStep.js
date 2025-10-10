@@ -67,11 +67,11 @@ const AssetsLiabilitiesStep = ({
                     {...register(`borrowers.0.assets.${assetIndex}.assetType`)}
                     className="form-select"
                   >
-                          <option value="">Select Asset Type</option>
-                          <option value="Checking">Checking Account</option>
-                          <option value="Savings">Savings Account</option>
-                          <option value="MoneyMarket">Money Market Account</option>
-                          <option value="CertificateOfDeposit">Certificate of Deposit</option>
+                          <option value="">Select Type</option>
+                          <option value="Checking">Checking</option>
+                          <option value="Savings">Savings</option>
+                          <option value="MoneyMarket">Money Market</option>
+                          <option value="CertificateOfDeposit">CD</option>
                           <option value="MutualFunds">Mutual Funds</option>
                           <option value="Stocks">Stocks</option>
                           <option value="Bonds">Bonds</option>
@@ -186,13 +186,13 @@ const AssetsLiabilitiesStep = ({
                           {...register(`borrowers.0.liabilities.${liabilityIndex}.liabilityType`)}
                           className="form-select"
                         >
-                          <option value="">Select Liability Type</option>
+                          <option value="">Select Type</option>
                           <option value="CreditCard">Credit Card</option>
                           <option value="AutoLoan">Auto Loan</option>
                           <option value="StudentLoan">Student Loan</option>
-                          <option value="MortgageLoan">Mortgage Loan</option>
-                          <option value="Revolving">Revolving Credit</option>
-                          <option value="Installment">Installment Loan</option>
+                          <option value="MortgageLoan">Mortgage</option>
+                          <option value="Revolving">Revolving</option>
+                          <option value="Installment">Installment</option>
                           <option value="Other">Other</option>
                         </select>
                       </div>

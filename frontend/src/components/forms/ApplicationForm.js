@@ -305,6 +305,7 @@ const ApplicationForm = () => {
         toast.success('Application submitted successfully!');
       }
       
+      // Navigate to My Applications
       navigate('/applications');
     } catch (error) {
       console.error('Submission error:', error);

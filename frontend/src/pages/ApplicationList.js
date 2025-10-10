@@ -1,13 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { toast } from 'react-toastify';
-import { FaFileAlt, FaEye, FaClock, FaCheckCircle, FaTimesCircle, FaFileCode, FaEdit } from 'react-icons/fa';
+import { FaFileAlt, FaEye, FaClock, FaCheckCircle, FaTimesCircle, FaFileCode, FaEdit, FaListAlt } from 'react-icons/fa';
 import mortgageService from '../services/mortgageService';
 import { downloadXML } from '../utils/urlaExport';
+import RecommendedDocuments from '../components/RecommendedDocuments';
 
 const ApplicationList = () => {
   const [applications, setApplications] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [showDocsModal, setShowDocsModal] = useState(false);
+  const [selectedApplication, setSelectedApplication] = useState(null);
 
   useEffect(() => {
     fetchApplications();
@@ -73,6 +76,22 @@ const ApplicationList = () => {
     }
   };
 
+  const handleShowRecommendedDocs = async (applicationId) => {
+    try {
+      const applicationData = await mortgageService.getApplication(applicationId);
+      setSelectedApplication(applicationData);
+      setShowDocsModal(true);
+    } catch (error) {
+      toast.error('Failed to load application. Please try again.');
+      console.error('Load application error:', error);
+    }
+  };
+
+  const handleCloseDocsModal = () => {
+    setShowDocsModal(false);
+    setSelectedApplication(null);
+  };
+
   if (loading) {
     return (
       <div className="applications-container">
@@ -97,7 +116,7 @@ const ApplicationList = () => {
             <h3>No Applications Yet</h3>
             <p>You haven't submitted any applications yet. Start your first mortgage application to get started.</p>
             <Link to="/apply" className="btn btn-primary btn-large">
-              <FaPlus /> Start Your First Application
+              <FaFileAlt /> Start Your First Application
             </Link>
           </div>
         ) : (
@@ -144,6 +163,14 @@ const ApplicationList = () => {
                 </div>
                 
                 <div className="application-actions">
+                  <button
+                    type="button"
+                    onClick={() => handleShowRecommendedDocs(application.id)}
+                    className="btn btn-primary"
+                    title="View Recommended Documents"
+                  >
+                    <FaListAlt /> Recommended Docs
+                  </button>
                   <Link 
                     to={`/applications/${application.id}`} 
                     className="btn btn-secondary"
@@ -171,6 +198,14 @@ const ApplicationList = () => {
           </div>
         )}
       </div>
+      
+      {/* Recommended Documents Modal */}
+      {showDocsModal && selectedApplication && (
+        <RecommendedDocuments
+          applicationData={selectedApplication}
+          onClose={handleCloseDocsModal}
+        />
+      )}
     </div>
   );
 };

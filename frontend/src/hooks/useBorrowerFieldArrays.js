@@ -10,7 +10,8 @@ export const useBorrowerFieldArrays = (control) => {
     name: "borrowers"
   });
 
-  // Borrower 0 field arrays
+  // We must call all hooks unconditionally (React rules)
+  // But field arrays will only have data for borrowers that exist
   const borrower0 = {
     employmentHistory: useFieldArray({ control, name: "borrowers.0.employmentHistory" }),
     incomeSources: useFieldArray({ control, name: "borrowers.0.incomeSources" }),
@@ -20,7 +21,6 @@ export const useBorrowerFieldArrays = (control) => {
     reoProperties: useFieldArray({ control, name: "borrowers.0.reoProperties" })
   };
 
-  // Borrower 1 field arrays
   const borrower1 = {
     employmentHistory: useFieldArray({ control, name: "borrowers.1.employmentHistory" }),
     incomeSources: useFieldArray({ control, name: "borrowers.1.incomeSources" }),
@@ -30,7 +30,6 @@ export const useBorrowerFieldArrays = (control) => {
     reoProperties: useFieldArray({ control, name: "borrowers.1.reoProperties" })
   };
 
-  // Borrower 2 field arrays
   const borrower2 = {
     employmentHistory: useFieldArray({ control, name: "borrowers.2.employmentHistory" }),
     incomeSources: useFieldArray({ control, name: "borrowers.2.incomeSources" }),
@@ -40,7 +39,6 @@ export const useBorrowerFieldArrays = (control) => {
     reoProperties: useFieldArray({ control, name: "borrowers.2.reoProperties" })
   };
 
-  // Borrower 3 field arrays
   const borrower3 = {
     employmentHistory: useFieldArray({ control, name: "borrowers.3.employmentHistory" }),
     incomeSources: useFieldArray({ control, name: "borrowers.3.incomeSources" }),
@@ -59,11 +57,12 @@ export const useBorrowerFieldArrays = (control) => {
   const getFieldArray = (borrowerIndex, fieldName) => {
     const borrowerFieldArrays = [borrower0, borrower1, borrower2, borrower3];
     
-    if (borrowerIndex >= 0 && borrowerIndex < borrowerFieldArrays.length) {
+    // Only return field array if the borrower actually exists in the main borrowers array
+    if (borrowerIndex >= 0 && borrowerIndex < borrowers.fields.length) {
       return borrowerFieldArrays[borrowerIndex][fieldName];
     }
     
-    console.warn(`Invalid borrower index: ${borrowerIndex}`);
+    // Return empty field array if borrower doesn't exist yet
     return { fields: [], append: () => {}, remove: () => {} };
   };
 

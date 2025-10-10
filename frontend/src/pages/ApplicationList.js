@@ -147,31 +147,33 @@ const ApplicationList = () => {
                   </div>
                 </div>
                 
-                {isLatest && (
-                  <div className="application-actions">
-                    <Link 
-                      to={`/applications/${application.id}`} 
-                      className="btn btn-primary"
-                    >
-                      <FaEye /> View & Upload Docs
-                    </Link>
-                    <Link 
-                      to={`/apply?edit=${application.id}`} 
-                      className="btn btn-secondary"
-                      title="Edit Application"
-                    >
-                      <FaEdit /> Edit
-                    </Link>
-                    <button
-                      type="button"
-                      onClick={() => handleExportXML(application.id)}
-                      className="btn btn-outline-primary"
-                      title="Export to XML (MISMO Format)"
-                    >
-                      <FaFileCode /> Export XML
-                    </button>
-                  </div>
-                )}
+                <div className="application-actions">
+                  <Link 
+                    to={`/applications/${application.id}`} 
+                    className="btn btn-primary"
+                  >
+                    <FaEye /> View & Upload Docs
+                  </Link>
+                  {isLatest && (
+                    <>
+                      <Link 
+                        to={`/apply?edit=${application.id}`} 
+                        className="btn btn-secondary"
+                        title="Edit Application"
+                      >
+                        <FaEdit /> Edit
+                      </Link>
+                      <button
+                        type="button"
+                        onClick={() => handleExportXML(application.id)}
+                        className="btn btn-outline-primary"
+                        title="Export to XML (MISMO Format)"
+                      >
+                        <FaFileCode /> Export XML
+                      </button>
+                    </>
+                  )}
+                </div>
               </div>
                 );
               })}

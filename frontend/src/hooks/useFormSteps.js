@@ -40,6 +40,7 @@ export const useFormSteps = (totalSteps = 7) => {
     isLastStep,
     isFirstStep,
     setCurrentStep,
-    visitedSteps
+    visitedSteps,
+    setVisitedSteps
   };
 };

@@ -60,7 +60,8 @@ const ApplicationForm = () => {
     canGoNext,
     canGoPrev,
     isLastStep,
-    visitedSteps
+    visitedSteps,
+    setVisitedSteps
   } = useFormSteps(7);
 
   const { borrowers, getFieldArray } = useBorrowerFieldArrays(control);
@@ -115,29 +116,33 @@ const ApplicationForm = () => {
               // Residences
               residences: borrower.residences || [],
               
-              // Assets (if available)
-              assets: borrower.assets || [],
+              // Assets - Not persisted in backend yet, will be empty on edit
+              assets: [],
               
-              // Liabilities (if associated with borrower)
-              liabilities: borrower.liabilities || [],
+              // Liabilities - Will be populated from application-level liabilities below
+              liabilities: [],
               
               // REO Properties
               reoProperties: borrower.reoProperties || []
             }))
           };
           
-          // Add top-level liabilities if they exist
+          // Add application-level liabilities to first borrower
+          // (All assets/liabilities are stored under borrowers[0] in the form)
           if (applicationData.liabilities && applicationData.liabilities.length > 0) {
-            // Merge with first borrower's liabilities or create structure
             if (formData.borrowers.length === 0) {
               formData.borrowers = [createDefaultBorrower(1)];
             }
+            formData.borrowers[0].liabilities = applicationData.liabilities;
           }
           
           console.log('[DEBUG] Mapped form data:', formData);
           
           // Populate form with application data
           reset(formData);
+          
+          // Mark all steps as visited to allow free navigation when editing
+          setVisitedSteps(new Set([1, 2, 3, 4, 5, 6, 7]));
           
           toast.success('Application loaded for editing');
         } catch (error) {

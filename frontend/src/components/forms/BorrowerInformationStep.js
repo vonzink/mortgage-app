@@ -30,8 +30,10 @@ const BorrowerInformationStep = ({
   const loanPurpose = watch('loanPurpose');
 
   const addBorrower = () => {
+    console.log('[DEBUG] Before add - borrowerFields.length:', borrowerFields.length);
     if (borrowerFields.length < 4) {
       appendBorrower(createDefaultBorrower(borrowerFields.length + 1));
+      console.log('[DEBUG] Added borrower. New length should be:', borrowerFields.length + 1);
     }
   };
 
@@ -47,6 +49,7 @@ const BorrowerInformationStep = ({
       icon={<FaUser />}
       description="Personal details and residence history for all borrowers."
     >
+      {console.log('[DEBUG] Rendering borrowers. borrowerFields.length:', borrowerFields.length, 'borrowerFields:', borrowerFields)}
       {borrowerFields.map((borrowerField, borrowerIndex) => {
         // Always show borrower 1 (primary) and any borrowers that exist in the fields array
         // The fields array only contains borrowers explicitly added by the user

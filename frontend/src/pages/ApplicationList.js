@@ -102,7 +102,11 @@ const ApplicationList = () => {
           </div>
         ) : (
           <div className="applications-grid">
-            {applications.map((application) => (
+            {applications
+              .sort((a, b) => new Date(b.createdDate) - new Date(a.createdDate)) // Sort by date, most recent first
+              .map((application, index) => {
+                const isLatest = index === 0; // First item after sorting is the most recent
+                return (
               <div key={application.id} className="application-card">
                 <div className="application-header">
                   <div className="application-title">
@@ -143,31 +147,34 @@ const ApplicationList = () => {
                   </div>
                 </div>
                 
-                <div className="application-actions">
-                  <Link 
-                    to={`/applications/${application.id}`} 
-                    className="btn btn-primary"
-                  >
-                    <FaEye /> View & Upload Docs
-                  </Link>
-                  <Link 
-                    to={`/apply?edit=${application.id}`} 
-                    className="btn btn-secondary"
-                    title="Edit Application"
-                  >
-                    <FaEdit /> Edit
-                  </Link>
-                  <button
-                    type="button"
-                    onClick={() => handleExportXML(application.id)}
-                    className="btn btn-outline-primary"
-                    title="Export to XML (MISMO Format)"
-                  >
-                    <FaFileCode /> Export XML
-                  </button>
-                </div>
+                {isLatest && (
+                  <div className="application-actions">
+                    <Link 
+                      to={`/applications/${application.id}`} 
+                      className="btn btn-primary"
+                    >
+                      <FaEye /> View & Upload Docs
+                    </Link>
+                    <Link 
+                      to={`/apply?edit=${application.id}`} 
+                      className="btn btn-secondary"
+                      title="Edit Application"
+                    >
+                      <FaEdit /> Edit
+                    </Link>
+                    <button
+                      type="button"
+                      onClick={() => handleExportXML(application.id)}
+                      className="btn btn-outline-primary"
+                      title="Export to XML (MISMO Format)"
+                    >
+                      <FaFileCode /> Export XML
+                    </button>
+                  </div>
+                )}
               </div>
-            ))}
+                );
+              })}
           </div>
         )}
       </div>

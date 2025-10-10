@@ -350,31 +350,9 @@ const ApplicationDetails = () => {
         <div className="card" style={{ marginTop: '2rem' }}>
           <h2><FaFileAlt /> Loan Document Checklist</h2>
           
-          {/* Application Snapshot */}
+          {/* Application Review */}
           <div className="doc-summary-section" style={{ marginBottom: '2rem', padding: '1.5rem', backgroundColor: 'var(--bg-secondary)', borderRadius: 'var(--border-radius)' }}>
-            <h3 style={{ marginBottom: '1rem', color: 'var(--text-primary)' }}>Application Snapshot</h3>
-            <div className="summary-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem', marginBottom: '1rem' }}>
-              <div className="summary-item">
-                <span className="summary-label" style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', display: 'block' }}>Borrowers</span>
-                <span className="summary-value" style={{ fontWeight: '500', color: 'var(--text-primary)' }}>
-                  {(application.borrowers || []).map(b => `${b.firstName} ${b.lastName}`).join(', ') || '—'}
-                </span>
-              </div>
-              <div className="summary-item">
-                <span className="summary-label" style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', display: 'block' }}>Purpose</span>
-                <span className="summary-value" style={{ fontWeight: '500', color: 'var(--text-primary)' }}>{application.loanPurpose || '—'}</span>
-              </div>
-              <div className="summary-item">
-                <span className="summary-label" style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', display: 'block' }}>Loan Type</span>
-                <span className="summary-value" style={{ fontWeight: '500', color: 'var(--text-primary)' }}>{application.loanType || '—'}</span>
-              </div>
-              <div className="summary-item">
-                <span className="summary-label" style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', display: 'block' }}>Loan Amount</span>
-                <span className="summary-value" style={{ fontWeight: '500', color: 'var(--text-primary)' }}>
-                  {application.loanAmount ? formatCurrency(application.loanAmount) : '—'}
-                </span>
-              </div>
-            </div>
+            <h3 style={{ marginBottom: '1rem', color: 'var(--text-primary)' }}>Application Review</h3>
 
             {/* Coverage Chips */}
             <div className="coverage-chips" style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>

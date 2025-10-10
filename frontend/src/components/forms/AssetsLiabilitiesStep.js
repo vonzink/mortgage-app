@@ -27,14 +27,7 @@ const AssetsLiabilitiesStep = ({
       description="Assets, liabilities, and real estate owned properties for all borrowers."
     >
       {borrowerFields.map((borrowerField, borrowerIndex) => {
-        const borrower = getValues(`borrowers.${borrowerIndex}`);
-        const hasBorrowerData = borrower?.firstName || borrower?.lastName;
-        
-        // Only show borrower assets/liabilities if they have data or it's the first borrower
-        if (!hasBorrowerData && borrowerIndex > 0) {
-          return null;
-        }
-
+        // Always show all borrowers that exist in the fields array
         const { fields: assetFields, append: appendAsset, remove: removeAsset } = getFieldArray(borrowerIndex, 'assets');
         const { fields: liabilityFields, append: appendLiability, remove: removeLiability } = getFieldArray(borrowerIndex, 'liabilities');
         const { fields: reoFields, append: appendReo, remove: removeReo } = getFieldArray(borrowerIndex, 'reoProperties');
@@ -356,24 +349,27 @@ const AssetsLiabilitiesStep = ({
                             {...register(`borrowers.${borrowerIndex}.reoProperties.${reoIndex}.associatedLiability`)}
                             onChange={(e) => {
                               const liabIndex = e.target.value;
-                              setValue(`borrowers.${borrowerIndex}.reoProperties.${reoIndex}.associatedLiability`, liabIndex);
                               
-                              if (liabIndex !== '') {
-                                const liability = getValues(`borrowers.${borrowerIndex}.liabilities.${liabIndex}`);
-                                if (liability) {
-                                  // Prefill monthly payment and unpaid balance from the selected liability
-                                  if (liability.monthlyPayment) {
-                                    const currentValue = getValues(`borrowers.${borrowerIndex}.reoProperties.${reoIndex}.monthlyPayment`);
-                                    if (!currentValue) {
-                                      setValue(`borrowers.${borrowerIndex}.reoProperties.${reoIndex}.monthlyPayment`, liability.monthlyPayment);
+                              if (liabIndex !== '' && liabIndex !== undefined) {
+                                try {
+                                  const liability = getValues(`borrowers.${borrowerIndex}.liabilities.${parseInt(liabIndex)}`);
+                                  if (liability) {
+                                    // Prefill monthly payment and unpaid balance from the selected liability
+                                    if (liability.monthlyPayment && parseFloat(liability.monthlyPayment) > 0) {
+                                      const currentValue = getValues(`borrowers.${borrowerIndex}.reoProperties.${reoIndex}.monthlyPayment`);
+                                      if (!currentValue || parseFloat(currentValue) === 0) {
+                                        setValue(`borrowers.${borrowerIndex}.reoProperties.${reoIndex}.monthlyPayment`, liability.monthlyPayment);
+                                      }
+                                    }
+                                    if (liability.unpaidBalance && parseFloat(liability.unpaidBalance) > 0) {
+                                      const currentValue = getValues(`borrowers.${borrowerIndex}.reoProperties.${reoIndex}.unpaidBalance`);
+                                      if (!currentValue || parseFloat(currentValue) === 0) {
+                                        setValue(`borrowers.${borrowerIndex}.reoProperties.${reoIndex}.unpaidBalance`, liability.unpaidBalance);
+                                      }
                                     }
                                   }
-                                  if (liability.unpaidBalance) {
-                                    const currentValue = getValues(`borrowers.${borrowerIndex}.reoProperties.${reoIndex}.unpaidBalance`);
-                                    if (!currentValue) {
-                                      setValue(`borrowers.${borrowerIndex}.reoProperties.${reoIndex}.unpaidBalance`, liability.unpaidBalance);
-                                    }
-                                  }
+                                } catch (error) {
+                                  console.error('Error linking liability to REO:', error);
                                 }
                               }
                             }}

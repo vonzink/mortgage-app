@@ -48,14 +48,7 @@ const BorrowerInformationStep = ({
       description="Personal details and residence history for all borrowers."
     >
       {borrowerFields.map((borrowerField, borrowerIndex) => {
-        const borrower = getValues(`borrowers.${borrowerIndex}`);
-        const hasBorrowerData = borrower?.firstName || borrower?.lastName;
-        
-        // Only show borrower if they have data or it's the first borrower
-        if (!hasBorrowerData && borrowerIndex > 0) {
-          return null;
-        }
-
+        // Always show all borrowers that exist in the fields array
         return (
           <div key={borrowerField.id} className="borrower-section">
             <div className="borrower-header">

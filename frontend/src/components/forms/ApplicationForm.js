@@ -297,7 +297,9 @@ const ApplicationForm = () => {
 
       // Always create a new application (even when editing)
       // This preserves the original and creates a new edited version
-      await mortgageService.createApplication(applicationData);
+      const createdApplication = await mortgageService.createApplication(applicationData);
+      
+      console.log('[DEBUG] Application created successfully:', createdApplication);
       
       if (isEditing && editId) {
         toast.success('Edited application saved as new version!');
@@ -305,11 +307,31 @@ const ApplicationForm = () => {
         toast.success('Application submitted successfully!');
       }
       
-      // Navigate to My Applications
-      navigate('/applications');
+      // Navigate to My Applications after a brief delay to show the success message
+      setTimeout(() => {
+        navigate('/applications');
+      }, 1000);
     } catch (error) {
-      console.error('Submission error:', error);
-      toast.error(error.message || 'Failed to submit application. Please try again.');
+      console.error('[ERROR] Submission failed:', error);
+      console.error('[ERROR] Error details:', {
+        message: error.message,
+        response: error.response?.data,
+        status: error.response?.status
+      });
+      
+      // Show specific error message
+      let errorMessage = 'Failed to submit application. Please try again.';
+      if (error.response?.data?.message) {
+        errorMessage = error.response.data.message;
+      } else if (error.response?.data?.fieldErrors) {
+        errorMessage = 'Validation errors: ' + Object.entries(error.response.data.fieldErrors)
+          .map(([field, errors]) => `${field}: ${errors.join(', ')}`)
+          .join('; ');
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+      
+      toast.error(errorMessage, { autoClose: 5000 });
     } finally {
       setIsSubmitting(false);
     }

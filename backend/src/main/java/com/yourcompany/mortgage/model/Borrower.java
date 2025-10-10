@@ -66,6 +66,10 @@ public class Borrower {
     @JsonManagedReference
     private List<REOProperty> reoProperties = new ArrayList<>();
 
+    @OneToMany(mappedBy = "borrower", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.EAGER)
+    @JsonManagedReference
+    private List<Asset> assets = new ArrayList<>();
+
     @OneToOne(mappedBy = "borrower", cascade = CascadeType.ALL, fetch = FetchType.EAGER)
     @JsonManagedReference
     private Declaration declaration;
@@ -225,6 +229,14 @@ public class Borrower {
 
     public void setReoProperties(List<REOProperty> reoProperties) {
         this.reoProperties = reoProperties;
+    }
+
+    public List<Asset> getAssets() {
+        return assets;
+    }
+
+    public void setAssets(List<Asset> assets) {
+        this.assets = assets;
     }
 
     public String getCurrentAddressLine() {

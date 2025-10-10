@@ -116,8 +116,8 @@ const ApplicationForm = () => {
               // Residences
               residences: borrower.residences || [],
               
-              // Assets - Not persisted in backend yet, will be empty on edit
-              assets: [],
+              // Assets
+              assets: borrower.assets || [],
               
               // Liabilities - Will be populated from application-level liabilities below
               liabilities: [],
@@ -287,6 +287,15 @@ const ApplicationForm = () => {
                     monthlyRentalIncome: parseFloat(reo.monthlyRentalIncome) || 0,
                     monthlyPayment: parseFloat(reo.monthlyPayment) || 0,
                     unpaidBalance: parseFloat(reo.unpaidBalance) || 0
+                  })),
+              assets: (borrower.assets || [])
+                  .filter(asset => hasValue(asset.assetType) && parseFloat(asset.assetValue) > 0)
+                  .map(asset => ({
+                    assetType: asset.assetType,
+                    bankName: asset.bankName || null,
+                    accountNumber: asset.accountNumber || null,
+                    assetValue: parseFloat(asset.assetValue) || 0,
+                    usedForDownpayment: asset.usedForDownpayment || false
                   }))
             })),
         liabilities: data.borrowers

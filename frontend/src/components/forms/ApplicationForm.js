@@ -195,6 +195,8 @@ const ApplicationForm = () => {
     try {
       // Transform the form data to match backend DTO structure
       console.log('[DEBUG] Transforming form data to backend DTO structure...');
+      console.log('[DEBUG] data.property object:', data.property);
+      
       const applicationData = {
         loanPurpose: data.loanPurpose || 'Purchase',
         loanType: data.loanType || 'Conventional',

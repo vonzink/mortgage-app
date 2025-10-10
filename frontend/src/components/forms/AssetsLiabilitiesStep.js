@@ -168,9 +168,9 @@ const AssetsLiabilitiesStep = ({
                           <option value="CreditCard">Credit Card</option>
                           <option value="AutoLoan">Auto Loan</option>
                           <option value="StudentLoan">Student Loan</option>
-                          <option value="PersonalLoan">Personal Loan</option>
-                          <option value="Mortgage">Mortgage</option>
-                          <option value="HomeEquity">Home Equity Loan</option>
+                          <option value="MortgageLoan">Mortgage Loan</option>
+                          <option value="Revolving">Revolving Credit</option>
+                          <option value="Installment">Installment Loan</option>
                           <option value="Other">Other</option>
                         </select>
                       </div>

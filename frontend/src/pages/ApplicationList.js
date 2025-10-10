@@ -1,16 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { toast } from 'react-toastify';
-import { FaFileAlt, FaEye, FaClock, FaCheckCircle, FaTimesCircle, FaFileCode, FaEdit, FaListAlt } from 'react-icons/fa';
+import { FaFileAlt, FaEye, FaClock, FaCheckCircle, FaTimesCircle, FaFileCode, FaEdit } from 'react-icons/fa';
 import mortgageService from '../services/mortgageService';
 import { downloadXML } from '../utils/urlaExport';
-import RecommendedDocuments from '../components/RecommendedDocuments';
 
 const ApplicationList = () => {
   const [applications, setApplications] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [showDocsModal, setShowDocsModal] = useState(false);
-  const [selectedApplication, setSelectedApplication] = useState(null);
 
   useEffect(() => {
     fetchApplications();
@@ -74,22 +71,6 @@ const ApplicationList = () => {
       toast.error('Failed to export XML. Please try again.');
       console.error('XML export error:', error);
     }
-  };
-
-  const handleShowRecommendedDocs = async (applicationId) => {
-    try {
-      const applicationData = await mortgageService.getApplication(applicationId);
-      setSelectedApplication(applicationData);
-      setShowDocsModal(true);
-    } catch (error) {
-      toast.error('Failed to load application. Please try again.');
-      console.error('Load application error:', error);
-    }
-  };
-
-  const handleCloseDocsModal = () => {
-    setShowDocsModal(false);
-    setSelectedApplication(null);
   };
 
   if (loading) {
@@ -169,17 +150,9 @@ const ApplicationList = () => {
                   >
                     <FaEye /> View & Upload Docs
                   </Link>
-                  <button
-                    type="button"
-                    onClick={() => handleShowRecommendedDocs(application.id)}
-                    className="btn btn-secondary"
-                    title="View Recommended Documents"
-                  >
-                    <FaListAlt /> Recommended Docs
-                  </button>
                   <Link 
                     to={`/apply?edit=${application.id}`} 
-                    className="btn btn-outline-primary"
+                    className="btn btn-secondary"
                     title="Edit Application"
                   >
                     <FaEdit /> Edit
@@ -199,13 +172,6 @@ const ApplicationList = () => {
         )}
       </div>
       
-      {/* Recommended Documents Modal */}
-      {showDocsModal && selectedApplication && (
-        <RecommendedDocuments
-          applicationData={selectedApplication}
-          onClose={handleCloseDocsModal}
-        />
-      )}
     </div>
   );
 };

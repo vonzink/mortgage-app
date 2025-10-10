@@ -58,7 +58,11 @@ export const useBorrowerFieldArrays = (control) => {
     const borrowerFieldArrays = [borrower0, borrower1, borrower2, borrower3];
     
     // Only return field array if the borrower actually exists in the main borrowers array
-    if (borrowerIndex >= 0 && borrowerIndex < borrowers.fields.length) {
+    // and the borrower field array object is defined
+    if (borrowerIndex >= 0 && 
+        borrowerIndex < borrowers.fields.length && 
+        borrowerFieldArrays[borrowerIndex] && 
+        borrowerFieldArrays[borrowerIndex][fieldName]) {
       return borrowerFieldArrays[borrowerIndex][fieldName];
     }
     

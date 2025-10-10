@@ -73,7 +73,9 @@ public class LoanApplication {
     }
 
     private String generateApplicationNumber() {
-        return "APP" + System.currentTimeMillis();
+        // Generate a 6-digit random number (100000 to 999999)
+        int randomNum = 100000 + (int)(Math.random() * 900000);
+        return "APP" + randomNum;
     }
 
     public LoanApplication() {}

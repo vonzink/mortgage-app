@@ -471,77 +471,36 @@ const ApplicationDetails = () => {
             </div>
           </div>
 
-          {/* Status Legend */}
-          <div className="doc-section-note" style={{ marginBottom: '1.5rem', padding: '1rem', backgroundColor: 'var(--bg-secondary)', borderRadius: 'var(--border-radius)' }}>
-            <strong style={{ color: 'var(--text-primary)' }}>Document Statuses:</strong>{' '}
-            <span className="status status-required" style={{ 
-              display: 'inline-block', 
-              padding: '0.25rem 0.5rem', 
-              margin: '0 0.5rem', 
-              borderRadius: '3px', 
-              fontSize: '0.85rem',
-              backgroundColor: 'var(--error-color)',
-              color: 'white'
-            }}>Required</span>
-            <span className="status status-conditional" style={{ 
-              display: 'inline-block', 
-              padding: '0.25rem 0.5rem', 
-              margin: '0 0.5rem', 
-              borderRadius: '3px', 
-              fontSize: '0.85rem',
-              backgroundColor: 'var(--secondary-color)',
-              color: 'white'
-            }}>Conditional</span>
-            <span className="status status-review" style={{ 
-              display: 'inline-block', 
-              padding: '0.25rem 0.5rem', 
-              margin: '0 0.5rem', 
-              borderRadius: '3px', 
-              fontSize: '0.85rem',
-              backgroundColor: '#f0ad4e',
-              color: 'white'
-            }}>Review</span>
-            <span className="status status-ok" style={{ 
-              display: 'inline-block', 
-              padding: '0.25rem 0.5rem', 
-              margin: '0 0.5rem', 
-              borderRadius: '3px', 
-              fontSize: '0.85rem',
-              backgroundColor: 'var(--success-color)',
-              color: 'white'
-            }}>OK</span>
-          </div>
-
           {/* Document Tables by Category */}
           <div className="doc-sections">
             {Object.entries(recommendations).map(([category, items]) => {
               if (!items || items.length === 0) return null;
               
               return (
-                <div key={category} className="doc-section" style={{ marginBottom: '2rem' }}>
-                  <h3 style={{ marginBottom: '1rem', fontSize: '1.2rem', color: 'var(--primary-color)', borderBottom: '2px solid var(--border-color)', paddingBottom: '0.5rem' }}>
+                <div key={category} className="doc-section" style={{ marginBottom: '1.5rem' }}>
+                  <h3 style={{ marginBottom: '0.5rem', fontSize: '1.1rem', color: 'var(--primary-color)', borderBottom: '2px solid var(--border-color)', paddingBottom: '0.35rem' }}>
                     {category.charAt(0).toUpperCase() + category.slice(1).replace(/([A-Z])/g, ' $1')}
                   </h3>
                   <table className="doc-table" style={{ width: '100%', borderCollapse: 'collapse' }}>
                     <thead>
                       <tr style={{ backgroundColor: 'var(--bg-secondary)' }}>
-                        <th style={{ padding: '0.75rem', textAlign: 'left', borderBottom: '2px solid var(--border-color)', color: 'var(--text-primary)' }}>Document</th>
-                        <th style={{ padding: '0.75rem', textAlign: 'left', borderBottom: '2px solid var(--border-color)', width: '120px', color: 'var(--text-primary)' }}>Status</th>
-                        <th style={{ padding: '0.75rem', textAlign: 'left', borderBottom: '2px solid var(--border-color)', color: 'var(--text-primary)' }}>Reason</th>
+                        <th style={{ padding: '0.5rem', textAlign: 'left', borderBottom: '2px solid var(--border-color)', color: 'var(--text-primary)', fontSize: '0.9rem' }}>Document</th>
+                        <th style={{ padding: '0.5rem', textAlign: 'left', borderBottom: '2px solid var(--border-color)', width: '110px', color: 'var(--text-primary)', fontSize: '0.9rem' }}>Status</th>
+                        <th style={{ padding: '0.5rem', textAlign: 'left', borderBottom: '2px solid var(--border-color)', color: 'var(--text-primary)', fontSize: '0.9rem' }}>Reason</th>
                       </tr>
                     </thead>
                     <tbody>
                       {items.map((doc, idx) => (
                         <tr key={idx} style={{ borderBottom: '1px solid var(--border-color)' }}>
-                          <td style={{ padding: '0.75rem', fontWeight: '500', color: 'var(--text-primary)' }}>{doc.name || doc.document}</td>
-                          <td style={{ padding: '0.75rem' }}>
+                          <td style={{ padding: '0.5rem', fontWeight: '500', color: 'var(--text-primary)', fontSize: '0.9rem' }}>{doc.name || doc.document}</td>
+                          <td style={{ padding: '0.5rem' }}>
                             <span className={`status ${getDocStatusClass(doc.status)}`} style={{
                               display: 'inline-flex',
                               alignItems: 'center',
-                              gap: '0.35rem',
-                              padding: '0.35rem 0.75rem',
+                              gap: '0.25rem',
+                              padding: '0.25rem 0.6rem',
                               borderRadius: '20px',
-                              fontSize: '0.8rem',
+                              fontSize: '0.75rem',
                               fontWeight: '600',
                               whiteSpace: 'nowrap',
                               backgroundColor: 
@@ -555,7 +514,7 @@ const ApplicationDetails = () => {
                               {doc.status}
                             </span>
                           </td>
-                          <td style={{ padding: '0.75rem', color: 'var(--text-secondary)', fontSize: '0.9rem' }}>{doc.reason}</td>
+                          <td style={{ padding: '0.5rem', color: 'var(--text-secondary)', fontSize: '0.85rem' }}>{doc.reason}</td>
                         </tr>
                       ))}
                     </tbody>

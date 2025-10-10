@@ -2,8 +2,8 @@
  * Borrower Information Step Component
  * Step 2: Personal details and residence history
  */
-import React from 'react';
-import { FaUser } from 'react-icons/fa';
+import React, { useState } from 'react';
+import { FaUser, FaPlus, FaTimes } from 'react-icons/fa';
 import { toast } from 'react-toastify';
 import FormSection from '../shared/FormSection';
 import PersonalInfoField from '../form-fields/PersonalInfoField';
@@ -28,19 +28,35 @@ const BorrowerInformationStep = ({
   removeBorrower
 }) => {
   const loanPurpose = watch('loanPurpose');
+  const [activeBorrowerTab, setActiveBorrowerTab] = useState(0);
 
   const addBorrower = () => {
     console.log('[DEBUG] Before add - borrowerFields.length:', borrowerFields.length);
     if (borrowerFields.length < 4) {
       appendBorrower(createDefaultBorrower(borrowerFields.length + 1));
       console.log('[DEBUG] Added borrower. New length should be:', borrowerFields.length + 1);
+      // Switch to the new borrower tab
+      setActiveBorrowerTab(borrowerFields.length);
     }
   };
 
   const removeBorrowerHandler = (index) => {
     if (borrowerFields.length > 1) {
       removeBorrower(index);
+      // Switch to previous tab if we removed the active one
+      if (activeBorrowerTab >= index) {
+        setActiveBorrowerTab(Math.max(0, activeBorrowerTab - 1));
+      }
     }
+  };
+
+  const getBorrowerName = (index) => {
+    const firstName = watch(`borrowers.${index}.firstName`);
+    const lastName = watch(`borrowers.${index}.lastName`);
+    if (firstName || lastName) {
+      return `${firstName || ''} ${lastName || ''}`.trim() || `Borrower ${index + 1}`;
+    }
+    return `Borrower ${index + 1}`;
   };
 
   return (
@@ -49,24 +65,78 @@ const BorrowerInformationStep = ({
       icon={<FaUser />}
       description="Personal details and residence history for all borrowers."
     >
+      {/* Borrower Tabs */}
+      <div className="borrower-tabs" style={{ 
+        display: 'flex', 
+        gap: '0.5rem', 
+        marginBottom: '2rem',
+        borderBottom: '2px solid var(--border-color)',
+        flexWrap: 'wrap'
+      }}>
+        {borrowerFields.map((borrowerField, borrowerIndex) => (
+          <button
+            key={borrowerField.id}
+            type="button"
+            onClick={() => setActiveBorrowerTab(borrowerIndex)}
+            className={`borrower-tab ${activeBorrowerTab === borrowerIndex ? 'active' : ''}`}
+            style={{
+              padding: '0.75rem 1.5rem',
+              border: 'none',
+              borderBottom: activeBorrowerTab === borrowerIndex ? '3px solid var(--primary-color)' : '3px solid transparent',
+              background: activeBorrowerTab === borrowerIndex ? 'var(--bg-secondary)' : 'transparent',
+              cursor: 'pointer',
+              fontWeight: activeBorrowerTab === borrowerIndex ? '600' : '400',
+              color: activeBorrowerTab === borrowerIndex ? 'var(--primary-color)' : 'var(--text-secondary)',
+              transition: 'all 0.2s',
+              position: 'relative',
+              marginBottom: '-2px'
+            }}
+          >
+            {getBorrowerName(borrowerIndex)}
+          </button>
+        ))}
+        
+        {borrowerFields.length < 4 && (
+          <button
+            type="button"
+            onClick={addBorrower}
+            className="add-borrower-tab"
+            style={{
+              padding: '0.75rem 1.5rem',
+              border: 'none',
+              background: 'transparent',
+              cursor: 'pointer',
+              color: 'var(--primary-color)',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.5rem',
+              fontWeight: '500'
+            }}
+          >
+            <FaPlus /> Add Co-Borrower
+          </button>
+        )}
+      </div>
+
       {console.log('[DEBUG] Rendering borrowers. borrowerFields.length:', borrowerFields.length, 'borrowerFields:', borrowerFields)}
       {borrowerFields.map((borrowerField, borrowerIndex) => {
-        // Always show borrower 1 (primary) and any borrowers that exist in the fields array
-        // The fields array only contains borrowers explicitly added by the user
+        // Only show the active borrower tab
+        if (borrowerIndex !== activeBorrowerTab) return null;
+        
         return (
           <div key={borrowerField.id} className="borrower-section">
-            <div className="borrower-header">
-              <h4>Borrower {borrowerIndex + 1}</h4>
-              {borrowerIndex > 0 && (
+            {borrowerIndex > 0 && (
+              <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '1rem' }}>
                 <button
                   type="button"
                   onClick={() => removeBorrowerHandler(borrowerIndex)}
                   className="btn btn-outline-danger btn-sm"
+                  style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}
                 >
-                  Remove Borrower
+                  <FaTimes /> Remove This Borrower
                 </button>
-              )}
-            </div>
+              </div>
+            )}
 
             <PersonalInfoField
               register={register}
@@ -327,18 +397,6 @@ const BorrowerInformationStep = ({
           </div>
         );
       })}
-
-      {borrowerFields.length < 4 && (
-        <div className="add-borrower-section">
-          <button
-            type="button"
-            onClick={addBorrower}
-            className="btn btn-outline-primary"
-          >
-            Add Co-Borrower {borrowerFields.length + 1}
-          </button>
-        </div>
-      )}
     </FormSection>
   );
 };

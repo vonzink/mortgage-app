@@ -204,17 +204,17 @@ const ApplicationForm = () => {
         propertyValue: parseFloat(data.propertyValue) || 0,
         status: 'DRAFT',
           property: {
-              addressLine: data.property?.addressLine || null,
-              city: data.property?.city || null,
-              state: data.property?.state || null,
-              zipCode: data.property?.zipCode || null,
+              addressLine: hasValue(data.property?.addressLine) ? data.property.addressLine : null,
+              city: hasValue(data.property?.city) ? data.property.city : null,
+              state: hasValue(data.property?.state) ? data.property.state : null,
+              zipCode: hasValue(data.property?.zipCode) ? data.property.zipCode : null,
               propertyType: data.propertyUse === 'Primary' ? 'PrimaryResidence' :
                   data.propertyUse === 'Secondary' ? 'SecondHome' :
                       data.propertyUse || 'PrimaryResidence',
-              propertyValue: parseFloat(data.propertyValue),
-              constructionType: data.constructionType || 'SiteBuilt',
-              yearBuilt: parseInt(data.yearBuilt) || null,
-              unitsCount: parseInt(data.unitsCount) || 1
+              propertyValue: parseFloat(data.propertyValue) || 0,
+              constructionType: hasValue(data.constructionType) ? data.constructionType : 'SiteBuilt',
+              yearBuilt: hasValue(data.yearBuilt) ? parseInt(data.yearBuilt) : null,
+              unitsCount: hasValue(data.unitsCount) ? parseInt(data.unitsCount) : 1
           },
         borrowers: data.borrowers
             .filter(borrower => hasValue(borrower.firstName) && hasValue(borrower.lastName))

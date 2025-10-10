@@ -20,23 +20,19 @@ public class Property {
     @JsonBackReference
     private LoanApplication application;
     
-    @Column(name = "address_line", nullable = false)
-    @NotBlank(message = "Address line is required")
+    @Column(name = "address_line")
     @Size(max = 255, message = "Address line must not exceed 255 characters")
     private String addressLine;
     
-    @Column(name = "city", nullable = false)
-    @NotBlank(message = "City is required")
+    @Column(name = "city")
     @Size(max = 100, message = "City must not exceed 100 characters")
     private String city;
     
-    @Column(name = "state", nullable = false)
-    @NotBlank(message = "State is required")
+    @Column(name = "state")
     @Size(min = 2, max = 2, message = "State must be 2 characters")
     private String state;
     
-    @Column(name = "zip_code", nullable = false)
-    @NotBlank(message = "ZIP code is required")
+    @Column(name = "zip_code")
     @Pattern(regexp = "\\d{5}(-\\d{4})?", message = "ZIP code must be in format 12345 or 12345-6789")
     private String zipCode;
     

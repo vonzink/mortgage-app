@@ -146,7 +146,6 @@
 .asset-header,
 .liability-header {
   display: grid;
-  grid-template-columns: 1fr 1fr 1fr 1fr 1fr auto;
   gap: var(--spacing-sm);
   padding: var(--spacing-sm) var(--spacing-md);
   background: var(--bg-secondary);
@@ -156,8 +155,12 @@
   color: var(--primary-color);
 }
 
+.asset-header {
+  grid-template-columns: 1.2fr 1fr 1fr 1fr 0.8fr 0.8fr 100px;
+}
+
 .liability-header {
-  grid-template-columns: 1fr 1fr 1fr 1fr 1fr auto;
+  grid-template-columns: 1.2fr 1fr 1.2fr 1fr 1fr 1fr 100px;
 }
 
 .asset-header-item,
@@ -168,15 +171,18 @@
 .asset-entry,
 .liability-entry {
   display: grid;
-  grid-template-columns: 1fr 1fr 1fr 1fr 1fr auto;
   gap: var(--spacing-sm);
   padding: var(--spacing-sm) var(--spacing-md);
   border-bottom: 1px solid var(--border-light);
   align-items: center;
 }
 
+.asset-entry {
+  grid-template-columns: 1.2fr 1fr 1fr 1fr 0.8fr 0.8fr 100px;
+}
+
 .liability-entry {
-  grid-template-columns: 1fr 1fr 1fr 1fr 1fr auto;
+  grid-template-columns: 1.2fr 1fr 1.2fr 1fr 1fr 1fr 100px;
 }
 
 .asset-entry:last-child,

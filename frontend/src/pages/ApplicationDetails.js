@@ -2,8 +2,9 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { useDropzone } from 'react-dropzone';
-import { FaUpload, FaFile, FaDownload, FaTrash, FaCheckCircle, FaTimes } from 'react-icons/fa';
+import { FaUpload, FaFile, FaDownload, FaTrash, FaCheckCircle, FaTimes, FaFileAlt, FaExclamationTriangle, FaInfoCircle } from 'react-icons/fa';
 import mortgageService from '../services/mortgageService';
+import { generateDocumentRecommendations } from '../utils/documentRecommendations';
 
 const DOCUMENT_TYPES = [
   'Pay Stub',
@@ -30,6 +31,7 @@ const ApplicationDetails = () => {
   const [documents, setDocuments] = useState([]);
   const [uploading, setUploading] = useState(false);
   const [pendingFiles, setPendingFiles] = useState([]);
+  const [recommendations, setRecommendations] = useState(null);
 
   const fetchApplication = useCallback(async () => {
     try {
@@ -57,6 +59,13 @@ const ApplicationDetails = () => {
     fetchApplication();
     fetchDocuments();
   }, [fetchApplication, fetchDocuments]);
+
+  useEffect(() => {
+    if (application) {
+      const recs = generateDocumentRecommendations(application);
+      setRecommendations(recs);
+    }
+  }, [application]);
 
   // Document upload handlers
   const onDrop = useCallback((acceptedFiles) => {
@@ -346,6 +355,67 @@ const ApplicationDetails = () => {
           </button>
         </div>
       </div>
+
+      {/* Recommended Documents Section */}
+      {recommendations && (
+        <div className="card" style={{ marginTop: '2rem' }}>
+          <h2><FaFileAlt /> Recommended Documents Checklist</h2>
+          <p style={{ marginBottom: '1.5rem', color: 'var(--text-secondary)' }}>
+            Based on your application details, here are the recommended documents you should upload:
+          </p>
+
+          {/* Document Categories */}
+          {Object.entries(recommendations).map(([category, items]) => {
+            if (items.length === 0) return null;
+            
+            return (
+              <div key={category} className="recommendation-section" style={{ marginBottom: '2rem' }}>
+                <h3 style={{ marginBottom: '1rem', fontSize: '1.1rem', color: 'var(--primary-color)' }}>
+                  {category.replace(/([A-Z])/g, ' $1').trim()}
+                </h3>
+                <div className="recommendation-list">
+                  {items.map((item, index) => (
+                    <div key={index} className="recommendation-item" style={{
+                      display: 'flex',
+                      alignItems: 'flex-start',
+                      gap: '0.75rem',
+                      padding: '0.75rem',
+                      marginBottom: '0.5rem',
+                      backgroundColor: 'var(--bg-secondary)',
+                      borderRadius: 'var(--border-radius)',
+                      border: '1px solid var(--border-color)'
+                    }}>
+                      {item.status === 'Required' ? (
+                        <FaExclamationTriangle style={{ color: 'var(--error-color)', marginTop: '0.25rem', flexShrink: 0 }} />
+                      ) : (
+                        <FaInfoCircle style={{ color: 'var(--secondary-color)', marginTop: '0.25rem', flexShrink: 0 }} />
+                      )}
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontWeight: '500', marginBottom: '0.25rem' }}>{item.document}</div>
+                        <div style={{ fontSize: '0.9rem', color: 'var(--text-secondary)' }}>
+                          <span className={`status-chip status-${item.status.toLowerCase()}`} style={{
+                            display: 'inline-block',
+                            padding: '0.15rem 0.5rem',
+                            borderRadius: '3px',
+                            fontSize: '0.75rem',
+                            fontWeight: '600',
+                            marginRight: '0.5rem',
+                            backgroundColor: item.status === 'Required' ? 'var(--error-color)' : 'var(--secondary-color)',
+                            color: 'white'
+                          }}>
+                            {item.status}
+                          </span>
+                          {item.reason}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
 
       {/* Document Upload Section */}
       <div className="card" style={{ marginTop: '2rem' }}>

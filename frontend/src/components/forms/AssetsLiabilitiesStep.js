@@ -453,18 +453,17 @@ const AssetsLiabilitiesStep = ({
               </div>
             )}
 
-            {/* Add REO Property Button */}
-            <div className="form-row">
-              <div className="form-group">
-                <button
-                  type="button"
-                  onClick={() => appendReo(createDefaultREOProperty())}
-                  className="btn btn-outline-primary"
-                >
-                  Add REO Property
-                </button>
-              </div>
-            </div>
+      {/* Add REO Property Button */}
+      <div className="form-row">
+        <div className="form-group">
+          <button
+            type="button"
+            onClick={() => appendReo(createDefaultREOProperty())}
+            className="btn btn-outline-primary"
+          >
+            Add REO Property
+          </button>
+        </div>
       </div>
     </FormSection>
   );

@@ -4,7 +4,7 @@ import { toast } from 'react-toastify';
 import { useDropzone } from 'react-dropzone';
 import { FaUpload, FaFile, FaDownload, FaTrash, FaCheckCircle, FaTimes, FaFileAlt, FaExclamationTriangle, FaInfoCircle } from 'react-icons/fa';
 import mortgageService from '../services/mortgageService';
-import { generateDocumentRecommendations, calculateCoverageStats } from '../utils/documentRecommendations';
+import { generateDocumentRecommendations } from '../utils/documentRecommendations';
 
 const DOCUMENT_TYPES = [
   'Pay Stub',
@@ -32,7 +32,6 @@ const ApplicationDetails = () => {
   const [uploading, setUploading] = useState(false);
   const [pendingFiles, setPendingFiles] = useState([]);
   const [recommendations, setRecommendations] = useState(null);
-  const [stats, setStats] = useState(null);
 
   const fetchApplication = useCallback(async () => {
     try {
@@ -64,11 +63,8 @@ const ApplicationDetails = () => {
   useEffect(() => {
     if (application) {
       const recs = generateDocumentRecommendations(application);
-      const coverage = calculateCoverageStats(application.borrowers || []);
       console.log('[DEBUG] Document recommendations:', recs);
-      console.log('[DEBUG] Coverage stats:', coverage);
       setRecommendations(recs);
-      setStats(coverage);
     }
   }, [application]);
 
@@ -346,67 +342,10 @@ const ApplicationDetails = () => {
       </div>
 
       {/* Recommended Documents Section */}
-      {recommendations && stats && (
+      {recommendations && (
         <div className="card" style={{ marginTop: '2rem' }}>
           <h2><FaFileAlt /> Loan Document Checklist</h2>
           
-          {/* Application Review */}
-          <div className="doc-summary-section" style={{ marginBottom: '2rem', padding: '1.5rem', backgroundColor: 'var(--bg-secondary)', borderRadius: 'var(--border-radius)' }}>
-            <h3 style={{ marginBottom: '1rem', color: 'var(--text-primary)' }}>Application Review</h3>
-
-            {/* Coverage Chips */}
-            <div className="coverage-chips" style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-              <div className={`coverage-chip ${stats.employmentCoverage.needed > 0 ? 'need' : 'ok'}`} style={{
-                padding: '0.5rem 1rem',
-                borderRadius: 'var(--border-radius)',
-                fontSize: '0.85rem',
-                fontWeight: '500',
-                backgroundColor: stats.employmentCoverage.needed > 0 ? '#fff3cd' : '#d4edda',
-                color: stats.employmentCoverage.needed > 0 ? '#856404' : '#155724',
-                border: `1px solid ${stats.employmentCoverage.needed > 0 ? '#ffeaa7' : '#c3e6cb'}`
-              }}>
-                {stats.employmentCoverage.needed > 0 
-                  ? `Employment: need +${stats.employmentCoverage.needed} mo`
-                  : 'Employment: 24 mo ✓'}
-              </div>
-              <div className={`coverage-chip ${stats.residenceCoverage.needed > 0 ? 'need' : 'ok'}`} style={{
-                padding: '0.5rem 1rem',
-                borderRadius: 'var(--border-radius)',
-                fontSize: '0.85rem',
-                fontWeight: '500',
-                backgroundColor: stats.residenceCoverage.needed > 0 ? '#fff3cd' : '#d4edda',
-                color: stats.residenceCoverage.needed > 0 ? '#856404' : '#155724',
-                border: `1px solid ${stats.residenceCoverage.needed > 0 ? '#ffeaa7' : '#c3e6cb'}`
-              }}>
-                {stats.residenceCoverage.needed > 0 
-                  ? `Residence: need +${stats.residenceCoverage.needed} mo`
-                  : 'Residence: 24 mo ✓'}
-              </div>
-              <div className={`coverage-chip ${stats.reoCount > 0 ? 'warn' : 'ok'}`} style={{
-                padding: '0.5rem 1rem',
-                borderRadius: 'var(--border-radius)',
-                fontSize: '0.85rem',
-                fontWeight: '500',
-                backgroundColor: stats.reoCount > 0 ? '#d1ecf1' : '#d4edda',
-                color: stats.reoCount > 0 ? '#0c5460' : '#155724',
-                border: `1px solid ${stats.reoCount > 0 ? '#bee5eb' : '#c3e6cb'}`
-              }}>
-                {stats.reoCount > 0 ? `REO: ${stats.reoCount}` : 'REO: none'}
-              </div>
-              <div className={`coverage-chip ${stats.hasDeclarationFlags ? 'warn' : 'ok'}`} style={{
-                padding: '0.5rem 1rem',
-                borderRadius: 'var(--border-radius)',
-                fontSize: '0.85rem',
-                fontWeight: '500',
-                backgroundColor: stats.hasDeclarationFlags ? '#d1ecf1' : '#d4edda',
-                color: stats.hasDeclarationFlags ? '#0c5460' : '#155724',
-                border: `1px solid ${stats.hasDeclarationFlags ? '#bee5eb' : '#c3e6cb'}`
-              }}>
-                {stats.hasDeclarationFlags ? 'Declarations: flags present' : 'Declarations: clear'}
-              </div>
-            </div>
-          </div>
-
           {/* Document Tables by Category */}
           <div className="doc-sections">
             {Object.entries(recommendations).map(([category, items]) => {
@@ -459,9 +398,9 @@ const ApplicationDetails = () => {
               );
             })}
           </div>
-        </div>
-      )}
-
+            </div>
+          )}
+          
       {/* Document Upload Section */}
       <div className="card" style={{ marginTop: '2rem' }}>
         <h2><FaUpload /> Upload Documents</h2>
@@ -522,9 +461,9 @@ const ApplicationDetails = () => {
             >
               {uploading ? 'Uploading...' : `Upload ${pendingFiles.length} File(s)`}
             </button>
-          </div>
-        )}
-
+            </div>
+          )}
+          
         {/* Uploaded Documents */}
         <div className="uploaded-documents-section">
           <h3>Uploaded Documents ({documents.length})</h3>
@@ -569,13 +508,13 @@ const ApplicationDetails = () => {
             </div>
           )}
         </div>
-      </div>
+        </div>
 
       {/* Back Button */}
       <div style={{ marginTop: '2rem', textAlign: 'center' }}>
-        <button onClick={() => navigate('/applications')} className="btn btn-secondary">
-          Back to Applications
-        </button>
+          <button onClick={() => navigate('/applications')} className="btn btn-secondary">
+            Back to Applications
+          </button>
       </div>
     </div>
   );

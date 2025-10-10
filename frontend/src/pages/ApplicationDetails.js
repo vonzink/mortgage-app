@@ -385,12 +385,6 @@ const ApplicationDetails = () => {
             </div>
           )}
         </div>
-
-        <div style={{ marginTop: '2rem' }}>
-          <button onClick={() => navigate('/applications')} className="btn btn-secondary">
-            Back to Applications
-          </button>
-        </div>
       </div>
 
       {/* Recommended Documents Section */}
@@ -400,25 +394,25 @@ const ApplicationDetails = () => {
           
           {/* Application Snapshot */}
           <div className="doc-summary-section" style={{ marginBottom: '2rem', padding: '1.5rem', backgroundColor: 'var(--bg-secondary)', borderRadius: 'var(--border-radius)' }}>
-            <h3 style={{ marginBottom: '1rem' }}>Application Snapshot</h3>
+            <h3 style={{ marginBottom: '1rem', color: 'var(--text-primary)' }}>Application Snapshot</h3>
             <div className="summary-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem', marginBottom: '1rem' }}>
               <div className="summary-item">
                 <span className="summary-label" style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', display: 'block' }}>Borrowers</span>
-                <span className="summary-value" style={{ fontWeight: '500' }}>
+                <span className="summary-value" style={{ fontWeight: '500', color: 'var(--text-primary)' }}>
                   {(application.borrowers || []).map(b => `${b.firstName} ${b.lastName}`).join(', ') || '—'}
                 </span>
               </div>
               <div className="summary-item">
                 <span className="summary-label" style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', display: 'block' }}>Purpose</span>
-                <span className="summary-value" style={{ fontWeight: '500' }}>{application.loanPurpose || '—'}</span>
+                <span className="summary-value" style={{ fontWeight: '500', color: 'var(--text-primary)' }}>{application.loanPurpose || '—'}</span>
               </div>
               <div className="summary-item">
                 <span className="summary-label" style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', display: 'block' }}>Loan Type</span>
-                <span className="summary-value" style={{ fontWeight: '500' }}>{application.loanType || '—'}</span>
+                <span className="summary-value" style={{ fontWeight: '500', color: 'var(--text-primary)' }}>{application.loanType || '—'}</span>
               </div>
               <div className="summary-item">
                 <span className="summary-label" style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', display: 'block' }}>Loan Amount</span>
-                <span className="summary-value" style={{ fontWeight: '500' }}>
+                <span className="summary-value" style={{ fontWeight: '500', color: 'var(--text-primary)' }}>
                   {application.loanAmount ? formatCurrency(application.loanAmount) : '—'}
                 </span>
               </div>
@@ -479,7 +473,7 @@ const ApplicationDetails = () => {
 
           {/* Status Legend */}
           <div className="doc-section-note" style={{ marginBottom: '1.5rem', padding: '1rem', backgroundColor: 'var(--bg-secondary)', borderRadius: 'var(--border-radius)' }}>
-            <strong>Document Statuses:</strong>{' '}
+            <strong style={{ color: 'var(--text-primary)' }}>Document Statuses:</strong>{' '}
             <span className="status status-required" style={{ 
               display: 'inline-block', 
               padding: '0.25rem 0.5rem', 
@@ -531,15 +525,15 @@ const ApplicationDetails = () => {
                   <table className="doc-table" style={{ width: '100%', borderCollapse: 'collapse' }}>
                     <thead>
                       <tr style={{ backgroundColor: 'var(--bg-secondary)' }}>
-                        <th style={{ padding: '0.75rem', textAlign: 'left', borderBottom: '2px solid var(--border-color)' }}>Document</th>
-                        <th style={{ padding: '0.75rem', textAlign: 'left', borderBottom: '2px solid var(--border-color)', width: '120px' }}>Status</th>
-                        <th style={{ padding: '0.75rem', textAlign: 'left', borderBottom: '2px solid var(--border-color)' }}>Reason</th>
+                        <th style={{ padding: '0.75rem', textAlign: 'left', borderBottom: '2px solid var(--border-color)', color: 'var(--text-primary)' }}>Document</th>
+                        <th style={{ padding: '0.75rem', textAlign: 'left', borderBottom: '2px solid var(--border-color)', width: '120px', color: 'var(--text-primary)' }}>Status</th>
+                        <th style={{ padding: '0.75rem', textAlign: 'left', borderBottom: '2px solid var(--border-color)', color: 'var(--text-primary)' }}>Reason</th>
                       </tr>
                     </thead>
                     <tbody>
                       {items.map((doc, idx) => (
                         <tr key={idx} style={{ borderBottom: '1px solid var(--border-color)' }}>
-                          <td style={{ padding: '0.75rem', fontWeight: '500' }}>{doc.name || doc.document}</td>
+                          <td style={{ padding: '0.75rem', fontWeight: '500', color: 'var(--text-primary)' }}>{doc.name || doc.document}</td>
                           <td style={{ padding: '0.75rem' }}>
                             <span className={`status ${getDocStatusClass(doc.status)}`} style={{
                               display: 'inline-flex',
@@ -680,6 +674,13 @@ const ApplicationDetails = () => {
             </div>
           )}
         </div>
+      </div>
+
+      {/* Back Button */}
+      <div style={{ marginTop: '2rem', textAlign: 'center' }}>
+        <button onClick={() => navigate('/applications')} className="btn btn-secondary">
+          Back to Applications
+        </button>
       </div>
     </div>
   );

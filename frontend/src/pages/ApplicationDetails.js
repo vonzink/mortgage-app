@@ -343,48 +343,6 @@ const ApplicationDetails = () => {
             </div>
           </div>
         </div>
-
-        <div style={{ marginTop: '2rem', paddingTop: '2rem', borderTop: '1px solid #eee' }}>
-          <h3>Next Steps</h3>
-          {application.status === 'SUBMITTED' && (
-            <div>
-              <p>Your application is currently under review. Our team will:</p>
-              <ul style={{ marginLeft: '2rem', marginTop: '1rem' }}>
-                <li>Review your financial information</li>
-                <li>Verify your employment status</li>
-                <li>Check your credit history</li>
-                <li>Contact you if additional documentation is needed</li>
-              </ul>
-              <p style={{ marginTop: '1rem' }}>
-                You will receive an email notification once your application status is updated.
-              </p>
-            </div>
-          )}
-          
-          {application.status === 'APPROVED' && (
-            <div>
-              <p style={{ color: '#28a745', fontWeight: 'bold' }}>
-                🎉 Congratulations! Your mortgage application has been approved.
-              </p>
-              <p style={{ marginTop: '1rem' }}>
-                A loan officer will contact you within 24 hours to discuss the next steps 
-                in the closing process.
-              </p>
-            </div>
-          )}
-          
-          {application.status === 'DENIED' && (
-            <div>
-              <p style={{ color: '#dc3545', fontWeight: 'bold' }}>
-                Unfortunately, your mortgage application was not approved at this time.
-              </p>
-              <p style={{ marginTop: '1rem' }}>
-                A loan officer will contact you to discuss the reasons and potential 
-                alternatives or steps you can take to improve your application.
-              </p>
-            </div>
-          )}
-        </div>
       </div>
 
       {/* Recommended Documents Section */}
@@ -504,10 +462,10 @@ const ApplicationDetails = () => {
                               fontWeight: '600',
                               whiteSpace: 'nowrap',
                               backgroundColor: 
-                                doc.status?.toLowerCase() === 'required' ? 'var(--error-color)' :
-                                doc.status?.toLowerCase() === 'conditional' ? 'var(--secondary-color)' :
+                                doc.status?.toLowerCase() === 'required' ? '#dc3545' :
+                                doc.status?.toLowerCase() === 'conditional' ? '#6c757d' :
                                 doc.status?.toLowerCase() === 'review' ? '#f0ad4e' :
-                                'var(--success-color)',
+                                '#28a745',
                               color: 'white'
                             }}>
                               {getDocStatusIcon(doc.status)}

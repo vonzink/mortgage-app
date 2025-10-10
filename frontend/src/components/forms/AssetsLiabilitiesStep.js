@@ -2,7 +2,7 @@
  * Assets & Liabilities Step Component
  * Step 5: Assets and liabilities including REO properties
  */
-import React, { useState } from 'react';
+import React from 'react';
 import { FaFileAlt } from 'react-icons/fa';
 import FormSection from '../shared/FormSection';
 import { 
@@ -20,8 +20,6 @@ const AssetsLiabilitiesStep = ({
   getFieldArray,
   borrowerFields
 }) => {
-  const [activeBorrowerTab, setActiveBorrowerTab] = useState(0);
-
   const getBorrowerName = (index) => {
     const firstName = watch(`borrowers.${index}.firstName`);
     const lastName = watch(`borrowers.${index}.lastName`);
@@ -31,82 +29,44 @@ const AssetsLiabilitiesStep = ({
     return `Borrower ${index + 1}`;
   };
 
+  // Get field arrays for primary borrower (index 0) - all items will be added here
+  const { fields: assetFields, append: appendAsset, remove: removeAsset } = getFieldArray(0, 'assets');
+  const { fields: liabilityFields, append: appendLiability, remove: removeLiability } = getFieldArray(0, 'liabilities');
+  const { fields: reoFields, append: appendReo, remove: removeReo } = getFieldArray(0, 'reoProperties');
+
   return (
     <FormSection
       title="Assets & Liabilities"
       icon={<FaFileAlt />}
-      description="Assets, liabilities, and real estate owned properties for all borrowers."
+      description="Assets, liabilities, and real estate owned properties for all borrowers. Use the Owner field to identify who owns each item."
     >
-      {/* Borrower Tabs */}
-      <div className="borrower-tabs" style={{ 
-        display: 'flex', 
-        gap: '0.5rem', 
-        marginBottom: '2rem',
-        borderBottom: '2px solid var(--border-color)',
-        flexWrap: 'wrap'
-      }}>
-        {borrowerFields.map((borrowerField, borrowerIndex) => (
-          <button
-            key={borrowerField.id}
-            type="button"
-            onClick={() => setActiveBorrowerTab(borrowerIndex)}
-            className={`borrower-tab ${activeBorrowerTab === borrowerIndex ? 'active' : ''}`}
-            style={{
-              padding: '0.75rem 1.5rem',
-              border: 'none',
-              borderBottom: activeBorrowerTab === borrowerIndex ? '3px solid var(--primary-color)' : '3px solid transparent',
-              background: activeBorrowerTab === borrowerIndex ? 'var(--bg-secondary)' : 'transparent',
-              cursor: 'pointer',
-              fontWeight: activeBorrowerTab === borrowerIndex ? '600' : '400',
-              color: activeBorrowerTab === borrowerIndex ? 'var(--primary-color)' : 'var(--text-secondary)',
-              transition: 'all 0.2s',
-              position: 'relative',
-              marginBottom: '-2px'
-            }}
-          >
-            {getBorrowerName(borrowerIndex)}
-          </button>
-        ))}
-      </div>
-
-      {borrowerFields.map((borrowerField, borrowerIndex) => {
-        // Only show the active borrower tab
-        if (borrowerIndex !== activeBorrowerTab) return null;
-
-        const { fields: assetFields, append: appendAsset, remove: removeAsset } = getFieldArray(borrowerIndex, 'assets');
-        const { fields: liabilityFields, append: appendLiability, remove: removeLiability } = getFieldArray(borrowerIndex, 'liabilities');
-        const { fields: reoFields, append: appendReo, remove: removeReo } = getFieldArray(borrowerIndex, 'reoProperties');
-
-        return (
-          <div key={borrowerField.id} className="borrower-assets-section">
-
-            {/* Assets Section */}
-            <div className="assets-section">
-              <h5>Assets</h5>
-              
-              {assetFields.length === 0 ? (
-                <div className="no-items-message">
-                  <p>No assets added yet. Click "Add Asset" to get started.</p>
-                </div>
-              ) : (
-                <div className="asset-list-section">
-                  <div className="asset-header">
-                    <div className="asset-header-item">Asset Type</div>
-                    <div className="asset-header-item">Owner</div>
-                    <div className="asset-header-item">Bank Name</div>
-                    <div className="asset-header-item">Account Number</div>
-                    <div className="asset-header-item">Amount</div>
-                    <div className="asset-header-item">Used for Down Payment</div>
-                    <div className="asset-header-item">Actions</div>
-                  </div>
-                  
-                  {assetFields.map((assetField, assetIndex) => (
-                    <div key={assetField.id} className="asset-entry">
-                      <div className="form-group">
-                        <select
-                          {...register(`borrowers.${borrowerIndex}.assets.${assetIndex}.assetType`)}
-                          className="form-select"
-                        >
+      {/* Assets Section */}
+      <div className="assets-section">
+        <h5>Assets</h5>
+        
+        {assetFields.length === 0 ? (
+          <div className="no-items-message">
+            <p>No assets added yet. Click "Add Asset" to get started.</p>
+          </div>
+        ) : (
+          <div className="asset-list-section">
+            <div className="asset-header">
+              <div className="asset-header-item">Asset Type</div>
+              <div className="asset-header-item">Owner</div>
+              <div className="asset-header-item">Bank Name</div>
+              <div className="asset-header-item">Account Number</div>
+              <div className="asset-header-item">Amount</div>
+              <div className="asset-header-item">Used for Down Payment</div>
+              <div className="asset-header-item">Actions</div>
+            </div>
+            
+            {assetFields.map((assetField, assetIndex) => (
+              <div key={assetField.id} className="asset-entry">
+                <div className="form-group">
+                  <select
+                    {...register(`borrowers.0.assets.${assetIndex}.assetType`)}
+                    className="form-select"
+                  >
                           <option value="">Select Asset Type</option>
                           <option value="Checking">Checking Account</option>
                           <option value="Savings">Savings Account</option>
@@ -125,7 +85,7 @@ const AssetsLiabilitiesStep = ({
                       
                       <div className="form-group">
                         <select
-                          {...register(`borrowers.${borrowerIndex}.assets.${assetIndex}.owner`)}
+                          {...register(`borrowers.0.assets.${assetIndex}.owner`)}
                           className="form-select"
                         >
                           <option value="">Select Owner</option>
@@ -142,7 +102,7 @@ const AssetsLiabilitiesStep = ({
                       <div className="form-group">
                         <input
                           type="text"
-                          {...register(`borrowers.${borrowerIndex}.assets.${assetIndex}.bankName`)}
+                          {...register(`borrowers.0.assets.${assetIndex}.bankName`)}
                           placeholder="Bank Name"
                         />
                       </div>
@@ -150,7 +110,7 @@ const AssetsLiabilitiesStep = ({
                       <div className="form-group">
                         <input
                           type="text"
-                          {...register(`borrowers.${borrowerIndex}.assets.${assetIndex}.accountNumber`)}
+                          {...register(`borrowers.0.assets.${assetIndex}.accountNumber`)}
                           placeholder="Account Number"
                         />
                       </div>
@@ -158,7 +118,7 @@ const AssetsLiabilitiesStep = ({
                       <div className="form-group">
                         <input
                           type="number"
-                          {...register(`borrowers.${borrowerIndex}.assets.${assetIndex}.assetValue`)}
+                          {...register(`borrowers.0.assets.${assetIndex}.assetValue`)}
                           placeholder="Amount"
                           min="0"
                         />
@@ -167,7 +127,7 @@ const AssetsLiabilitiesStep = ({
                       <div className="form-group checkbox-group">
                         <input
                           type="checkbox"
-                          {...register(`borrowers.${borrowerIndex}.assets.${assetIndex}.usedForDownpayment`)}
+                          {...register(`borrowers.0.assets.${assetIndex}.usedForDownpayment`)}
                           className="form-checkbox"
                         />
                       </div>
@@ -223,7 +183,7 @@ const AssetsLiabilitiesStep = ({
                     <div key={liabilityField.id} className="liability-entry">
                       <div className="form-group">
                         <select
-                          {...register(`borrowers.${borrowerIndex}.liabilities.${liabilityIndex}.liabilityType`)}
+                          {...register(`borrowers.0.liabilities.${liabilityIndex}.liabilityType`)}
                           className="form-select"
                         >
                           <option value="">Select Liability Type</option>
@@ -239,7 +199,7 @@ const AssetsLiabilitiesStep = ({
                       
                       <div className="form-group">
                         <select
-                          {...register(`borrowers.${borrowerIndex}.liabilities.${liabilityIndex}.owner`)}
+                          {...register(`borrowers.0.liabilities.${liabilityIndex}.owner`)}
                           className="form-select"
                         >
                           <option value="">Select Owner</option>
@@ -256,7 +216,7 @@ const AssetsLiabilitiesStep = ({
                       <div className="form-group">
                         <input
                           type="text"
-                          {...register(`borrowers.${borrowerIndex}.liabilities.${liabilityIndex}.creditorName`)}
+                          {...register(`borrowers.0.liabilities.${liabilityIndex}.creditorName`)}
                           placeholder="Creditor Name"
                         />
                       </div>
@@ -264,7 +224,7 @@ const AssetsLiabilitiesStep = ({
                       <div className="form-group">
                         <input
                           type="text"
-                          {...register(`borrowers.${borrowerIndex}.liabilities.${liabilityIndex}.accountNumber`)}
+                          {...register(`borrowers.0.liabilities.${liabilityIndex}.accountNumber`)}
                           placeholder="Account Number"
                         />
                       </div>
@@ -272,7 +232,7 @@ const AssetsLiabilitiesStep = ({
                       <div className="form-group">
                         <input
                           type="number"
-                          {...register(`borrowers.${borrowerIndex}.liabilities.${liabilityIndex}.monthlyPayment`)}
+                          {...register(`borrowers.0.liabilities.${liabilityIndex}.monthlyPayment`)}
                           placeholder="Monthly Payment"
                           min="0"
                         />
@@ -281,7 +241,7 @@ const AssetsLiabilitiesStep = ({
                       <div className="form-group">
                         <input
                           type="number"
-                          {...register(`borrowers.${borrowerIndex}.liabilities.${liabilityIndex}.unpaidBalance`)}
+                          {...register(`borrowers.0.liabilities.${liabilityIndex}.unpaidBalance`)}
                           placeholder="Unpaid Balance"
                           min="0"
                         />
@@ -335,12 +295,12 @@ const AssetsLiabilitiesStep = ({
 
                       <div className="form-row">
                         <div className="form-group">
-                          <label htmlFor={`borrowers.${borrowerIndex}.reoProperties.${reoIndex}.owner`}>
+                          <label htmlFor={`borrowers.0.reoProperties.${reoIndex}.owner`}>
                             Owner
                           </label>
                           <select
-                            id={`borrowers.${borrowerIndex}.reoProperties.${reoIndex}.owner`}
-                            {...register(`borrowers.${borrowerIndex}.reoProperties.${reoIndex}.owner`)}
+                            id={`borrowers.0.reoProperties.${reoIndex}.owner`}
+                            {...register(`borrowers.0.reoProperties.${reoIndex}.owner`)}
                             className="form-select"
                           >
                             <option value="">Select Owner</option>
@@ -355,13 +315,13 @@ const AssetsLiabilitiesStep = ({
                         </div>
 
                         <div className="form-group">
-                          <label htmlFor={`borrowers.${borrowerIndex}.reoProperties.${reoIndex}.addressLine`}>
+                          <label htmlFor={`borrowers.0.reoProperties.${reoIndex}.addressLine`}>
                             Property Address
                           </label>
                           <input
                             type="text"
-                            id={`borrowers.${borrowerIndex}.reoProperties.${reoIndex}.addressLine`}
-                            {...register(`borrowers.${borrowerIndex}.reoProperties.${reoIndex}.addressLine`)}
+                            id={`borrowers.0.reoProperties.${reoIndex}.addressLine`}
+                            {...register(`borrowers.0.reoProperties.${reoIndex}.addressLine`)}
                             placeholder="123 Property St"
                           />
                         </div>
@@ -371,21 +331,21 @@ const AssetsLiabilitiesStep = ({
                         <div className="form-group">
                           <input
                             type="text"
-                            {...register(`borrowers.${borrowerIndex}.reoProperties.${reoIndex}.city`)}
+                            {...register(`borrowers.0.reoProperties.${reoIndex}.city`)}
                             placeholder="City"
                           />
                         </div>
                         <div className="form-group">
                           <input
                             type="text"
-                            {...register(`borrowers.${borrowerIndex}.reoProperties.${reoIndex}.state`)}
+                            {...register(`borrowers.0.reoProperties.${reoIndex}.state`)}
                             placeholder="State"
                           />
                         </div>
                         <div className="form-group">
                           <input
                             type="text"
-                            {...register(`borrowers.${borrowerIndex}.reoProperties.${reoIndex}.zipCode`)}
+                            {...register(`borrowers.0.reoProperties.${reoIndex}.zipCode`)}
                             placeholder="ZIP Code"
                           />
                         </div>
@@ -393,7 +353,7 @@ const AssetsLiabilitiesStep = ({
 
                       <div className="form-row">
                         <div className="form-group">
-                          <select {...register(`borrowers.${borrowerIndex}.reoProperties.${reoIndex}.propertyType`)}>
+                          <select {...register(`borrowers.0.reoProperties.${reoIndex}.propertyType`)}>
                             <option value="">Select Property Type</option>
                             <option value="SingleFamily">Single Family</option>
                             <option value="Condo">Condominium</option>
@@ -404,7 +364,7 @@ const AssetsLiabilitiesStep = ({
                         <div className="form-group">
                           <input
                             type="number"
-                            {...register(`borrowers.${borrowerIndex}.reoProperties.${reoIndex}.propertyValue`)}
+                            {...register(`borrowers.0.reoProperties.${reoIndex}.propertyValue`)}
                             placeholder="Property Value"
                             min="0"
                           />
@@ -415,7 +375,7 @@ const AssetsLiabilitiesStep = ({
                         <div className="form-group">
                           <input
                             type="number"
-                            {...register(`borrowers.${borrowerIndex}.reoProperties.${reoIndex}.monthlyRentalIncome`)}
+                            {...register(`borrowers.0.reoProperties.${reoIndex}.monthlyRentalIncome`)}
                             placeholder="Monthly Rental Income"
                             min="0"
                           />
@@ -423,7 +383,7 @@ const AssetsLiabilitiesStep = ({
                         <div className="form-group">
                           <input
                             type="number"
-                            {...register(`borrowers.${borrowerIndex}.reoProperties.${reoIndex}.monthlyPayment`)}
+                            {...register(`borrowers.0.reoProperties.${reoIndex}.monthlyPayment`)}
                             placeholder="Monthly Payment"
                             min="0"
                           />
@@ -431,7 +391,7 @@ const AssetsLiabilitiesStep = ({
                         <div className="form-group">
                           <input
                             type="number"
-                            {...register(`borrowers.${borrowerIndex}.reoProperties.${reoIndex}.unpaidBalance`)}
+                            {...register(`borrowers.0.reoProperties.${reoIndex}.unpaidBalance`)}
                             placeholder="Unpaid Balance"
                             min="0"
                           />
@@ -440,29 +400,29 @@ const AssetsLiabilitiesStep = ({
 
                       <div className="form-row">
                         <div className="form-group">
-                          <label htmlFor={`borrowers.${borrowerIndex}.reoProperties.${reoIndex}.associatedLiability`}>
+                          <label htmlFor={`borrowers.0.reoProperties.${reoIndex}.associatedLiability`}>
                             Associated Liability
                           </label>
                           <select 
-                            {...register(`borrowers.${borrowerIndex}.reoProperties.${reoIndex}.associatedLiability`)}
+                            {...register(`borrowers.0.reoProperties.${reoIndex}.associatedLiability`)}
                             onChange={(e) => {
                               const liabIndex = e.target.value;
                               
                               if (liabIndex !== '' && liabIndex !== undefined) {
                                 try {
-                                  const liability = getValues(`borrowers.${borrowerIndex}.liabilities.${parseInt(liabIndex)}`);
+                                  const liability = getValues(`borrowers.0.liabilities.${parseInt(liabIndex)}`);
                                   if (liability) {
                                     // Prefill monthly payment and unpaid balance from the selected liability
                                     if (liability.monthlyPayment && parseFloat(liability.monthlyPayment) > 0) {
-                                      const currentValue = getValues(`borrowers.${borrowerIndex}.reoProperties.${reoIndex}.monthlyPayment`);
+                                      const currentValue = getValues(`borrowers.0.reoProperties.${reoIndex}.monthlyPayment`);
                                       if (!currentValue || parseFloat(currentValue) === 0) {
-                                        setValue(`borrowers.${borrowerIndex}.reoProperties.${reoIndex}.monthlyPayment`, liability.monthlyPayment);
+                                        setValue(`borrowers.0.reoProperties.${reoIndex}.monthlyPayment`, liability.monthlyPayment);
                                       }
                                     }
                                     if (liability.unpaidBalance && parseFloat(liability.unpaidBalance) > 0) {
-                                      const currentValue = getValues(`borrowers.${borrowerIndex}.reoProperties.${reoIndex}.unpaidBalance`);
+                                      const currentValue = getValues(`borrowers.0.reoProperties.${reoIndex}.unpaidBalance`);
                                       if (!currentValue || parseFloat(currentValue) === 0) {
-                                        setValue(`borrowers.${borrowerIndex}.reoProperties.${reoIndex}.unpaidBalance`, liability.unpaidBalance);
+                                        setValue(`borrowers.0.reoProperties.${reoIndex}.unpaidBalance`, liability.unpaidBalance);
                                       }
                                     }
                                   }
@@ -474,7 +434,7 @@ const AssetsLiabilitiesStep = ({
                           >
                             <option value="">Select Associated Liability</option>
                             {liabilityFields.map((liability, liabIndex) => {
-                              const liabilityData = getValues(`borrowers.${borrowerIndex}.liabilities.${liabIndex}`);
+                              const liabilityData = getValues(`borrowers.0.liabilities.${liabIndex}`);
                               const displayName = liabilityData?.creditorName || 
                                                 liabilityData?.liabilityType || 
                                                 `Liability ${liabIndex + 1}`;
@@ -505,9 +465,7 @@ const AssetsLiabilitiesStep = ({
                 </button>
               </div>
             </div>
-          </div>
-        );
-      })}
+      </div>
     </FormSection>
   );
 };

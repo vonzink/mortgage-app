@@ -32,6 +32,8 @@ const ApplicationDetails = () => {
   const [uploading, setUploading] = useState(false);
   const [pendingFiles, setPendingFiles] = useState([]);
   const [recommendations, setRecommendations] = useState(null);
+  const [showUploadModal, setShowUploadModal] = useState(false);
+  const [selectedDocumentName, setSelectedDocumentName] = useState('');
 
   const fetchApplication = useCallback(async () => {
     try {
@@ -69,14 +71,25 @@ const ApplicationDetails = () => {
   }, [application]);
 
   // Document upload handlers
+  const handleOpenUploadModal = (documentName) => {
+    setSelectedDocumentName(documentName);
+    setShowUploadModal(true);
+  };
+
+  const handleCloseUploadModal = () => {
+    setShowUploadModal(false);
+    setSelectedDocumentName('');
+    setPendingFiles([]);
+  };
+
   const onDrop = useCallback((acceptedFiles) => {
     const newPendingFiles = acceptedFiles.map(file => ({
       file,
-      documentType: 'Other',
+      documentType: selectedDocumentName || 'Other',
       id: Math.random().toString(36).substr(2, 9)
     }));
     setPendingFiles(prev => [...prev, ...newPendingFiles]);
-  }, []);
+  }, [selectedDocumentName]);
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
@@ -129,6 +142,7 @@ const ApplicationDetails = () => {
       toast.success(`${successCount} document(s) uploaded successfully!`);
       setPendingFiles([]);
       await fetchDocuments();
+      handleCloseUploadModal();
     }
 
     if (errorCount > 0) {
@@ -362,14 +376,18 @@ const ApplicationDetails = () => {
                         <th style={{ padding: '0.5rem', textAlign: 'left', borderBottom: '2px solid var(--border-color)', color: 'var(--text-primary)', fontSize: '0.9rem' }}>Document</th>
                         <th style={{ padding: '0.5rem', textAlign: 'left', borderBottom: '2px solid var(--border-color)', width: '110px', color: 'var(--text-primary)', fontSize: '0.9rem' }}>Status</th>
                         <th style={{ padding: '0.5rem', textAlign: 'left', borderBottom: '2px solid var(--border-color)', color: 'var(--text-primary)', fontSize: '0.9rem' }}>Reason</th>
+                        <th style={{ padding: '0.5rem', textAlign: 'center', borderBottom: '2px solid var(--border-color)', width: '80px', color: 'var(--text-primary)', fontSize: '0.9rem' }}>Upload</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {items.map((doc, idx) => (
+                      {items.map((doc, idx) => {
+                        const documentName = doc.name || doc.document;
+                        const isUploaded = documents.some(d => d.documentType.toLowerCase().includes(documentName.toLowerCase()));
+                        return (
                         <tr key={idx} style={{ borderBottom: '1px solid var(--border-color)' }}>
-                          <td style={{ padding: '0.5rem', fontWeight: '500', color: 'var(--text-primary)', fontSize: '0.9rem' }}>{doc.name || doc.document}</td>
+                          <td style={{ padding: '0.5rem', fontWeight: '500', color: 'var(--text-primary)', fontSize: '0.9rem' }}>{documentName}</td>
                           <td style={{ padding: '0.5rem' }}>
-                            <span className={`status ${getDocStatusClass(doc.status)}`} style={{
+                            <span className={`status ${getDocStatusClass(isUploaded ? 'ok' : doc.status)}`} style={{
                               display: 'inline-flex',
                               alignItems: 'center',
                               gap: '0.25rem',
@@ -379,19 +397,38 @@ const ApplicationDetails = () => {
                               fontWeight: '600',
                               whiteSpace: 'nowrap',
                               backgroundColor: 
+                                isUploaded ? '#28a745' :
                                 doc.status?.toLowerCase() === 'required' ? '#dc3545' :
                                 doc.status?.toLowerCase() === 'conditional' ? '#6c757d' :
                                 doc.status?.toLowerCase() === 'review' ? '#f0ad4e' :
                                 '#28a745',
                               color: 'white'
                             }}>
-                              {getDocStatusIcon(doc.status)}
-                              {doc.status}
+                              {isUploaded ? <FaCheckCircle /> : getDocStatusIcon(doc.status)}
+                              {isUploaded ? 'Uploaded' : doc.status}
                             </span>
                           </td>
                           <td style={{ padding: '0.5rem', color: 'var(--text-secondary)', fontSize: '0.85rem' }}>{doc.reason}</td>
+                          <td style={{ padding: '0.5rem', textAlign: 'center' }}>
+                            <button
+                              onClick={() => handleOpenUploadModal(documentName)}
+                              className="btn-icon btn-primary"
+                              title={`Upload ${documentName}`}
+                              style={{
+                                background: 'none',
+                                border: 'none',
+                                color: 'var(--primary-color)',
+                                cursor: 'pointer',
+                                fontSize: '1.1rem',
+                                padding: '0.25rem'
+                              }}
+                            >
+                              <FaUpload />
+                            </button>
+                          </td>
                         </tr>
-                      ))}
+                        );
+                      })}
                     </tbody>
                   </table>
                 </div>
@@ -516,6 +553,116 @@ const ApplicationDetails = () => {
             Back to Applications
           </button>
       </div>
+
+      {/* Upload Modal */}
+      {showUploadModal && (
+        <div className="modal-overlay" onClick={handleCloseUploadModal} style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(0, 0, 0, 0.5)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 1000
+        }}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{
+            backgroundColor: 'white',
+            padding: '2rem',
+            borderRadius: 'var(--border-radius)',
+            maxWidth: '600px',
+            width: '90%',
+            maxHeight: '80vh',
+            overflow: 'auto'
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+              <h2 style={{ margin: 0 }}>
+                <FaUpload /> Upload: {selectedDocumentName}
+              </h2>
+              <button onClick={handleCloseUploadModal} style={{
+                background: 'none',
+                border: 'none',
+                fontSize: '1.5rem',
+                cursor: 'pointer',
+                color: 'var(--text-secondary)'
+              }}>
+                <FaTimes />
+              </button>
+            </div>
+
+            {/* Dropzone */}
+            <div {...getRootProps()} className={`dropzone ${isDragActive ? 'active' : ''}`} style={{
+              border: '2px dashed var(--border-color)',
+              borderRadius: 'var(--border-radius)',
+              padding: '2rem',
+              textAlign: 'center',
+              cursor: 'pointer',
+              backgroundColor: isDragActive ? 'var(--bg-secondary)' : 'transparent'
+            }}>
+              <input {...getInputProps()} />
+              <FaUpload style={{ fontSize: '3rem', color: 'var(--primary-color)', marginBottom: '1rem' }} />
+              {isDragActive ? (
+                <p>Drop files here...</p>
+              ) : (
+                <>
+                  <p>Drag & drop files here, or click to select</p>
+                  <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+                    Supports: PDF, Images, Word, Excel (Max 10MB)
+                  </p>
+                </>
+              )}
+            </div>
+
+            {/* Pending Files */}
+            {pendingFiles.length > 0 && (
+              <div style={{ marginTop: '1.5rem' }}>
+                <h3>Files to Upload</h3>
+                <div style={{ marginTop: '1rem' }}>
+                  {pendingFiles.map((pf) => (
+                    <div key={pf.id} style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      padding: '0.75rem',
+                      marginBottom: '0.5rem',
+                      border: '1px solid var(--border-color)',
+                      borderRadius: 'var(--border-radius)'
+                    }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                        <FaFile style={{ color: 'var(--primary-color)' }} />
+                        <span>{pf.file.name}</span>
+                      </div>
+                      <button
+                        onClick={() => handleRemovePendingFile(pf.id)}
+                        style={{
+                          background: 'none',
+                          border: 'none',
+                          color: 'var(--error-color)',
+                          cursor: 'pointer',
+                          fontSize: '1.2rem'
+                        }}
+                      >
+                        <FaTimes />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+
+                <button
+                  onClick={handleUploadAll}
+                  disabled={uploading}
+                  className="btn btn-primary"
+                  style={{ width: '100%', marginTop: '1rem' }}
+                >
+                  {uploading ? 'Uploading...' : `Upload ${pendingFiles.length} File(s)`}
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 };

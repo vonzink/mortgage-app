@@ -92,8 +92,9 @@ const AssetsLiabilitiesStep = ({
                 <div className="asset-list-section">
                   <div className="asset-header">
                     <div className="asset-header-item">Asset Type</div>
-                    <div className="asset-header-item">Account Number</div>
+                    <div className="asset-header-item">Owner</div>
                     <div className="asset-header-item">Bank Name</div>
+                    <div className="asset-header-item">Account Number</div>
                     <div className="asset-header-item">Amount</div>
                     <div className="asset-header-item">Used for Down Payment</div>
                     <div className="asset-header-item">Actions</div>
@@ -123,11 +124,19 @@ const AssetsLiabilitiesStep = ({
                       </div>
                       
                       <div className="form-group">
-                        <input
-                          type="text"
-                          {...register(`borrowers.${borrowerIndex}.assets.${assetIndex}.accountNumber`)}
-                          placeholder="Account Number"
-                        />
+                        <select
+                          {...register(`borrowers.${borrowerIndex}.assets.${assetIndex}.owner`)}
+                          className="form-select"
+                        >
+                          <option value="">Select Owner</option>
+                          {borrowerFields.map((bf, bfIndex) => (
+                            <option key={bf.id} value={getBorrowerName(bfIndex)}>
+                              {getBorrowerName(bfIndex)}
+                            </option>
+                          ))}
+                          <option value="Joint">Joint</option>
+                          <option value="Other">Other</option>
+                        </select>
                       </div>
                       
                       <div className="form-group">
@@ -135,6 +144,14 @@ const AssetsLiabilitiesStep = ({
                           type="text"
                           {...register(`borrowers.${borrowerIndex}.assets.${assetIndex}.bankName`)}
                           placeholder="Bank Name"
+                        />
+                      </div>
+                      
+                      <div className="form-group">
+                        <input
+                          type="text"
+                          {...register(`borrowers.${borrowerIndex}.assets.${assetIndex}.accountNumber`)}
+                          placeholder="Account Number"
                         />
                       </div>
                       
@@ -194,6 +211,7 @@ const AssetsLiabilitiesStep = ({
                 <div className="liability-list-section">
                   <div className="liability-header">
                     <div className="liability-header-item">Liability Type</div>
+                    <div className="liability-header-item">Owner</div>
                     <div className="liability-header-item">Creditor Name</div>
                     <div className="liability-header-item">Account Number</div>
                     <div className="liability-header-item">Monthly Payment</div>
@@ -215,6 +233,22 @@ const AssetsLiabilitiesStep = ({
                           <option value="MortgageLoan">Mortgage Loan</option>
                           <option value="Revolving">Revolving Credit</option>
                           <option value="Installment">Installment Loan</option>
+                          <option value="Other">Other</option>
+                        </select>
+                      </div>
+                      
+                      <div className="form-group">
+                        <select
+                          {...register(`borrowers.${borrowerIndex}.liabilities.${liabilityIndex}.owner`)}
+                          className="form-select"
+                        >
+                          <option value="">Select Owner</option>
+                          {borrowerFields.map((bf, bfIndex) => (
+                            <option key={bf.id} value={getBorrowerName(bfIndex)}>
+                              {getBorrowerName(bfIndex)}
+                            </option>
+                          ))}
+                          <option value="Joint">Joint</option>
                           <option value="Other">Other</option>
                         </select>
                       </div>
@@ -300,6 +334,26 @@ const AssetsLiabilitiesStep = ({
                       </div>
 
                       <div className="form-row">
+                        <div className="form-group">
+                          <label htmlFor={`borrowers.${borrowerIndex}.reoProperties.${reoIndex}.owner`}>
+                            Owner
+                          </label>
+                          <select
+                            id={`borrowers.${borrowerIndex}.reoProperties.${reoIndex}.owner`}
+                            {...register(`borrowers.${borrowerIndex}.reoProperties.${reoIndex}.owner`)}
+                            className="form-select"
+                          >
+                            <option value="">Select Owner</option>
+                            {borrowerFields.map((bf, bfIndex) => (
+                              <option key={bf.id} value={getBorrowerName(bfIndex)}>
+                                {getBorrowerName(bfIndex)}
+                              </option>
+                            ))}
+                            <option value="Joint">Joint</option>
+                            <option value="Other">Other</option>
+                          </select>
+                        </div>
+
                         <div className="form-group">
                           <label htmlFor={`borrowers.${borrowerIndex}.reoProperties.${reoIndex}.addressLine`}>
                             Property Address

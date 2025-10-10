@@ -123,7 +123,34 @@ const ApplicationForm = () => {
               liabilities: [],
               
               // REO Properties
-              reoProperties: borrower.reoProperties || []
+              reoProperties: borrower.reoProperties || [],
+              
+              // Declaration (flatten the nested object structure)
+              ...((borrower.declaration) ? {
+                usCitizen: borrower.declaration.usCitizen,
+                permanentResident: borrower.declaration.permanentResident,
+                intentToOccupy: borrower.declaration.intentToOccupy,
+                borrowingDownPayment: borrower.declaration.borrowingDownPayment,
+                downPaymentGift: borrower.declaration.downPaymentGift,
+                giftSource: borrower.declaration.giftSource,
+                giftAmount: borrower.declaration.giftAmount,
+                comakerEndorser: borrower.declaration.comakerEndorser,
+                outstandingJudgments: borrower.declaration.outstandingJudgments,
+                lawsuit: borrower.declaration.lawsuit,
+                foreclosure: borrower.declaration.foreclosure,
+                bankruptcy: borrower.declaration.bankruptcy,
+                alimonyChildSupport: borrower.declaration.alimonyChildSupport,
+                coSignerObligation: borrower.declaration.coSignerObligation,
+                presentlyDelinquent: borrower.declaration.presentlyDelinquent,
+                loanForeclosure: borrower.declaration.loanForeclosure,
+                pendingCreditInquiry: borrower.declaration.pendingCreditInquiry,
+                propertyInsuranceRequired: borrower.declaration.propertyInsuranceRequired,
+                floodInsuranceRequired: borrower.declaration.floodInsuranceRequired,
+                creditReportConsent: borrower.declaration.creditReportConsent,
+                incomeVerificationConsent: borrower.declaration.incomeVerificationConsent,
+                creditExplanation: borrower.declaration.creditExplanation,
+                employmentGapExplanation: borrower.declaration.employmentGapExplanation
+              } : {})
             }))
           };
           

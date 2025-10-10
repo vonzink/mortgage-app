@@ -103,9 +103,9 @@ const ApplicationList = () => {
         ) : (
           <div className="applications-grid">
             {applications
-              .sort((a, b) => new Date(b.createdDate) - new Date(a.createdDate)) // Sort by date, most recent first
+              .sort((a, b) => new Date(a.createdDate) - new Date(b.createdDate)) // Sort by date, oldest first
               .map((application, index) => {
-                const isLatest = index === 0; // First item after sorting is the most recent
+                const isLatest = index === applications.length - 1; // Last item is the most recent
                 return (
               <div key={application.id} className="application-card">
                 <div className="application-header">

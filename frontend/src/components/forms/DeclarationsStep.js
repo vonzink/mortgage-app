@@ -2,7 +2,7 @@
  * Declarations Step Component
  * Step 6: Mortgage declarations
  */
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { FaFileAlt } from 'react-icons/fa';
 import FormSection from '../shared/FormSection';
 
@@ -14,6 +14,15 @@ const DeclarationsStep = ({
   borrowerFields
 }) => {
   const [activeBorrowerTab, setActiveBorrowerTab] = useState(0);
+  
+  // Clamp active borrower tab and show max 4 borrowers
+  useEffect(() => {
+    const maxIndex = Math.min(borrowerFields.length, 4) - 1;
+    if (activeBorrowerTab > maxIndex) {
+      setActiveBorrowerTab(Math.max(0, maxIndex));
+    }
+  }, [borrowerFields.length, activeBorrowerTab]);
+  const visibleBorrowers = borrowerFields.slice(0, 4);
 
   const getBorrowerName = (index) => {
     const firstName = watch(`borrowers.${index}.firstName`);
@@ -22,6 +31,36 @@ const DeclarationsStep = ({
       return `${firstName || ''} ${lastName || ''}`.trim() || `Borrower ${index + 1}`;
     }
     return `Borrower ${index + 1}`;
+  };
+
+  // Helper component for declaration items with "Yes" indicator
+  const DeclarationCheckbox = ({ name, label, borrowerIndex }) => {
+    const isChecked = watch(name);
+    return (
+      <div className="declaration-item">
+        <label className="declaration-label">
+          <input
+            type="checkbox"
+            {...register(name)}
+            className="declaration-checkbox"
+          />
+          <span className="declaration-text">
+            {label}
+          </span>
+        </label>
+        {isChecked && (
+          <div style={{ 
+            fontSize: '0.75rem', 
+            color: 'var(--success-color, green)', 
+            marginTop: '0.25rem', 
+            marginLeft: '1.75rem', 
+            fontWeight: '600' 
+          }}>
+            Yes
+          </div>
+        )}
+      </div>
+    );
   };
 
   return (
@@ -38,7 +77,7 @@ const DeclarationsStep = ({
         borderBottom: '2px solid var(--border-color)',
         flexWrap: 'wrap'
       }}>
-        {borrowerFields.map((borrowerField, borrowerIndex) => (
+        {visibleBorrowers.map((borrowerField, borrowerIndex) => (
           <button
             key={borrowerField.id}
             type="button"
@@ -62,7 +101,7 @@ const DeclarationsStep = ({
         ))}
       </div>
 
-      {borrowerFields.map((borrowerField, borrowerIndex) => {
+      {visibleBorrowers.map((borrowerField, borrowerIndex) => {
         // Only show the active borrower tab
         if (borrowerIndex !== activeBorrowerTab) return null;
 
@@ -70,136 +109,104 @@ const DeclarationsStep = ({
           <div key={borrowerField.id} className="borrower-declarations-section">
 
             <div className="declarations-grid">
-              {/* Bankruptcy and Legal Issues */}
+              {/* About This Property And Your Money For This Loan */}
               <div className="declaration-group">
-                <h5>Bankruptcy and Legal Issues</h5>
+                <h5>About This Property And Your Money For This Loan</h5>
                 
-                <div className="declaration-item">
-                  <label className="declaration-label">
-                    <input
-                      type="checkbox"
-                      {...register(`borrowers.${borrowerIndex}.lawsuit`)}
-                      className="declaration-checkbox"
-                    />
-                    <span className="declaration-text">
-                      Are you presently a party to a lawsuit?
-                    </span>
-                  </label>
-                </div>
+                <DeclarationCheckbox
+                  name={`borrowers.${borrowerIndex}.declaration.occupyPrimaryResidence`}
+                  label="Will you occupy the property as your primary residence?"
+                  borrowerIndex={borrowerIndex}
+                />
 
-                <div className="declaration-item">
-                  <label className="declaration-label">
-                    <input
-                      type="checkbox"
-                      {...register(`borrowers.${borrowerIndex}.foreclosure`)}
-                      className="declaration-checkbox"
-                    />
-                    <span className="declaration-text">
-                      Have you had property foreclosed upon or given title or deed in lieu thereof in the last 7 years?
-                    </span>
-                  </label>
-                </div>
+                <DeclarationCheckbox
+                  name={`borrowers.${borrowerIndex}.declaration.ownershipInterestThreeYears`}
+                  label="If YES, have you had an ownership interest in another property in the last three years?"
+                  borrowerIndex={borrowerIndex}
+                />
 
-                <div className="declaration-item">
-                  <label className="declaration-label">
-                    <input
-                      type="checkbox"
-                      {...register(`borrowers.${borrowerIndex}.obligatedOnLoan`)}
-                      className="declaration-checkbox"
-                    />
-                    <span className="declaration-text">
-                      Are you presently obligated to pay alimony, child support, or separate maintenance?
-                    </span>
-                  </label>
-                </div>
+                <DeclarationCheckbox
+                  name={`borrowers.${borrowerIndex}.declaration.familyBusinessAffiliation`}
+                  label="If this is a Purchase Transaction: Do you have a family relationship or business affiliation with the seller of the property?"
+                  borrowerIndex={borrowerIndex}
+                />
+
+                <DeclarationCheckbox
+                  name={`borrowers.${borrowerIndex}.declaration.borrowingMoneyTransaction`}
+                  label="Are you borrowing any money for this real estate transaction (e.g., money for your closing costs or down payment) or obtaining any money from another party, such as the seller or realtor, that you have not disclosed on this loan application?"
+                  borrowerIndex={borrowerIndex}
+                />
+
+                <DeclarationCheckbox
+                  name={`borrowers.${borrowerIndex}.declaration.applyingMortgageOtherProperty`}
+                  label="Have you or will you be applying for a mortgage loan on another property (not the property securing this loan) on or before closing this transaction that is not disclosed on this loan application?"
+                  borrowerIndex={borrowerIndex}
+                />
+
+                <DeclarationCheckbox
+                  name={`borrowers.${borrowerIndex}.declaration.applyingNewCredit`}
+                  label="Have you or will you be applying for any new credit (e.g., installment loan, credit card, etc.) on or before closing this loan that is not disclosed on this application?"
+                  borrowerIndex={borrowerIndex}
+                />
+
+                <DeclarationCheckbox
+                  name={`borrowers.${borrowerIndex}.declaration.propertySubjectLien`}
+                  label="Will this property be subject to a lien that could take priority over the first mortgage lien, such as a clean energy lien paid through your property taxes (e.g., the Property Assessed Clean Energy Program)?"
+                  borrowerIndex={borrowerIndex}
+                />
               </div>
 
-              {/* Citizenship and Residency */}
+              {/* About Your Finances */}
               <div className="declaration-group">
-                <h5>Citizenship and Residency</h5>
+                <h5>About Your Finances</h5>
                 
-                <div className="declaration-item">
-                  <label className="declaration-label">
-                    <input
-                      type="checkbox"
-                      {...register(`borrowers.${borrowerIndex}.usCitizen`)}
-                      className="declaration-checkbox"
-                    />
-                    <span className="declaration-text">
-                      Are you a U.S. citizen?
-                    </span>
-                  </label>
-                </div>
+                <DeclarationCheckbox
+                  name={`borrowers.${borrowerIndex}.declaration.coSignerGuarantor`}
+                  label="Are you a co-signer or guarantor on any debt or loan that is not disclosed on this application?"
+                  borrowerIndex={borrowerIndex}
+                />
 
-                <div className="declaration-item">
-                  <label className="declaration-label">
-                    <input
-                      type="checkbox"
-                      {...register(`borrowers.${borrowerIndex}.permanentResident`)}
-                      className="declaration-checkbox"
-                    />
-                    <span className="declaration-text">
-                      Are you a permanent resident alien?
-                    </span>
-                  </label>
-                </div>
+                <DeclarationCheckbox
+                  name={`borrowers.${borrowerIndex}.declaration.outstandingJudgments`}
+                  label="Are there any outstanding judgments against you?"
+                  borrowerIndex={borrowerIndex}
+                />
 
-                <div className="declaration-item">
-                  <label className="declaration-label">
-                    <input
-                      type="checkbox"
-                      {...register(`borrowers.${borrowerIndex}.primaryResidence`)}
-                      className="declaration-checkbox"
-                    />
-                    <span className="declaration-text">
-                      Will the property be your primary residence?
-                    </span>
-                  </label>
-                </div>
-              </div>
+                <DeclarationCheckbox
+                  name={`borrowers.${borrowerIndex}.declaration.delinquentFederalDebt`}
+                  label="Are you currently delinquent or in default on a Federal debt?"
+                  borrowerIndex={borrowerIndex}
+                />
 
-              {/* Financial Information */}
-              <div className="declaration-group">
-                <h5>Financial Information</h5>
-                
-                <div className="declaration-item">
-                  <label className="declaration-label">
-                    <input
-                      type="checkbox"
-                      {...register(`borrowers.${borrowerIndex}.downPaymentBorrowed`)}
-                      className="declaration-checkbox"
-                    />
-                    <span className="declaration-text">
-                      Is any part of the down payment borrowed?
-                    </span>
-                  </label>
-                </div>
+                <DeclarationCheckbox
+                  name={`borrowers.${borrowerIndex}.declaration.partyToLawsuit`}
+                  label="Are you a party to a lawsuit in which you potentially have any personal financial liability?"
+                  borrowerIndex={borrowerIndex}
+                />
 
-                <div className="declaration-item">
-                  <label className="declaration-label">
-                    <input
-                      type="checkbox"
-                      {...register(`borrowers.${borrowerIndex}.coMakerEndorser`)}
-                      className="declaration-checkbox"
-                    />
-                    <span className="declaration-text">
-                      Are you a co-maker or endorser on a note?
-                    </span>
-                  </label>
-                </div>
+                <DeclarationCheckbox
+                  name={`borrowers.${borrowerIndex}.declaration.conveyedTitleLieuForeclosure`}
+                  label="Have you conveyed title to any property in lieu of foreclosure in the past 7 years?"
+                  borrowerIndex={borrowerIndex}
+                />
 
-                <div className="declaration-item">
-                  <label className="declaration-label">
-                    <input
-                      type="checkbox"
-                      {...register(`borrowers.${borrowerIndex}.downPaymentGift`)}
-                      className="declaration-checkbox"
-                    />
-                    <span className="declaration-text">
-                      Is any part of the down payment a gift?
-                    </span>
-                  </label>
-                </div>
+                <DeclarationCheckbox
+                  name={`borrowers.${borrowerIndex}.declaration.preForeclosureSale`}
+                  label="Within the past 7 years, have you completed a pre-foreclosure sale or short sale, whereby the property was sold to a third party and the Lender agreed to accept less than the outstanding mortgage balance due?"
+                  borrowerIndex={borrowerIndex}
+                />
+
+                <DeclarationCheckbox
+                  name={`borrowers.${borrowerIndex}.declaration.propertyForeclosedSevenYears`}
+                  label="Have you had property foreclosed upon in the last 7 years?"
+                  borrowerIndex={borrowerIndex}
+                />
+
+                <DeclarationCheckbox
+                  name={`borrowers.${borrowerIndex}.declaration.declaredBankruptcySevenYears`}
+                  label="Have you declared bankruptcy within the past 7 years?"
+                  borrowerIndex={borrowerIndex}
+                />
               </div>
             </div>
 

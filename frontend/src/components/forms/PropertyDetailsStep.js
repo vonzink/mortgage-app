@@ -46,67 +46,33 @@ const PropertyDetailsStep = ({ register, errors, watch, getValues, setValue }) =
             </label>
           </div>
         )}
-        
-        {(loanPurpose === 'Refinance' || loanPurpose === 'CashOut') && !isTBD && (
-          <div className="form-group">
-            <button
-              type="button"
-              onClick={handleUseCurrentResidence}
-              className="btn btn-outline-primary"
-            >
-              Use Current Residence Address
-            </button>
-          </div>
-        )}
       </div>
 
       {!isTBD && (
-        <AddressField
-          register={register}
-          errors={errors}
-          prefix="property"
-          required={false}
-          label="Property Address"
-        />
-      )}
-
-      <div className="form-row">
-        <div className="form-group">
-          <label htmlFor="yearBuilt">Year Built</label>
-          <input
-            type="number"
-            id="yearBuilt"
-            {...register('yearBuilt', { 
-              min: { value: 1800, message: 'Year must be 1800 or later' },
-              max: { value: new Date().getFullYear() + 1, message: 'Year cannot be in the future' }
-            })}
-            placeholder="2020"
-            className={errors.yearBuilt ? 'error' : ''}
+        <>
+          <AddressField
+            register={register}
+            errors={errors}
+            prefix="property"
+            required={false}
+            label="Property Address"
           />
-          {errors.yearBuilt && (
-            <span className="error-message">{errors.yearBuilt.message}</span>
-          )}
-        </div>
-
-        <div className="form-group">
-          <label htmlFor="unitsCount">Number of Units</label>
-          <select
-            id="unitsCount"
-            {...register('unitsCount')}
-            className={errors.unitsCount ? 'error' : ''}
-          >
-            <option value="">Select Units</option>
-            <option value="1">1 Unit</option>
-            <option value="2">2 Units</option>
-            <option value="3">3 Units</option>
-            <option value="4">4 Units</option>
-            <option value="5+">5+ Units</option>
-          </select>
-          {errors.unitsCount && (
-            <span className="error-message">{errors.unitsCount.message}</span>
-          )}
-        </div>
-      </div>
+          
+          <div className="form-row">
+            <div className="form-group">
+              <button
+                type="button"
+                onClick={handleUseCurrentResidence}
+                className="btn btn-outline-primary"
+              >
+                {(loanPurpose === 'Refinance' || loanPurpose === 'CashOut') 
+                  ? 'Use Current Residence Address' 
+                  : 'Use Primary Address'}
+              </button>
+            </div>
+          </div>
+        </>
+      )}
     </FormSection>
   );
 };

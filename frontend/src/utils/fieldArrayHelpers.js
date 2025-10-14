@@ -69,38 +69,14 @@ export const getFieldArray = (control, borrowerIndex, fieldName) => {
 };
 
 /**
- * Create default values for new borrower
- * @param {number} sequenceNumber - Sequence number for the borrower
- * @returns {Object} Default borrower object
- */
-export const createDefaultBorrower = (sequenceNumber) => ({
-  sequenceNumber,
-  firstName: '',
-  lastName: '',
-  middleName: '',
-  email: '',
-  phone: '',
-  ssn: '',
-  dateOfBirth: '',
-  maritalStatus: '',
-  dependents: 0,
-  citizenshipType: '',
-  employmentHistory: [],
-  incomeSources: [],
-  residences: [],
-  assets: [],
-  liabilities: [],
-  reoProperties: []
-});
-
-/**
  * Create default residence object
  * @param {number} sequenceNumber - Sequence number for the residence
+ * @param {string} residencyType - Type of residence ('Current' or 'Prior')
  * @returns {Object} Default residence object
  */
-export const createDefaultResidence = (sequenceNumber) => ({
+export const createDefaultResidence = (sequenceNumber, residencyType = 'Prior') => ({
   sequenceNumber,
-  residencyType: 'Prior',
+  residencyType,
   durationYears: '',
   durationMonthsOnly: '',
   durationMonths: 0,
@@ -128,6 +104,31 @@ export const createDefaultEmployment = (sequenceNumber) => ({
   employerAddress: '',
   employerPhone: '',
   selfEmployed: false
+});
+
+/**
+ * Create default values for new borrower
+ * @param {number} sequenceNumber - Sequence number for the borrower
+ * @returns {Object} Default borrower object
+ */
+export const createDefaultBorrower = (sequenceNumber) => ({
+  sequenceNumber,
+  firstName: '',
+  lastName: '',
+  middleName: '',
+  email: '',
+  phone: '',
+  ssn: '',
+  dateOfBirth: '',
+  maritalStatus: '',
+  dependents: 0,
+  citizenshipType: '',
+  employmentHistory: [createDefaultEmployment(1)], // Start with one employer entry
+  incomeSources: [],
+  residences: [createDefaultResidence(1, 'Current')], // Start with primary residence
+  assets: [],
+  liabilities: [],
+  reoProperties: []
 });
 
 /**
@@ -159,6 +160,8 @@ export const createDefaultLiability = () => ({
  * @returns {Object} Default REO property object
  */
 export const createDefaultREOProperty = () => ({
+  category: '',
+  owner: '',
   addressLine: '',
   city: '',
   state: '',
@@ -168,7 +171,8 @@ export const createDefaultREOProperty = () => ({
   monthlyRentalIncome: '',
   monthlyPayment: '',
   unpaidBalance: '',
-  associatedLiability: ''
+  ownedFreeAndClear: false,
+  associatedLiabilities: []
 });
 
 /**

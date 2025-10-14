@@ -15,77 +15,77 @@ import org.mapstruct.*;
 public interface LoanApplicationMapper {
 
     // Main application mapping
+    @Mapping(target = "borrowers", ignore = true)
+    @Mapping(target = "liabilities", ignore = true)
+    @Mapping(target = "documents", ignore = true)
+    @Mapping(target = "createdDate", ignore = true)
+    @Mapping(target = "updatedDate", ignore = true)
+    @Mapping(target = "applicationNumber", ignore = true)
     LoanApplication toEntity(LoanApplicationDTO dto);
+    
+    @Mapping(target = "borrowers", ignore = true)
+    @Mapping(target = "liabilities", ignore = true)
     LoanApplicationDTO toDTO(LoanApplication entity);
 
     // Property mapping
+    @Mapping(target = "application", ignore = true)
     Property toEntity(PropertyDTO dto);
+    
     PropertyDTO toDTO(Property entity);
 
     // Borrower mapping
+    @Mapping(target = "application", ignore = true)
+    @Mapping(target = "employmentHistory", ignore = true)
+    @Mapping(target = "incomeSources", ignore = true)
+    @Mapping(target = "residences", ignore = true)
+    @Mapping(target = "reoProperties", ignore = true)
+    @Mapping(target = "assets", ignore = true)
+    @Mapping(target = "declaration", ignore = true)
     Borrower toEntity(BorrowerDTO dto);
+    
+    @Mapping(target = "employmentHistory", ignore = true)
+    @Mapping(target = "incomeSources", ignore = true)
+    @Mapping(target = "residences", ignore = true)
+    @Mapping(target = "reoProperties", ignore = true)
+    @Mapping(target = "assets", ignore = true)
+    @Mapping(target = "declaration", ignore = true)
     BorrowerDTO toDTO(Borrower entity);
 
     // Employment mapping
+    @Mapping(target = "borrower", ignore = true)
     Employment toEntity(EmploymentDTO dto);
+    
     EmploymentDTO toDTO(Employment entity);
 
     // Income source mapping
+    @Mapping(target = "borrower", ignore = true)
     IncomeSource toEntity(IncomeSourceDTO dto);
+    
     IncomeSourceDTO toDTO(IncomeSource entity);
 
     // Residence mapping
+    @Mapping(target = "borrower", ignore = true)
     Residence toEntity(ResidenceDTO dto);
+    
     ResidenceDTO toDTO(Residence entity);
 
     // Liability mapping
+    @Mapping(target = "application", ignore = true)
     Liability toEntity(LiabilityDTO dto);
+    
     LiabilityDTO toDTO(Liability entity);
 
     // REO Property mapping
+    @Mapping(target = "borrower", ignore = true)
     REOProperty toEntity(REOPropertyDTO dto);
+    
     REOPropertyDTO toDTO(REOProperty entity);
 
     // Declaration mapping
+    @Mapping(target = "borrower", ignore = true)
     Declaration toEntity(DeclarationDTO dto);
+    
     DeclarationDTO toDTO(Declaration entity);
-
-    // List mappings
-    @IterableMapping(elementTargetType = Borrower.class)
-    java.util.List<Borrower> toEntityList(java.util.List<BorrowerDTO> dtos);
-
-    @IterableMapping(elementTargetType = BorrowerDTO.class)
-    java.util.List<BorrowerDTO> toDTOList(java.util.List<Borrower> entities);
-
-    @IterableMapping(elementTargetType = Employment.class)
-    java.util.List<Employment> toEmploymentEntityList(java.util.List<EmploymentDTO> dtos);
-
-    @IterableMapping(elementTargetType = EmploymentDTO.class)
-    java.util.List<EmploymentDTO> toEmploymentDTOList(java.util.List<Employment> entities);
-
-    @IterableMapping(elementTargetType = IncomeSource.class)
-    java.util.List<IncomeSource> toIncomeSourceEntityList(java.util.List<IncomeSourceDTO> dtos);
-
-    @IterableMapping(elementTargetType = IncomeSourceDTO.class)
-    java.util.List<IncomeSourceDTO> toIncomeSourceDTOList(java.util.List<IncomeSource> entities);
-
-    @IterableMapping(elementTargetType = Residence.class)
-    java.util.List<Residence> toResidenceEntityList(java.util.List<ResidenceDTO> dtos);
-
-    @IterableMapping(elementTargetType = ResidenceDTO.class)
-    java.util.List<ResidenceDTO> toResidenceDTOList(java.util.List<Residence> entities);
-
-    @IterableMapping(elementTargetType = Liability.class)
-    java.util.List<Liability> toLiabilityEntityList(java.util.List<LiabilityDTO> dtos);
-
-    @IterableMapping(elementTargetType = LiabilityDTO.class)
-    java.util.List<LiabilityDTO> toLiabilityDTOList(java.util.List<Liability> entities);
-
-    @IterableMapping(elementTargetType = REOProperty.class)
-    java.util.List<REOProperty> toREOPropertyEntityList(java.util.List<REOPropertyDTO> dtos);
-
-    @IterableMapping(elementTargetType = REOPropertyDTO.class)
-    java.util.List<REOPropertyDTO> toREOPropertyDTOList(java.util.List<REOProperty> entities);
 
     // Note: Complex relationship mappings will be handled in service layer
     // MapStruct works best with simple DTO to Entity mappings

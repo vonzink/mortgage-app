@@ -180,10 +180,6 @@ const ReviewSubmitStep = ({ register, errors, getValues, onSubmit, isSubmitting,
               <span className="label">Total Liabilities:</span>
               <span className="value">{formatCurrency(calculateTotalLiabilities())}</span>
             </div>
-            <div className="review-item">
-              <span className="label">Net Worth:</span>
-              <span className="value">{formatCurrency(calculateTotalAssets() - calculateTotalLiabilities())}</span>
-            </div>
           </div>
         </div>
 

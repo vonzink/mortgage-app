@@ -50,11 +50,6 @@ export const generateDocumentRecommendations = (applicationData) => {
   
   const inferredREOCount = reoCount === 0 ? (mortgageLienCount + helocCount) : 0;
   const hasREO = reoCount > 0 || inferredREOCount > 0;
-  
-  // Check for rental income
-  const hasRentalIncome = borrowers.some(b => 
-    (b.incomeSources || []).some(inc => 
-      (inc.incomeType || '').match(/rental/i)));
 
   // ========== GENERAL DOCUMENTS ==========
   
@@ -220,13 +215,21 @@ export const generateDocumentRecommendations = (applicationData) => {
     const hasEmploymentIncome = employmentHistory.some(emp => 
       emp.monthlyIncome > 0 && emp.employmentStatus === 'Present');
     
-    // Check for self-employment
+    // Check for self-employment and business types
     let isSelfEmployed = employmentHistory.some(emp => 
       emp.selfEmployed === true);
     
-    const hasSCorp = incomeSources.some(inc => 
-      (inc.incomeType || '').match(/s-?corp|s\s*corporation/i));
-    const hasPartnership = incomeSources.some(inc => 
+    // Check business types from employment history
+    const businessTypes = employmentHistory
+      .filter(emp => emp.selfEmployed && emp.businessType)
+      .map(emp => emp.businessType);
+    
+    const hasLLC = businessTypes.includes('LLC');
+    const hasSCorp = businessTypes.includes('SCorp');
+    const hasCCorp = businessTypes.includes('Corporation');
+    
+    // Also check income sources for backwards compatibility
+    const hasPartnershipIncome = incomeSources.some(inc => 
       (inc.incomeType || '').match(/partnership/i));
     
     // W-2 Employment
@@ -270,12 +273,27 @@ export const generateDocumentRecommendations = (applicationData) => {
         reason: 'Support current year performance.'
       });
       
+      // LLC (Partnership treatment)
+      if (hasLLC) {
+        recommendations.income.push({
+          name: `${tag} K-1s (LLC) – last 2 years`,
+          status: 'required',
+          reason: 'LLC ownership present.'
+        });
+        
+        recommendations.income.push({
+          name: `${tag} 1065 partnership tax returns – last 2 years`,
+          status: 'required',
+          reason: 'LLC treated as partnership.'
+        });
+      }
+      
       // S-Corp
       if (hasSCorp) {
         recommendations.income.push({
           name: `${tag} K-1s (S-Corp) – last 2 years`,
           status: 'required',
-          reason: 'S-Corporation income present.'
+          reason: 'S-Corporation ownership present.'
         });
         
         recommendations.income.push({
@@ -283,10 +301,32 @@ export const generateDocumentRecommendations = (applicationData) => {
           status: 'required',
           reason: 'S-Corporation ownership.'
         });
+        
+        // W-2s if applicable for S-Corp owners
+        recommendations.income.push({
+          name: `${tag} W-2s – last 2 years (if applicable)`,
+          status: 'conditional',
+          reason: 'S-Corp owners typically receive W-2 wages.'
+        });
       }
       
-      // Partnership
-      if (hasPartnership) {
+      // C-Corporation
+      if (hasCCorp) {
+        recommendations.income.push({
+          name: `${tag} K-1s (C-Corp) – last 2 years`,
+          status: 'required',
+          reason: 'C-Corporation ownership present.'
+        });
+        
+        recommendations.income.push({
+          name: `${tag} 1120 corporate tax returns – last 2 years`,
+          status: 'required',
+          reason: 'C-Corporation ownership.'
+        });
+      }
+      
+      // Partnership (from income sources)
+      if (hasPartnershipIncome) {
         recommendations.income.push({
           name: `${tag} K-1s (Partnership) – last 2 years`,
           status: 'required',
@@ -381,11 +421,25 @@ export const generateDocumentRecommendations = (applicationData) => {
           ? ` – ${reo.addressLine}, ${reo.city}, ${reo.state}`
           : ` #${idx + 1}`;
         
-        recommendations.credit.push({
-          name: `Mortgage/HELOC statement${label}`,
-          status: 'required',
-          reason: 'REO property identified.'
-        });
+        // Find associated mortgage or secured loan liability
+        const associatedLiability = liabilities.find(l => 
+          (l.liabilityType === 'Mortgage' || l.liabilityType === 'Secured Loan') &&
+          l.associatedREO === reo.id
+        );
+        
+        if (associatedLiability) {
+          recommendations.credit.push({
+            name: `${associatedLiability.liabilityType} statement${label}`,
+            status: 'required',
+            reason: 'REO property with associated liability.'
+          });
+        } else {
+          recommendations.credit.push({
+            name: `Mortgage/Secured Loan statement${label}`,
+            status: 'required',
+            reason: 'REO property identified.'
+          });
+        }
         
         recommendations.credit.push({
           name: `Hazard insurance declaration page${label}`,
@@ -399,21 +453,38 @@ export const generateDocumentRecommendations = (applicationData) => {
           reason: 'Provide if taxes are not escrowed.'
         });
         
-        // Check if investment property
-        if ((reo.propertyType || '').match(/invest/i) || hasRentalIncome) {
-          recommendations.income.push({
-            name: `Lease agreement${label}`,
-            status: 'conditional',
-            reason: 'Investment/rental property.'
-          });
+        // Check if rental/investment property
+        const isRental = (reo.propertyType || '').match(/invest|rental/i) || 
+                        reo.monthlyRentalIncome > 0;
+        
+        if (isRental) {
+          // Calculate ownership duration in months (assuming createdAt is available)
+          // For now, we'll check if we can infer ownership duration
+          const ownershipMonths = reo.ownershipMonths || 0;
+          
+          if (ownershipMonths > 0 && ownershipMonths < 12) {
+            // Owned less than 12 months - need lease agreement
+            recommendations.income.push({
+              name: `Lease agreement${label}`,
+              status: 'required',
+              reason: 'Rental property owned less than 12 months.'
+            });
+          } else {
+            // Owned 12+ months or unknown - need tax returns with Schedule E
+            recommendations.income.push({
+              name: `Personal tax returns with Schedule E${label}`,
+              status: 'required',
+              reason: 'Rental property income verification.'
+            });
+          }
         }
       });
     } else {
       // Inferred from liabilities
       recommendations.credit.push({
-        name: 'Mortgage/HELOC statement(s) – each REO property',
+        name: 'Mortgage/Secured Loan statement(s) – each REO property',
         status: 'required',
-        reason: 'Mortgage/HELOC liabilities present.'
+        reason: 'Mortgage/Secured Loan liabilities present.'
       });
       
       recommendations.credit.push({

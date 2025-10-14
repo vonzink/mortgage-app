@@ -5,8 +5,9 @@
 import React from 'react';
 import { FaHome } from 'react-icons/fa';
 import FormSection from '../shared/FormSection';
+import CurrencyInput from '../form-fields/CurrencyInput';
 
-const LoanInformationStep = ({ register, errors, watch }) => {
+const LoanInformationStep = ({ register, errors, watch, setValue, getValues }) => {
   const loanPurpose = watch('loanPurpose');
   return (
     <FormSection
@@ -54,13 +55,12 @@ const LoanInformationStep = ({ register, errors, watch }) => {
       <div className="form-row">
         <div className="form-group">
           <label htmlFor="loanAmount">Loan Amount</label>
-          <input
-            type="number"
+          <CurrencyInput
             id="loanAmount"
-            {...register('loanAmount', { 
-              min: { value: 1, message: 'Loan amount must be greater than 0' }
-            })}
-            placeholder="500000"
+            name="loanAmount"
+            value={watch('loanAmount') || ''}
+            onChange={(e) => setValue('loanAmount', e.target.value)}
+            placeholder="500,000.00"
             className={errors.loanAmount ? 'error' : ''}
           />
           {errors.loanAmount && (
@@ -70,13 +70,12 @@ const LoanInformationStep = ({ register, errors, watch }) => {
 
         <div className="form-group">
           <label htmlFor="propertyValue">Property Value</label>
-          <input
-            type="number"
+          <CurrencyInput
             id="propertyValue"
-            {...register('propertyValue', { 
-              min: { value: 1, message: 'Property value must be greater than 0' }
-            })}
-            placeholder="600000"
+            name="propertyValue"
+            value={watch('propertyValue') || ''}
+            onChange={(e) => setValue('propertyValue', e.target.value)}
+            placeholder="600,000.00"
             className={errors.propertyValue ? 'error' : ''}
           />
           {errors.propertyValue && (
@@ -89,13 +88,12 @@ const LoanInformationStep = ({ register, errors, watch }) => {
         <div className="form-row">
           <div className="form-group">
             <label htmlFor="downPayment">Down Payment</label>
-            <input
-              type="number"
+            <CurrencyInput
               id="downPayment"
-              {...register('downPayment', { 
-                min: { value: 0, message: 'Down payment cannot be negative' }
-              })}
-              placeholder="100000"
+              name="downPayment"
+              value={watch('downPayment') || ''}
+              onChange={(e) => setValue('downPayment', e.target.value)}
+              placeholder="100,000.00"
               className={errors.downPayment ? 'error' : ''}
             />
             {errors.downPayment && (

@@ -50,6 +50,27 @@ const ApplicationForm = () => {
     }
   });
 
+  // Load carry-over data if available
+  useEffect(() => {
+    const carryOverData = sessionStorage.getItem('carryOverData');
+    if (carryOverData && !editId) {
+      try {
+        const data = JSON.parse(carryOverData);
+        console.log('[DEBUG] Loading carry-over data:', data);
+        
+        // Reset form with all the carried over data
+        reset(data);
+        
+        // Clear the carry-over data from session storage
+        sessionStorage.removeItem('carryOverData');
+        
+        toast.info('All data loaded from previous application');
+      } catch (error) {
+        console.error('Error loading carry-over data:', error);
+      }
+    }
+  }, [editId, reset]);
+
   // Custom hooks
   const {
     currentStep,
@@ -231,6 +252,13 @@ const ApplicationForm = () => {
       console.log('[DEBUG] Transforming form data to backend DTO structure...');
       console.log('[DEBUG] data.property object:', data.property);
       
+      // Normalize unsupported/legacy liability types before building payload
+      const normalizeLiabilityType = (t) => {
+        if (!t) return t;
+        if (t === 'SecuredLoan') return 'Installment';
+        return t;
+      };
+
       const applicationData = {
         loanPurpose: data.loanPurpose || 'Purchase',
         loanType: data.loanType || 'Conventional',
@@ -333,7 +361,7 @@ const ApplicationForm = () => {
                     .map(liability => ({
                       creditorName: liability.creditorName,
                       accountNumber: liability.accountNumber || null,
-                      liabilityType: liability.liabilityType,
+                      liabilityType: normalizeLiabilityType(liability.liabilityType),
                       monthlyPayment: parseFloat(liability.monthlyPayment) || 0,
                       unpaidBalance: parseFloat(liability.unpaidBalance) || 0,
                       payoffStatus: false,
@@ -402,7 +430,7 @@ const ApplicationForm = () => {
     const renderStepContent = () => {
         switch (currentStep) {
             case 1:
-                return <LoanInformationStep register={register} errors={errors} watch={watch} />;
+                return <LoanInformationStep register={register} errors={errors} watch={watch} setValue={setValue} getValues={getValues} />;
             case 2:
                 return (
                     <BorrowerInformationStep
@@ -418,7 +446,7 @@ const ApplicationForm = () => {
                     />
                 );
             case 3:
-                return <PropertyDetailsStep register={register} errors={errors} watch={watch} />;
+                return <PropertyDetailsStep register={register} errors={errors} watch={watch} getValues={getValues} setValue={setValue} />;
             case 4:
                 return (
                     <EmploymentStep
@@ -426,6 +454,7 @@ const ApplicationForm = () => {
                         errors={errors}
                         watch={watch}
                         getValues={getValues}
+                        setValue={setValue}
                         getFieldArray={getFieldArray}
                         borrowerFields={borrowers.fields}
                     />
@@ -437,6 +466,7 @@ const ApplicationForm = () => {
                         errors={errors}
                         watch={watch}
                         getValues={getValues}
+                        setValue={setValue}
                         getFieldArray={getFieldArray}
                         borrowerFields={borrowers.fields}
                     />

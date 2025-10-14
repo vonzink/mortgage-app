@@ -1,0 +1,269 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Loan Application Schema",
+  "description": "JSON schema for mortgage loan application data",
+  "type": "object",
+  "required": [
+    "program",
+    "transactionType",
+    "occupancy",
+    "propertyType",
+    "maritalStatus",
+    "employmentType",
+    "incomes",
+    "assets"
+  ],
+  "properties": {
+    "program": {
+      "type": "string",
+      "enum": ["Conventional", "FHA", "VA", "USDA"]
+    },
+    "transactionType": {
+      "type": "string",
+      "enum": ["Purchase", "RateTermRefi", "CashOutRefi"]
+    },
+    "occupancy": {
+      "type": "string",
+      "enum": ["Primary", "SecondHome", "Investment"]
+    },
+    "propertyType": {
+      "type": "string",
+      "enum": ["SFR", "Condo", "PUD", "2-4 Unit", "Manufactured"]
+    },
+    "purchasePrice": {
+      "type": "number",
+      "minimum": 0
+    },
+    "loanAmount": {
+      "type": "number",
+      "minimum": 0
+    },
+    "downPaymentSource": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": ["OwnFunds", "Gift", "Grant", "Employer", "SaleOfAsset", "CryptoLiquidated", "Other"]
+      }
+    },
+    "isFirstTimeHomebuyer": {
+      "type": "boolean"
+    },
+    "creditScore": {
+      "type": "number",
+      "minimum": 300,
+      "maximum": 850
+    },
+    "bkHistory": {
+      "type": ["object", "null"],
+      "properties": {
+        "chapter": {
+          "type": "string",
+          "enum": ["7", "13"]
+        },
+        "dischargeDate": {
+          "type": "string",
+          "format": "date"
+        }
+      },
+      "required": ["chapter", "dischargeDate"]
+    },
+    "foreclosureHistoryDate": {
+      "type": ["string", "null"],
+      "format": "date"
+    },
+    "mortgageLatesIn12Mo": {
+      "type": "number",
+      "minimum": 0
+    },
+    "maritalStatus": {
+      "type": "string",
+      "enum": ["Single", "Married", "Separated", "Divorced"]
+    },
+    "isUSCitizen": {
+      "type": "boolean"
+    },
+    "isPermanentResident": {
+      "type": "boolean"
+    },
+    "hasITIN": {
+      "type": "boolean"
+    },
+    "employmentType": {
+      "type": "string",
+      "enum": ["W2", "SelfEmployed", "1099", "Retired", "Unemployed"]
+    },
+    "employerName": {
+      "type": "string"
+    },
+    "startDate": {
+      "type": "string",
+      "format": "date"
+    },
+    "yearsInLineOfWork": {
+      "type": "number",
+      "minimum": 0
+    },
+    "selfEmployed": {
+      "type": ["object", "null"],
+      "properties": {
+        "businessType": {
+          "type": "string",
+          "enum": ["SoleProp", "LLC", "SCorp", "CCorp", "Partnership"]
+        },
+        "businessStartDate": {
+          "type": "string",
+          "format": "date"
+        },
+        "ownershipPercent": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 100
+        },
+        "usesBusinessFundsForClose": {
+          "type": "boolean"
+        },
+        "businessHasDecliningIncome": {
+          "type": "boolean"
+        }
+      },
+      "required": ["businessType", "businessStartDate", "ownershipPercent"]
+    },
+    "incomes": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "BasePay",
+              "Overtime",
+              "Bonus",
+              "Commission",
+              "SelfEmployment",
+              "Rental",
+              "AlimonyReceived",
+              "ChildSupportReceived",
+              "Pension",
+              "SocialSecurity",
+              "Disability",
+              "VACompensation",
+              "Other"
+            ]
+          },
+          "monthlyAmount": {
+            "type": "number",
+            "minimum": 0
+          },
+          "startDate": {
+            "type": "string",
+            "format": "date"
+          },
+          "expectedToContinue": {
+            "type": "boolean"
+          }
+        },
+        "required": ["type", "monthlyAmount"]
+      }
+    },
+    "assets": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "Checking",
+              "Savings",
+              "Brokerage",
+              "Retirement",
+              "CashOnHand",
+              "Gift",
+              "Crypto",
+              "Other"
+            ]
+          },
+          "balance": {
+            "type": "number",
+            "minimum": 0
+          },
+          "accountTitle": {
+            "type": "string"
+          }
+        },
+        "required": ["type", "balance"]
+      }
+    },
+    "paysAlimony": {
+      "type": "boolean"
+    },
+    "paysChildSupport": {
+      "type": "boolean"
+    },
+    "receivesChildOrAlimony": {
+      "type": "boolean"
+    },
+    "supportOrderDocsClaimedInAssets": {
+      "type": "boolean"
+    },
+    "isCondo": {
+      "type": "boolean"
+    },
+    "isNewConstruction": {
+      "type": "boolean"
+    },
+    "nameVariations": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "largeDepositsPresent": {
+      "type": "boolean"
+    },
+    "creditInquiriesLast90Days": {
+      "type": "boolean"
+    },
+    "rentHistory": {
+      "type": ["object", "null"],
+      "properties": {
+        "payingRent": {
+          "type": "boolean"
+        },
+        "method": {
+          "type": "string",
+          "enum": ["PrivateLandlord", "PropertyManager", "LivingRentFree"]
+        }
+      }
+    },
+    "va": {
+      "type": ["object", "null"],
+      "properties": {
+        "priorUseOfEntitlement": {
+          "type": "boolean"
+        },
+        "serviceType": {
+          "type": "string",
+          "enum": ["Regular", "Reserves", "Guard"]
+        }
+      }
+    },
+    "usda": {
+      "type": ["object", "null"],
+      "properties": {
+        "householdMembers": {
+          "type": "number",
+          "minimum": 1
+        },
+        "nonBorrowerHouseholdIncome": {
+          "type": "number",
+          "minimum": 0
+        }
+      },
+      "required": ["householdMembers"]
+    }
+  }
+}
+
+

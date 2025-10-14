@@ -2,9 +2,10 @@
  * Employment Step Component
  * Step 4: Employment and income details
  */
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { FaBriefcase } from 'react-icons/fa';
 import FormSection from '../shared/FormSection';
+import CurrencyInput from '../form-fields/CurrencyInput';
 import { 
   checkEmploymentHistoryWarning
 } from '../../utils/formHelpers';
@@ -17,10 +18,12 @@ const EmploymentStep = ({
   errors, 
   watch, 
   getValues, 
+  setValue,
   getFieldArray,
   borrowerFields
 }) => {
   const [activeBorrowerTab, setActiveBorrowerTab] = useState(0);
+  const [activeEmploymentTabs, setActiveEmploymentTabs] = useState({});
 
   const getBorrowerName = (index) => {
     const firstName = watch(`borrowers.${index}.firstName`);
@@ -31,6 +34,35 @@ const EmploymentStep = ({
     return `Borrower ${index + 1}`;
   };
 
+  // Clamp active borrower tab and limit visible borrowers to 4
+  useEffect(() => {
+    const maxIndex = Math.min(borrowerFields.length, 4) - 1;
+    if (activeBorrowerTab > maxIndex) {
+      setActiveBorrowerTab(Math.max(0, maxIndex));
+    }
+  }, [borrowerFields.length, activeBorrowerTab]);
+  const visibleBorrowers = borrowerFields.slice(0, 4);
+
+  // Bubble tab styles
+  const bubbleTabStyle = (isActive) => ({
+    padding: '0.6rem 1.2rem',
+    border: 'none',
+    borderRadius: '20px',
+    background: isActive ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' : '#f0f0f0',
+    color: isActive ? 'white' : '#666',
+    cursor: 'pointer',
+    fontWeight: isActive ? '600' : '500',
+    fontSize: '0.9rem',
+    transition: 'all 0.3s ease',
+    boxShadow: isActive ? '0 4px 15px rgba(102, 126, 234, 0.4)' : '0 2px 5px rgba(0,0,0,0.1)',
+    transform: isActive ? 'translateY(-2px)' : 'translateY(0)',
+    marginRight: '0.75rem',
+    marginBottom: '0.5rem',
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: '0.5rem'
+  });
+
   return (
     <FormSection
       title="Employment & Income"
@@ -40,28 +72,27 @@ const EmploymentStep = ({
       {/* Borrower Tabs */}
       <div className="borrower-tabs" style={{ 
         display: 'flex', 
-        gap: '0.5rem', 
+        flexWrap: 'wrap',
         marginBottom: '2rem',
-        borderBottom: '2px solid var(--border-color)',
-        flexWrap: 'wrap'
+        marginTop: '1rem'
       }}>
-        {borrowerFields.map((borrowerField, borrowerIndex) => (
+        {visibleBorrowers.map((borrowerField, borrowerIndex) => (
           <button
             key={borrowerField.id}
             type="button"
             onClick={() => setActiveBorrowerTab(borrowerIndex)}
-            className={`borrower-tab ${activeBorrowerTab === borrowerIndex ? 'active' : ''}`}
-            style={{
-              padding: '0.75rem 1.5rem',
-              border: 'none',
-              borderBottom: activeBorrowerTab === borrowerIndex ? '3px solid var(--primary-color)' : '3px solid transparent',
-              background: activeBorrowerTab === borrowerIndex ? 'var(--bg-secondary)' : 'transparent',
-              cursor: 'pointer',
-              fontWeight: activeBorrowerTab === borrowerIndex ? '600' : '400',
-              color: activeBorrowerTab === borrowerIndex ? 'var(--primary-color)' : 'var(--text-secondary)',
-              transition: 'all 0.2s',
-              position: 'relative',
-              marginBottom: '-2px'
+            style={bubbleTabStyle(activeBorrowerTab === borrowerIndex)}
+            onMouseEnter={(e) => {
+              if (activeBorrowerTab !== borrowerIndex) {
+                e.target.style.background = '#e0e0e0';
+                e.target.style.transform = 'translateY(-1px)';
+              }
+            }}
+            onMouseLeave={(e) => {
+              if (activeBorrowerTab !== borrowerIndex) {
+                e.target.style.background = '#f0f0f0';
+                e.target.style.transform = 'translateY(0)';
+              }
             }}
           >
             {getBorrowerName(borrowerIndex)}
@@ -69,12 +100,18 @@ const EmploymentStep = ({
         ))}
       </div>
 
-      {borrowerFields.map((borrowerField, borrowerIndex) => {
+      {visibleBorrowers.map((borrowerField, borrowerIndex) => {
         // Only show the active borrower tab
         if (borrowerIndex !== activeBorrowerTab) return null;
 
         const { fields: empFields, append: appendEmp, remove: removeEmp } = getFieldArray(borrowerIndex, 'employmentHistory');
         const warning = checkEmploymentHistoryWarning(empFields);
+        
+        // Get or initialize the active employment tab for this borrower
+        const activeEmploymentTab = activeEmploymentTabs[borrowerIndex] ?? 0;
+        const setActiveEmploymentTab = (empIndex) => {
+          setActiveEmploymentTabs(prev => ({ ...prev, [borrowerIndex]: empIndex }));
+        };
         
         return (
           <div key={borrowerField.id} className="borrower-employment-section">
@@ -86,7 +123,69 @@ const EmploymentStep = ({
               </div>
             )}
             
+            {/* Employment Tabs */}
+            {empFields.length > 1 && (
+              <div className="employment-tabs" style={{ 
+                display: 'flex', 
+                flexWrap: 'wrap',
+                marginBottom: '1.5rem',
+                marginTop: '1rem'
+              }}>
+                {empFields.map((empField, empIndex) => {
+                  const employerName = watch(`borrowers.${borrowerIndex}.employmentHistory.${empIndex}.employerName`);
+                  const employmentStatus = watch(`borrowers.${borrowerIndex}.employmentHistory.${empIndex}.employmentStatus`);
+                  const displayName = employerName || `Employer ${empIndex + 1}`;
+                  
+                  return (
+                    <button
+                      key={empField.id}
+                      type="button"
+                      onClick={() => setActiveEmploymentTab(empIndex)}
+                      style={{
+                        ...bubbleTabStyle(activeEmploymentTab === empIndex),
+                        background: activeEmploymentTab === empIndex 
+                          ? 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)' 
+                          : '#f0f0f0',
+                        boxShadow: activeEmploymentTab === empIndex 
+                          ? '0 4px 15px rgba(79, 172, 254, 0.4)' 
+                          : '0 2px 5px rgba(0,0,0,0.1)',
+                      }}
+                      onMouseEnter={(e) => {
+                        if (activeEmploymentTab !== empIndex) {
+                          e.target.style.background = '#e0e0e0';
+                          e.target.style.transform = 'translateY(-1px)';
+                        }
+                      }}
+                      onMouseLeave={(e) => {
+                        if (activeEmploymentTab !== empIndex) {
+                          e.target.style.background = '#f0f0f0';
+                          e.target.style.transform = 'translateY(0)';
+                        }
+                      }}
+                    >
+                      {displayName}
+                      {employmentStatus && (
+                        <span style={{
+                          fontSize: '0.75rem',
+                          padding: '0.25rem 0.5rem',
+                          borderRadius: '12px',
+                          background: employmentStatus === 'Present' ? 'var(--success-color)' : 'var(--warning-color)',
+                          color: '#fff',
+                          fontWeight: '600'
+                        }}>
+                          {employmentStatus}
+                        </span>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+            
             {empFields.map((empField, empIndex) => {
+              // Only show the active employment tab if there are multiple employers
+              if (empFields.length > 1 && empIndex !== activeEmploymentTab) return null;
+              
               const employerName = watch(`borrowers.${borrowerIndex}.employmentHistory.${empIndex}.employerName`);
               const displayName = employerName || `Employer ${empIndex + 1}`;
               
@@ -206,14 +305,12 @@ const EmploymentStep = ({
                     <label htmlFor={`borrowers.${borrowerIndex}.employmentHistory.${empIndex}.monthlyIncome`}>
                       Monthly Income
                     </label>
-                    <input
-                      type="number"
+                    <CurrencyInput
                       id={`borrowers.${borrowerIndex}.employmentHistory.${empIndex}.monthlyIncome`}
-                      {...register(`borrowers.${borrowerIndex}.employmentHistory.${empIndex}.monthlyIncome`, {
-                        min: { value: 0, message: 'Income cannot be negative' }
-                      })}
-                      placeholder="5000"
-                      min="0"
+                      name={`borrowers.${borrowerIndex}.employmentHistory.${empIndex}.monthlyIncome`}
+                      value={watch(`borrowers.${borrowerIndex}.employmentHistory.${empIndex}.monthlyIncome`) || ''}
+                      onChange={(e) => setValue(`borrowers.${borrowerIndex}.employmentHistory.${empIndex}.monthlyIncome`, e.target.value)}
+                      placeholder="5,000.00"
                       className={errors.borrowers?.[borrowerIndex]?.employmentHistory?.[empIndex]?.monthlyIncome ? 'error' : ''}
                     />
                     {errors.borrowers?.[borrowerIndex]?.employmentHistory?.[empIndex]?.monthlyIncome && (
@@ -233,6 +330,33 @@ const EmploymentStep = ({
                     </label>
                   </div>
                 </div>
+
+                {watch(`borrowers.${borrowerIndex}.employmentHistory.${empIndex}.selfEmployed`) && (
+                  <div className="form-row">
+                    <div className="form-group">
+                      <label htmlFor={`borrowers.${borrowerIndex}.employmentHistory.${empIndex}.businessType`}>
+                        Business Type
+                      </label>
+                      <select
+                        id={`borrowers.${borrowerIndex}.employmentHistory.${empIndex}.businessType`}
+                        {...register(`borrowers.${borrowerIndex}.employmentHistory.${empIndex}.businessType`)}
+                        className={errors.borrowers?.[borrowerIndex]?.employmentHistory?.[empIndex]?.businessType ? 'error' : ''}
+                      >
+                        <option value="">Select Business Type</option>
+                        <option value="SoleProprietorship">Sole Proprietorship</option>
+                        <option value="LLC">Limited Liability Company (LLC)</option>
+                        <option value="SCorp">S-Corporation</option>
+                        <option value="Corporation">Corporation</option>
+                        <option value="Other">Other</option>
+                      </select>
+                      {errors.borrowers?.[borrowerIndex]?.employmentHistory?.[empIndex]?.businessType && (
+                        <span className="error-message">
+                          {errors.borrowers[borrowerIndex].employmentHistory[empIndex].businessType.message}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                )}
 
                 <div className="form-row">
                   <div className="form-group">

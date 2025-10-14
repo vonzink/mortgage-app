@@ -40,7 +40,7 @@ public class BorrowerDTO {
     
     private List<REOPropertyDTO> reoProperties;
     
-    private List<AssetDTO> assets;
+    private List<AssetDTO> assets = new java.util.ArrayList<>();
     
     private DeclarationDTO declaration;
     
@@ -180,6 +180,14 @@ public class BorrowerDTO {
     
     public void setReoProperties(List<REOPropertyDTO> reoProperties) {
         this.reoProperties = reoProperties;
+    }
+    
+    public List<AssetDTO> getAssets() {
+        return assets;
+    }
+    
+    public void setAssets(List<AssetDTO> assets) {
+        this.assets = assets;
     }
     
     public String getCurrentAddressLine() {

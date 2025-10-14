@@ -33,6 +33,7 @@ const ApplicationDetails = () => {
   const [pendingFiles, setPendingFiles] = useState([]);
   const [recommendations, setRecommendations] = useState(null);
   const [showUploadModal, setShowUploadModal] = useState(false);
+  const [showUploadLog, setShowUploadLog] = useState(false);
   const [selectedDocumentName, setSelectedDocumentName] = useState('');
 
   const fetchApplication = useCallback(async () => {
@@ -501,9 +502,43 @@ const ApplicationDetails = () => {
             </div>
           )}
           
-        {/* Uploaded Documents */}
+        {/* Uploaded Documents with toggleable upload log */}
         <div className="uploaded-documents-section">
-          <h3>Uploaded Documents ({documents.length})</h3>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <h3>Uploaded Documents ({documents.length})</h3>
+            <button
+              className="btn btn-outline-secondary"
+              onClick={() => setShowUploadLog(prev => !prev)}
+            >
+              {showUploadLog ? 'Hide Upload Log' : 'Show Upload Log'}
+            </button>
+          </div>
+          {showUploadLog && (
+            <div style={{ marginTop: '1rem' }}>
+              {documents.length === 0 ? (
+                <p className="empty-text">No uploads yet.</p>
+              ) : (
+                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                  <thead>
+                    <tr style={{ background: 'var(--bg-secondary)' }}>
+                      <th style={{ textAlign: 'left', padding: '0.5rem', borderBottom: '1px solid var(--border-color)' }}>File Name</th>
+                      <th style={{ textAlign: 'left', padding: '0.5rem', borderBottom: '1px solid var(--border-color)' }}>Document Type</th>
+                      <th style={{ textAlign: 'left', padding: '0.5rem', borderBottom: '1px solid var(--border-color)' }}>Uploaded At</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {documents.map(doc => (
+                      <tr key={doc.id}>
+                        <td style={{ padding: '0.5rem', borderBottom: '1px solid var(--border-color)' }}>{doc.fileName}</td>
+                        <td style={{ padding: '0.5rem', borderBottom: '1px solid var(--border-color)' }}>{doc.documentType}</td>
+                        <td style={{ padding: '0.5rem', borderBottom: '1px solid var(--border-color)' }}>{formatDate(doc.uploadedAt)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </div>
+          )}
           {documents.length === 0 ? (
             <p className="empty-text">No documents uploaded yet.</p>
           ) : (

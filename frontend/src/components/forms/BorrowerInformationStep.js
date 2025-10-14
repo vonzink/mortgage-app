@@ -8,6 +8,7 @@ import { toast } from 'react-toastify';
 import FormSection from '../shared/FormSection';
 import PersonalInfoField from '../form-fields/PersonalInfoField';
 import AddressField from '../form-fields/AddressField';
+import CurrencyInput from '../form-fields/CurrencyInput';
 import { 
   checkResidenceHistoryWarning
 } from '../../utils/formHelpers';
@@ -29,12 +30,29 @@ const BorrowerInformationStep = ({
 }) => {
   const loanPurpose = watch('loanPurpose');
   const [activeBorrowerTab, setActiveBorrowerTab] = useState(0);
+  const [activeResidenceTabs, setActiveResidenceTabs] = useState({});
   const isAddingRef = useRef(false);
+
+  // Helper to get/set active residence tab for a borrower
+  const getActiveResidenceTab = (borrowerIndex) => activeResidenceTabs[borrowerIndex] || 0;
+  const setActiveResidenceTab = (borrowerIndex, tabIndex) => {
+    setActiveResidenceTabs(prev => ({ ...prev, [borrowerIndex]: tabIndex }));
+  };
 
   // Track borrower count changes
   useEffect(() => {
     console.log('[DEBUG] borrowerFields changed. Count:', borrowerFields.length);
   }, [borrowerFields.length]);
+
+  // Clamp active borrower tab and limit visible borrowers to 4
+  useEffect(() => {
+    const maxIndex = Math.min(borrowerFields.length, 4) - 1;
+    if (activeBorrowerTab > maxIndex) {
+      setActiveBorrowerTab(Math.max(0, maxIndex));
+    }
+  }, [borrowerFields.length, activeBorrowerTab]);
+
+  const visibleBorrowers = borrowerFields.slice(0, 4);
 
   const addBorrower = () => {
     if (isAddingRef.current) {
@@ -44,12 +62,10 @@ const BorrowerInformationStep = ({
     
     console.log('[DEBUG] addBorrower called. Current count:', borrowerFields.length);
     
-    if (borrowerFields.length < 4) {
+    if (borrowerFields.length < 2) {
       isAddingRef.current = true;
       appendBorrower(createDefaultBorrower(borrowerFields.length + 1));
       console.log('[DEBUG] appendBorrower called. New length should be:', borrowerFields.length + 1);
-      // Switch to the new borrower tab
-      setActiveBorrowerTab(borrowerFields.length);
       
       // Reset the flag after a short delay
       setTimeout(() => {
@@ -77,58 +93,48 @@ const BorrowerInformationStep = ({
     return `Borrower ${index + 1}`;
   };
 
+  // Bubble tab styles
+  const bubbleTabStyle = (isActive) => ({
+    padding: '0.6rem 1.2rem',
+    border: 'none',
+    borderRadius: '20px',
+    background: isActive ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' : '#f0f0f0',
+    color: isActive ? 'white' : '#666',
+    cursor: 'pointer',
+    fontWeight: isActive ? '600' : '500',
+    fontSize: '0.9rem',
+    transition: 'all 0.3s ease',
+    boxShadow: isActive ? '0 4px 15px rgba(102, 126, 234, 0.4)' : '0 2px 5px rgba(0,0,0,0.1)',
+    transform: isActive ? 'translateY(-2px)' : 'translateY(0)',
+    marginRight: '0.75rem',
+    marginBottom: '0.5rem',
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: '0.5rem'
+  });
+
   return (
     <FormSection
       title="Borrower Information"
       icon={<FaUser />}
       description="Personal details and residence history for all borrowers."
     >
-      {/* Borrower Tabs */}
-      <div className="borrower-tabs" style={{ 
-        display: 'flex', 
-        gap: '0.5rem', 
-        marginBottom: '2rem',
-        borderBottom: '2px solid var(--border-color)',
-        flexWrap: 'wrap'
-      }}>
-        {borrowerFields.map((borrowerField, borrowerIndex) => (
-          <button
-            key={borrowerField.id}
-            type="button"
-            onClick={() => setActiveBorrowerTab(borrowerIndex)}
-            className={`borrower-tab ${activeBorrowerTab === borrowerIndex ? 'active' : ''}`}
-            style={{
-              padding: '0.75rem 1.5rem',
-              border: 'none',
-              borderBottom: activeBorrowerTab === borrowerIndex ? '3px solid var(--primary-color)' : '3px solid transparent',
-              background: activeBorrowerTab === borrowerIndex ? 'var(--bg-secondary)' : 'transparent',
-              cursor: 'pointer',
-              fontWeight: activeBorrowerTab === borrowerIndex ? '600' : '400',
-              color: activeBorrowerTab === borrowerIndex ? 'var(--primary-color)' : 'var(--text-secondary)',
-              transition: 'all 0.2s',
-              position: 'relative',
-              marginBottom: '-2px'
-            }}
-          >
-            {getBorrowerName(borrowerIndex)}
-          </button>
-        ))}
-        
-        {borrowerFields.length < 4 && (
+      {/* Borrower 1 header and Add Co-Borrower button */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', marginTop: '1rem' }}>
+        <h5 style={{ margin: 0 }}>Borrower 1</h5>
+        {borrowerFields.length < 2 && (
           <button
             type="button"
             onClick={addBorrower}
-            className="add-borrower-tab"
             style={{
-              padding: '0.75rem 1.5rem',
-              border: 'none',
+              padding: '0.6rem 1.2rem',
+              border: '2px dashed #667eea',
+              borderRadius: '20px',
               background: 'transparent',
+              color: '#667eea',
               cursor: 'pointer',
-              color: 'var(--primary-color)',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.5rem',
-              fontWeight: '500'
+              fontWeight: '500',
+              fontSize: '0.9rem'
             }}
           >
             <FaPlus /> Add Co-Borrower
@@ -137,17 +143,15 @@ const BorrowerInformationStep = ({
       </div>
 
       {console.log('[DEBUG] Rendering borrowers. borrowerFields.length:', borrowerFields.length, 'borrowerFields:', borrowerFields)}
-      {borrowerFields.map((borrowerField, borrowerIndex) => {
-        // Only show the active borrower tab
-        if (borrowerIndex !== activeBorrowerTab) return null;
-        
-        return (
-          <div key={borrowerField.id} className="borrower-section">
-            {borrowerIndex > 0 && (
+      {/* Always render Borrower 1 fields */}
+      {visibleBorrowers[0] && (
+        <div key={visibleBorrowers[0].id} className="borrower-section">
+            {/* Borrower 1 can't be removed */}
+            {false && (
               <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '1rem' }}>
                 <button
                   type="button"
-                  onClick={() => removeBorrowerHandler(borrowerIndex)}
+                  onClick={() => {}}
                   className="btn btn-outline-danger btn-sm"
                   style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}
                 >
@@ -159,20 +163,33 @@ const BorrowerInformationStep = ({
             <PersonalInfoField
               register={register}
               errors={errors}
-              prefix={`borrowers.${borrowerIndex}`}
-              required={borrowerIndex === 0}
+              prefix={`borrowers.0`}
+              required={true}
             />
 
+            {/* Will borrower live in the subject property? */}
+            <div className="form-row">
+              <div className="form-group">
+                <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <input
+                    type="checkbox"
+                    {...register(`borrowers.0.willOccupySubjectProperty`)}
+                  />
+                  Will this borrower live in the subject property?
+                </label>
+              </div>
+            </div>
+
             {/* Relationship to Primary Borrower (only for co-borrowers) */}
-            {borrowerIndex > 0 && (
+            {false && (
               <div className="form-row">
                 <div className="form-group">
-                  <label htmlFor={`borrowers.${borrowerIndex}.relationshipToPrimaryBorrower`}>
+                  <label htmlFor={`borrowers.0.relationshipToPrimaryBorrower`}>
                     Relationship to Primary Borrower
                   </label>
                   <select
-                    id={`borrowers.${borrowerIndex}.relationshipToPrimaryBorrower`}
-                    {...register(`borrowers.${borrowerIndex}.relationshipToPrimaryBorrower`)}
+                    id={`borrowers.0.relationshipToPrimaryBorrower`}
+                    {...register(`borrowers.0.relationshipToPrimaryBorrower`)}
                   >
                     <option value="">Select Relationship</option>
                     <option value="Spouse">Spouse</option>
@@ -188,14 +205,59 @@ const BorrowerInformationStep = ({
             )}
 
             {/* Residence History Section */}
-            <div className="residence-history-section">
-              <h5>Residence History</h5>
+            <div className="residence-history-section" style={{ marginTop: '2rem', paddingTop: '2rem', borderTop: '2px solid var(--border-color)' }}>
+              <h5 style={{ marginBottom: '1rem' }}>Residence History</h5>
               {(() => {
-                const { fields: resFields, append: appendRes, remove: removeRes } = getFieldArray(borrowerIndex, 'residences');
+                const { fields: resFields, append: appendRes, remove: removeRes } = getFieldArray(0, 'residences');
                 const warning = checkResidenceHistoryWarning(resFields);
-                
+                const activeResidenceTab = getActiveResidenceTab(0);
+
                 return (
                   <>
+                    {/* For co-borrowers: show primary borrower current address with quick-copy */}
+                    {false && (
+                      <div className="alert alert-info" style={{ marginBottom: '1rem' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <div>
+                            <strong>Primary Borrower Current Address:</strong>
+                            <div style={{ fontSize: '0.9rem' }}>
+                              {(() => {
+                                const p = getValues('borrowers.0.residences.0') || {};
+                                if (p.addressLine || p.city || p.state || p.zipCode) {
+                                  return (
+                                    <span>
+                                      {p.addressLine || ''} {p.city ? `, ${p.city}` : ''} {p.state || ''} {p.zipCode || ''}
+                                    </span>
+                                  );
+                                }
+                                return <span>Not provided yet.</span>;
+                              })()}
+                            </div>
+                          </div>
+                          <button
+                            type="button"
+                            className="btn btn-outline-primary btn-sm"
+                            onClick={() => {
+                              const src = getValues('borrowers.0.residences.0');
+                              if (!src) return;
+                              // Ensure at least one residence exists for this borrower
+                              if (!resFields || resFields.length === 0) {
+                                appendRes(createDefaultResidence(1, 'Current'));
+                              }
+                              setValue(`borrowers.0.residences.0.addressLine`, src.addressLine || '');
+                              setValue(`borrowers.0.residences.0.city`, src.city || '');
+                              setValue(`borrowers.0.residences.0.state`, src.state || '');
+                              setValue(`borrowers.0.residences.0.zipCode`, src.zipCode || '');
+                              setValue(`borrowers.0.residences.0.residencyType`, 'Current');
+                              setActiveResidenceTab(0, 0);
+                              toast && toast.success && toast.success('Copied primary borrower current address');
+                            }}
+                          >
+                            Use Primary Borrower Address
+                          </button>
+                        </div>
+                      </div>
+                    )}
                     {warning.hasWarning && (
                       <div className="alert alert-warning">
                         <strong>Warning:</strong> Your residence history covers {Math.round(warning.totalDuration)} months. 
@@ -203,17 +265,78 @@ const BorrowerInformationStep = ({
                       </div>
                     )}
                     
-                    {resFields.map((resField, resIndex) => (
-                      <div key={resField.id} className="residence-entry">
-                        <div className="residence-header">
-                          <h6>Residence {resIndex + 1}</h6>
-                          {resFields.length > 1 && (
+                    {/* Residence Tabs - Only show tabs if there are multiple residences */}
+                    {resFields.length > 1 && (
+                      <div style={{ 
+                        display: 'flex', 
+                        flexWrap: 'wrap',
+                        marginBottom: '1.5rem',
+                        marginTop: '1rem'
+                      }}>
+                        {resFields.map((resField, resIndex) => (
+                          <button
+                            key={resField.id}
+                            type="button"
+                            onClick={() => setActiveResidenceTab(0, resIndex)}
+                            style={{
+                              ...bubbleTabStyle(activeResidenceTab === resIndex),
+                              background: activeResidenceTab === resIndex 
+                                ? 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)' 
+                                : '#f0f0f0',
+                              boxShadow: activeResidenceTab === resIndex 
+                                ? '0 4px 15px rgba(240, 147, 251, 0.4)' 
+                                : '0 2px 5px rgba(0,0,0,0.1)',
+                            }}
+                            onMouseEnter={(e) => {
+                              if (activeResidenceTab !== resIndex) {
+                                e.target.style.background = '#e0e0e0';
+                                e.target.style.transform = 'translateY(-1px)';
+                              }
+                            }}
+                            onMouseLeave={(e) => {
+                              if (activeResidenceTab !== resIndex) {
+                                e.target.style.background = '#f0f0f0';
+                                e.target.style.transform = 'translateY(0)';
+                              }
+                            }}
+                          >
+                            {resIndex === 0 ? 'Primary Address' : `Address ${resIndex + 1}`}
+                            {resIndex === 0 && (
+                              <span style={{ 
+                                background: 'var(--primary-color)', 
+                                color: 'white', 
+                                padding: '0.125rem 0.5rem', 
+                                borderRadius: '8px',
+                                fontSize: '0.65rem',
+                                fontWeight: '600'
+                              }}>
+                                PRIMARY
+                              </span>
+                            )}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                    
+                    {resFields.map((resField, resIndex) => {
+                      // If only one residence (primary), always show it
+                      // If multiple residences, only show the active tab
+                      if (resFields.length > 1 && resIndex !== activeResidenceTab) return null;
+                      
+                      return (
+                        <div key={resField.id} className="residence-entry">
+                        <div className="residence-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+                          <h6 style={{ margin: 0 }}>{resIndex === 0 ? 'Primary Address' : `Address ${resIndex + 1}`}</h6>
+                          {resFields.length > 1 && resIndex > 0 && (
                             <button
                               type="button"
-                              onClick={() => removeRes(resIndex)}
+                              onClick={() => {
+                                removeRes(resIndex);
+                                setActiveResidenceTab(0, 0);
+                              }}
                               className="btn btn-outline-danger btn-sm"
                             >
-                              Remove
+                              Remove Address
                             </button>
                           )}
                         </div>
@@ -221,19 +344,19 @@ const BorrowerInformationStep = ({
                         <AddressField
                           register={register}
                           errors={errors}
-                          prefix={`borrowers.${borrowerIndex}.residences.${resIndex}`}
+                          prefix={`borrowers.0.residences.${resIndex}`}
                           required={false}
                           label="Residence Address"
                         />
 
                         <div className="form-row">
                           <div className="form-group">
-                            <label htmlFor={`borrowers.${borrowerIndex}.residences.${resIndex}.residencyType`}>
+                            <label htmlFor={`borrowers.0.residences.${resIndex}.residencyType`}>
                               Residency Type
                             </label>
                             <select
-                              id={`borrowers.${borrowerIndex}.residences.${resIndex}.residencyType`}
-                              {...register(`borrowers.${borrowerIndex}.residences.${resIndex}.residencyType`)}
+                              id={`borrowers.0.residences.${resIndex}.residencyType`}
+                              {...register(`borrowers.0.residences.${resIndex}.residencyType`)}
                             >
                               <option value="">Select Type</option>
                               <option value="Current">Current</option>
@@ -242,12 +365,12 @@ const BorrowerInformationStep = ({
                           </div>
 
                           <div className="form-group">
-                            <label htmlFor={`borrowers.${borrowerIndex}.residences.${resIndex}.residencyBasis`}>
+                            <label htmlFor={`borrowers.0.residences.${resIndex}.residencyBasis`}>
                               Residency Basis
                             </label>
                             <select
-                              id={`borrowers.${borrowerIndex}.residences.${resIndex}.residencyBasis`}
-                              {...register(`borrowers.${borrowerIndex}.residences.${resIndex}.residencyBasis`)}
+                              id={`borrowers.0.residences.${resIndex}.residencyBasis`}
+                              {...register(`borrowers.0.residences.${resIndex}.residencyBasis`)}
                             >
                               <option value="">Select Basis</option>
                               <option value="Own">Own</option>
@@ -257,35 +380,35 @@ const BorrowerInformationStep = ({
                           </div>
                         </div>
                         
-                        {watch(`borrowers.${borrowerIndex}.residences.${resIndex}.residencyType`) === 'Prior' ? (
+                        {watch(`borrowers.0.residences.${resIndex}.residencyType`) === 'Prior' ? (
                           <div className="form-row">
                             <div className="form-group">
-                              <label htmlFor={`borrowers.${borrowerIndex}.residences.${resIndex}.startDate`}>Start Date</label>
+                              <label htmlFor={`borrowers.0.residences.${resIndex}.startDate`}>Start Date</label>
                               <input
                                 type="date"
-                                id={`borrowers.${borrowerIndex}.residences.${resIndex}.startDate`}
-                                {...register(`borrowers.${borrowerIndex}.residences.${resIndex}.startDate`)}
+                                id={`borrowers.0.residences.${resIndex}.startDate`}
+                                {...register(`borrowers.0.residences.${resIndex}.startDate`)}
                               />
                             </div>
                             
                             <div className="form-group">
-                              <label htmlFor={`borrowers.${borrowerIndex}.residences.${resIndex}.endDate`}>End Date</label>
+                              <label htmlFor={`borrowers.0.residences.${resIndex}.endDate`}>End Date</label>
                               <input
                                 type="date"
-                                id={`borrowers.${borrowerIndex}.residences.${resIndex}.endDate`}
-                                {...register(`borrowers.${borrowerIndex}.residences.${resIndex}.endDate`)}
+                                id={`borrowers.0.residences.${resIndex}.endDate`}
+                                {...register(`borrowers.0.residences.${resIndex}.endDate`)}
                               />
                             </div>
                             
-                            {watch(`borrowers.${borrowerIndex}.residences.${resIndex}.residencyBasis`) === 'Rent' && (
+                            {watch(`borrowers.0.residences.${resIndex}.residencyBasis`) === 'Rent' && (
                               <div className="form-group">
-                                <label htmlFor={`borrowers.${borrowerIndex}.residences.${resIndex}.monthlyRent`}>Monthly Rent</label>
-                                <input
-                                  type="number"
-                                  id={`borrowers.${borrowerIndex}.residences.${resIndex}.monthlyRent`}
-                                  {...register(`borrowers.${borrowerIndex}.residences.${resIndex}.monthlyRent`)}
-                                  placeholder="1500"
-                                  min="0"
+                                <label htmlFor={`borrowers.0.residences.${resIndex}.monthlyRent`}>Monthly Rent</label>
+                                <CurrencyInput
+                                  id={`borrowers.0.residences.${resIndex}.monthlyRent`}
+                                  name={`borrowers.0.residences.${resIndex}.monthlyRent`}
+                                  value={watch(`borrowers.0.residences.${resIndex}.monthlyRent`) || ''}
+                                  onChange={(e) => setValue(`borrowers.0.residences.${resIndex}.monthlyRent`, e.target.value)}
+                                  placeholder="1,500.00"
                                 />
                               </div>
                             )}
@@ -293,70 +416,94 @@ const BorrowerInformationStep = ({
                         ) : (
                           <div className="form-row">
                             <div className="form-group">
-                              <label htmlFor={`borrowers.${borrowerIndex}.residences.${resIndex}.durationYears`}>Years</label>
+                              <label htmlFor={`borrowers.0.residences.${resIndex}.durationYears`}>Years</label>
                               <input
                                 type="number"
-                                id={`borrowers.${borrowerIndex}.residences.${resIndex}.durationYears`}
-                                {...register(`borrowers.${borrowerIndex}.residences.${resIndex}.durationYears`)}
+                                id={`borrowers.0.residences.${resIndex}.durationYears`}
+                                {...register(`borrowers.0.residences.${resIndex}.durationYears`)}
                                 placeholder="2"
                                 min="0"
                                 onChange={(e) => {
                                   const years = parseInt(e.target.value) || 0;
-                                  const months = parseInt(getValues(`borrowers.${borrowerIndex}.residences.${resIndex}.durationMonthsOnly`)) || 0;
+                                  const months = parseInt(getValues(`borrowers.0.residences.${resIndex}.durationMonthsOnly`)) || 0;
                                   const totalMonths = (years * 12) + months;
-                                  setValue(`borrowers.${borrowerIndex}.residences.${resIndex}.durationMonths`, totalMonths);
+                                  setValue(`borrowers.0.residences.${resIndex}.durationMonths`, totalMonths);
                                 }}
                               />
                             </div>
                             
                             <div className="form-group">
-                              <label htmlFor={`borrowers.${borrowerIndex}.residences.${resIndex}.durationMonthsOnly`}>Months</label>
+                              <label htmlFor={`borrowers.0.residences.${resIndex}.durationMonthsOnly`}>Months</label>
                               <input
                                 type="number"
-                                id={`borrowers.${borrowerIndex}.residences.${resIndex}.durationMonthsOnly`}
-                                {...register(`borrowers.${borrowerIndex}.residences.${resIndex}.durationMonthsOnly`)}
+                                id={`borrowers.0.residences.${resIndex}.durationMonthsOnly`}
+                                {...register(`borrowers.0.residences.${resIndex}.durationMonthsOnly`)}
                                 placeholder="6"
                                 min="0"
                                 max="11"
                                 onChange={(e) => {
                                   const months = parseInt(e.target.value) || 0;
-                                  const years = parseInt(getValues(`borrowers.${borrowerIndex}.residences.${resIndex}.durationYears`)) || 0;
+                                  const years = parseInt(getValues(`borrowers.0.residences.${resIndex}.durationYears`)) || 0;
                                   const totalMonths = (years * 12) + months;
-                                  setValue(`borrowers.${borrowerIndex}.residences.${resIndex}.durationMonths`, totalMonths);
+                                  setValue(`borrowers.0.residences.${resIndex}.durationMonths`, totalMonths);
                                 }}
                               />
                             </div>
                             
-                            {watch(`borrowers.${borrowerIndex}.residences.${resIndex}.residencyBasis`) === 'Rent' && (
+                            {watch(`borrowers.0.residences.${resIndex}.residencyBasis`) === 'Rent' && (
                               <div className="form-group">
-                                <label htmlFor={`borrowers.${borrowerIndex}.residences.${resIndex}.monthlyRent`}>Monthly Rent</label>
-                                <input
-                                  type="number"
-                                  id={`borrowers.${borrowerIndex}.residences.${resIndex}.monthlyRent`}
-                                  {...register(`borrowers.${borrowerIndex}.residences.${resIndex}.monthlyRent`)}
-                                  placeholder="1500"
-                                  min="0"
+                                <label htmlFor={`borrowers.0.residences.${resIndex}.monthlyRent`}>Monthly Rent</label>
+                                <CurrencyInput
+                                  id={`borrowers.0.residences.${resIndex}.monthlyRent`}
+                                  name={`borrowers.0.residences.${resIndex}.monthlyRent`}
+                                  value={watch(`borrowers.0.residences.${resIndex}.monthlyRent`) || ''}
+                                  onChange={(e) => setValue(`borrowers.0.residences.${resIndex}.monthlyRent`, e.target.value)}
+                                  placeholder="1,500.00"
                                 />
                               </div>
                             )}
                           </div>
                         )}
                       </div>
-                    ))}
+                      );
+                    })}
 
                     {resFields.length < 6 && (
-                      <div className="form-row">
-                        <div className="form-group">
-                          <button
-                            type="button"
-                            onClick={() => appendRes(createDefaultResidence(resFields.length + 1))}
-                            className="btn btn-outline-primary"
-                          >
-                            Add Another Residence
-                          </button>
-                        </div>
+                      <div style={{ display: 'flex', gap: '1rem', marginTop: '1.5rem' }}>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            appendRes(createDefaultResidence(resFields.length + 1));
+                            setActiveResidenceTab(0, resFields.length);
+                          }}
+                          className="btn btn-outline-primary"
+                        >
+                          Add Another Address
+                        </button>
                         
-                        {borrowerIndex > 0 && loanPurpose === 'Refinance' && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            appendRes({ 
+                              ...createDefaultResidence(resFields.length + 1),
+                              residencyType: 'Mailing',
+                              isMailing: true
+                            });
+                            setActiveResidenceTab(0, resFields.length);
+                          }}
+                          className="btn btn-outline-secondary"
+                        >
+                          Add Mailing Address
+                        </button>
+                      </div>
+                    )}
+                    
+                    {resFields.length < 6 && (
+                      <div className="form-row" style={{ display: 'none' }}>
+                        <div className="form-group"></div>
+                        <div className="form-group"></div>
+                        
+                        {false && loanPurpose === 'Refinance' && (
                           <div className="form-group">
                             <div className="address-display-section">
                               <h6>Borrower 1's Current Residence Address:</h6>
@@ -386,7 +533,7 @@ const BorrowerInformationStep = ({
                                               durationMonthsOnly: borrower1CurrentResidence.durationMonthsOnly,
                                               durationMonths: borrower1CurrentResidence.durationMonths
                                             });
-                                            toast.success(`Borrower ${borrowerIndex + 1}'s residence populated from Borrower 1's current residence!`);
+                                            toast.success(`Borrower 2's residence populated from Borrower 1's current residence!`);
                                           }}
                                           className="btn btn-primary btn-sm"
                                         >
@@ -413,8 +560,7 @@ const BorrowerInformationStep = ({
               })()}
             </div>
           </div>
-        );
-      })}
+      )}
     </FormSection>
   );
 };

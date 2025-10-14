@@ -83,9 +83,45 @@ export const formatCurrency = (amount) => {
   return numAmount.toLocaleString('en-US', {
     style: 'currency',
     currency: 'USD',
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2
   });
+};
+
+/**
+ * Format number to currency string for input display (without $ symbol)
+ * @param {number|string} value - Value to format
+ * @returns {string} Formatted number string with commas and decimals
+ */
+export const formatCurrencyInput = (value) => {
+  if (!value) return '';
+  
+  // Remove non-numeric characters except decimal point
+  const numericValue = value.toString().replace(/[^0-9.]/g, '');
+  
+  // Parse to float and format with commas
+  const number = parseFloat(numericValue);
+  if (isNaN(number)) return '';
+  
+  return number.toLocaleString('en-US', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2
+  });
+};
+
+/**
+ * Parse formatted currency string to number
+ * @param {string} formattedValue - Formatted currency string
+ * @returns {number} Numeric value
+ */
+export const parseCurrencyInput = (formattedValue) => {
+  if (!formattedValue) return 0;
+  
+  // Remove commas and parse to float
+  const numericValue = formattedValue.toString().replace(/,/g, '');
+  const parsed = parseFloat(numericValue);
+  
+  return isNaN(parsed) ? 0 : parsed;
 };
 
 /**

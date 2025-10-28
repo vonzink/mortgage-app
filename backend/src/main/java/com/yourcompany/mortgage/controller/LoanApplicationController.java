@@ -39,6 +39,13 @@ public class LoanApplicationController {
         AIReviewResult result = openAIService.evaluateApplication(applicationOpt.get());
         return new ResponseEntity<>(result, HttpStatus.OK);
     }
+
+    // Preview AI review without saving an application
+    @PostMapping("/ai-review-preview")
+    public ResponseEntity<AIReviewResult> previewApplicationWithAI(@Valid @RequestBody LoanApplicationDTO applicationDTO) {
+        AIReviewResult result = openAIService.evaluateApplicationDTO(applicationDTO);
+        return new ResponseEntity<>(result, HttpStatus.OK);
+    }
     
     @GetMapping
     public ResponseEntity<List<LoanApplication>> getAllApplications() {

@@ -37,6 +37,8 @@ import mortgageService from '../../services/mortgageService';
 import { createDefaultBorrower } from '../../utils/fieldArrayHelpers';
 
 const ApplicationForm = () => {
+  const [aiReviewLoading, setAiReviewLoading] = useState(false);
+  const [aiReviewResult, setAiReviewResult] = useState(null);
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const editId = searchParams.get('edit');
@@ -447,6 +449,129 @@ const ApplicationForm = () => {
     }
   };
 
+  // Run AI review preview without saving; allow user to edit afterward
+  const onAIReview = async () => {
+    try {
+      setAiReviewLoading(true);
+      setAiReviewResult(null);
+      const data = getValues();
+
+      const hasValue = (v) => v !== undefined && v !== null && String(v).trim() !== '';
+      const normalizeLiabilityType = (type) => (type || '').toUpperCase();
+
+      const applicationData = {
+        loanPurpose: data.loanPurpose,
+        loanType: data.loanType,
+        loanAmount: parseFloat(data.loanAmount) || 0,
+        propertyValue: parseFloat(data.propertyValue) || 0,
+        status: 'DRAFT',
+        property: {
+          addressLine: hasValue(data.property?.addressLine) ? data.property.addressLine : null,
+          city: hasValue(data.property?.city) ? data.property.city : null,
+          state: hasValue(data.property?.state) ? data.property.state : null,
+          zipCode: hasValue(data.property?.zipCode) ? data.property.zipCode : null,
+          occupancy: data.occupancy || 'PrimaryResidence',
+          constructionType: hasValue(data.constructionType) ? data.constructionType : 'SiteBuilt',
+          yearBuilt: hasValue(data.yearBuilt) ? parseInt(data.yearBuilt) : null,
+          unitsCount: hasValue(data.unitsCount) ? parseInt(data.unitsCount) : 1
+        },
+        borrowers: (data.borrowers || [])
+          .filter(b => hasValue(b.firstName) && hasValue(b.lastName))
+          .map((borrower, idx) => ({
+            sequenceNumber: idx + 1,
+            firstName: borrower.firstName,
+            lastName: borrower.lastName,
+            ssn: borrower.ssn || null,
+            birthDate: borrower.dateOfBirth || null,
+            maritalStatus: borrower.maritalStatus || null,
+            email: borrower.email || null,
+            phone: borrower.phone || null,
+            citizenshipType: borrower.citizenshipType || null,
+            dependentsCount: parseInt(borrower.dependentsCount) || 0,
+            employmentHistory: (borrower.employmentHistory || [])
+              .filter(emp => hasValue(emp.employerName) && hasValue(emp.startDate) && hasValue(emp.employmentStatus))
+              .map((emp, eIdx) => ({
+                sequenceNumber: eIdx + 1,
+                employerName: emp.employerName,
+                employmentStatus: emp.employmentStatus,
+                selfEmployed: !!emp.selfEmployed,
+                position: emp.position || null,
+                startDate: emp.startDate || null,
+                endDate: emp.endDate || null,
+                monthlyIncome: parseFloat(emp.monthlyIncome) || 0
+              })),
+            incomeSources: (borrower.incomeSources || [])
+              .filter(income => hasValue(income.incomeType) && parseFloat(income.monthlyAmount) > 0)
+              .map((income, iIdx) => ({
+                sequenceNumber: iIdx + 1,
+                incomeType: income.incomeType,
+                monthlyAmount: parseFloat(income.monthlyAmount) || 0
+              })),
+            residences: (borrower.residences || [])
+              .filter(res => hasValue(res.addressLine))
+              .map((res, rIdx) => ({
+                sequenceNumber: rIdx + 1,
+                addressLine: res.addressLine,
+                city: res.city || null,
+                state: res.state || null,
+                zipCode: res.zipCode || null,
+                occupancy: res.occupancy || null,
+                startDate: res.startDate || null,
+                endDate: res.endDate || null
+              })),
+            reoProperties: (borrower.reoProperties || [])
+              .filter(reo => hasValue(reo.addressLine) && hasValue(reo.city))
+              .map((reo, pIdx) => ({
+                sequenceNumber: pIdx + 1,
+                addressLine: reo.addressLine,
+                city: reo.city,
+                state: reo.state || null,
+                zipCode: reo.zipCode || null,
+                propertyType: reo.propertyType || null,
+                propertyValue: parseFloat(reo.propertyValue) || 0,
+                monthlyRentalIncome: parseFloat(reo.monthlyRentalIncome) || 0,
+                monthlyPayment: parseFloat(reo.monthlyPayment) || 0,
+                unpaidBalance: parseFloat(reo.unpaidBalance) || 0
+              })),
+            assets: (borrower.assets || [])
+              .filter(asset => hasValue(asset.assetType) && parseFloat(asset.assetValue) > 0)
+              .map(asset => ({
+                assetType: asset.assetType,
+                bankName: asset.bankName || null,
+                accountNumber: asset.accountNumber || null,
+                assetValue: parseFloat(asset.assetValue) || 0,
+                usedForDownpayment: asset.usedForDownpayment || false
+              }))
+          })),
+        liabilities: (data.borrowers || [])
+          .filter(b => hasValue(b.firstName) && hasValue(b.lastName))
+          .flatMap(b => (b.liabilities || [])
+            .filter(l => hasValue(l.creditorName) && hasValue(l.liabilityType))
+            .map(l => ({
+              creditorName: l.creditorName,
+              accountNumber: l.accountNumber || null,
+              liabilityType: normalizeLiabilityType(l.liabilityType),
+              monthlyPayment: parseFloat(l.monthlyPayment) || 0,
+              unpaidBalance: parseFloat(l.unpaidBalance) || 0,
+              payoffStatus: false,
+              toBePaidOff: false
+            }))
+          )
+      };
+
+      const result = await mortgageService.aiReviewPreview(applicationData);
+      setAiReviewResult(result);
+      if (result?.summary) {
+        toast.success('AI Review complete. See recommendations below.');
+      }
+    } catch (e) {
+      console.error('[AI Review] Failed:', e);
+      toast.error(e.message || 'AI review failed');
+    } finally {
+      setAiReviewLoading(false);
+    }
+  };
+
   // Render current step content
     // Render current step content
     const renderStepContent = () => {
@@ -513,6 +638,9 @@ const ApplicationForm = () => {
                         isSubmitting={isSubmitting}
                         isEditing={isEditing}
                         isViewing={isViewing}
+                        onAIReview={onAIReview}
+                        aiReviewLoading={aiReviewLoading}
+                        aiReviewResult={aiReviewResult}
                     />
                 );
             default:

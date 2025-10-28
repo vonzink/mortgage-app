@@ -3,13 +3,13 @@
  * Step 7: Review and submit application
  */
 import React from 'react';
-import { FaCheck, FaFilePdf } from 'react-icons/fa';
+import { FaCheck, FaFilePdf, FaRobot, FaLock } from 'react-icons/fa';
 import FormSection from '../shared/FormSection';
 import { formatCurrency, formatDate } from '../../utils/formHelpers';
 import { printURLAFormat } from '../../utils/urlaExport';
 import { toast } from 'react-toastify';
 
-const ReviewSubmitStep = ({ register, errors, getValues, onSubmit, isSubmitting, isEditing, isViewing = false }) => {
+const ReviewSubmitStep = ({ register, errors, getValues, onSubmit, isSubmitting, isEditing, isViewing = false, onAIReview, aiReviewLoading = false, aiReviewResult = null }) => {
   const formData = getValues();
 
   const handlePrintPDF = () => {
@@ -221,7 +221,7 @@ const ReviewSubmitStep = ({ register, errors, getValues, onSubmit, isSubmitting,
           </div>
 
           <div className="submit-actions">
-            <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center', marginBottom: '1.5rem' }}>
+            <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center', marginBottom: '1.5rem', flexWrap: 'wrap' }}>
               <button
                 type="button"
                 onClick={handlePrintPDF}
@@ -230,6 +230,22 @@ const ReviewSubmitStep = ({ register, errors, getValues, onSubmit, isSubmitting,
                 title="Print to PDF (URLA Format)"
               >
                 <FaFilePdf /> Print to PDF
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  if (typeof onAIReview === 'function') onAIReview();
+                }}
+                className="btn btn-outline-primary"
+                disabled={isSubmitting || aiReviewLoading}
+                title="Run AI review without submitting (you can still make corrections)"
+              >
+                {aiReviewLoading ? (
+                  <><FaRobot /> Reviewing with AI…</>
+                ) : (
+                  <><FaRobot /> Review with AI</>
+                )}
               </button>
             </div>
             <button
@@ -248,6 +264,54 @@ const ReviewSubmitStep = ({ register, errors, getValues, onSubmit, isSubmitting,
               }
             </button>
           </div>
+
+          {/* AI Review Results */}
+          {aiReviewResult && (
+            <div className="review-section" style={{ marginTop: '1.5rem' }}>
+              <h4><FaRobot /> AI Review Results</h4>
+              {aiReviewResult.summary && (
+                <div className="review-item">
+                  <span className="label">Summary:</span>
+                  <span className="value">{aiReviewResult.summary}</span>
+                </div>
+              )}
+              {(aiReviewResult.issues?.length > 0) && (
+                <div className="review-subsection">
+                  <h6>Potential Issues</h6>
+                  <ul>
+                    {aiReviewResult.issues.map((it, idx) => (
+                      <li key={idx}>{it}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+              {(aiReviewResult.missingFields?.length > 0) && (
+                <div className="review-subsection">
+                  <h6>Missing Fields</h6>
+                  <ul>
+                    {aiReviewResult.missingFields.map((it, idx) => (
+                      <li key={idx}>{it}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+              {(aiReviewResult.recommendedDocuments?.length > 0) && (
+                <div className="review-subsection">
+                  <h6>Recommended Documents</h6>
+                  <ul>
+                    {aiReviewResult.recommendedDocuments.map((it, idx) => (
+                      <li key={idx}>{it}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+              {!isViewing && (
+                <div className="info" style={{ marginTop: '0.5rem', fontSize: '0.95rem' }}>
+                  You ran an AI review without submitting. You can navigate back to previous steps and make corrections. When you are ready, click Submit to finalize your application.
+                </div>
+              )}
+            </div>
+          )}
         </div>
         )}
       </div>

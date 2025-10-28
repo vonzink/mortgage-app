@@ -379,7 +379,7 @@ const EmploymentStep = ({
                       type="tel"
                       id={`borrowers.${borrowerIndex}.employmentHistory.${empIndex}.employerPhone`}
                       {...register(`borrowers.${borrowerIndex}.employmentHistory.${empIndex}.employerPhone`)}
-                      placeholder="(555) 123-4567"
+                      placeholder="123-456-7890"
                     />
                   </div>
                 </div>

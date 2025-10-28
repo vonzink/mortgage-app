@@ -119,27 +119,9 @@ const BorrowerInformationStep = ({
       icon={<FaUser />}
       description="Personal details and residence history for all borrowers."
     >
-      {/* Borrower 1 header and Add Co-Borrower button */}
+      {/* Borrower 1 header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', marginTop: '1rem' }}>
         <h5 style={{ margin: 0 }}>Borrower 1</h5>
-        {borrowerFields.length < 2 && (
-          <button
-            type="button"
-            onClick={addBorrower}
-            style={{
-              padding: '0.6rem 1.2rem',
-              border: '2px dashed #667eea',
-              borderRadius: '20px',
-              background: 'transparent',
-              color: '#667eea',
-              cursor: 'pointer',
-              fontWeight: '500',
-              fontSize: '0.9rem'
-            }}
-          >
-            <FaPlus /> Add Co-Borrower
-          </button>
-        )}
       </div>
 
       {console.log('[DEBUG] Rendering borrowers. borrowerFields.length:', borrowerFields.length, 'borrowerFields:', borrowerFields)}
@@ -167,18 +149,7 @@ const BorrowerInformationStep = ({
               required={true}
             />
 
-            {/* Will borrower live in the subject property? */}
-            <div className="form-row">
-              <div className="form-group">
-                <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                  <input
-                    type="checkbox"
-                    {...register(`borrowers.0.willOccupySubjectProperty`)}
-                  />
-                  Will this borrower live in the subject property?
-                </label>
-              </div>
-            </div>
+            {/* Occupancy question removed per request */}
 
             {/* Relationship to Primary Borrower (only for co-borrowers) */}
             {false && (

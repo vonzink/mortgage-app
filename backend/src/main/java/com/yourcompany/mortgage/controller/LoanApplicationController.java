@@ -1,8 +1,10 @@
 package com.yourcompany.mortgage.controller;
 
+import com.yourcompany.mortgage.dto.AIReviewResult;
 import com.yourcompany.mortgage.dto.LoanApplicationDTO;
 import com.yourcompany.mortgage.model.LoanApplication;
 import com.yourcompany.mortgage.service.LoanApplicationService;
+import com.yourcompany.mortgage.integration.OpenAIService;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -18,11 +20,24 @@ public class LoanApplicationController {
     
     @Autowired
     private LoanApplicationService loanApplicationService;
+
+    @Autowired
+    private OpenAIService openAIService;
     
     @PostMapping
     public ResponseEntity<LoanApplication> createApplication(@Valid @RequestBody LoanApplicationDTO applicationDTO) {
         LoanApplication application = loanApplicationService.createApplication(applicationDTO);
         return new ResponseEntity<>(application, HttpStatus.CREATED);
+    }
+    
+    @PostMapping("/{id}/ai-review")
+    public ResponseEntity<AIReviewResult> reviewApplicationWithAI(@PathVariable Long id) {
+        Optional<LoanApplication> applicationOpt = loanApplicationService.getApplicationById(id);
+        if (applicationOpt.isEmpty()) {
+            return new ResponseEntity<>(HttpStatus.NOT_FOUND);
+        }
+        AIReviewResult result = openAIService.evaluateApplication(applicationOpt.get());
+        return new ResponseEntity<>(result, HttpStatus.OK);
     }
     
     @GetMapping

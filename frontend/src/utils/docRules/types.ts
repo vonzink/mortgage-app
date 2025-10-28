@@ -98,8 +98,9 @@ export interface Rule {
   id: string;
   title: string;
   when: (app: LoanApplication) => boolean;
-  docs: DocRequest[];
+  docs: DocRequest[] | ((app: LoanApplication) => DocRequest[]);
   strictness?: number;
+  conditional?: boolean;
 }
 
 export interface Overlays {
@@ -114,5 +115,11 @@ export interface RuleContext {
   overlays: Overlays;
   app: LoanApplication;
 }
+
+
+
+
+
+
 
 

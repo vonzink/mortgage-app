@@ -9,7 +9,7 @@ import { formatCurrency, formatDate } from '../../utils/formHelpers';
 import { printURLAFormat } from '../../utils/urlaExport';
 import { toast } from 'react-toastify';
 
-const ReviewSubmitStep = ({ register, errors, getValues, onSubmit, isSubmitting, isEditing }) => {
+const ReviewSubmitStep = ({ register, errors, getValues, onSubmit, isSubmitting, isEditing, isViewing = false }) => {
   const formData = getValues();
 
   const handlePrintPDF = () => {
@@ -183,6 +183,7 @@ const ReviewSubmitStep = ({ register, errors, getValues, onSubmit, isSubmitting,
           </div>
         </div>
 
+        {!isViewing && (
         <div className="submit-section">
           <div className="agreement-section">
             <div className="form-group">
@@ -248,6 +249,7 @@ const ReviewSubmitStep = ({ register, errors, getValues, onSubmit, isSubmitting,
             </button>
           </div>
         </div>
+        )}
       </div>
     </FormSection>
   );

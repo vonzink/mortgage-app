@@ -53,6 +53,16 @@ const mortgageService = {
     }
   },
 
+  // AI review of an application
+  aiReviewApplication: async (id) => {
+    try {
+      const response = await axios.post(`${API_BASE_URL}/loan-applications/${id}/ai-review`);
+      return response.data;
+    } catch (error) {
+      throw new Error(error.response?.data?.message || 'AI review failed');
+    }
+  },
+
   // Delete an application
   deleteApplication: async (id) => {
     try {

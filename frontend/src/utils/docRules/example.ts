@@ -222,3 +222,9 @@ export function example7(application: LoanApplication, uploadedDocs: string[]) {
 }
 
 
+
+
+
+
+
+

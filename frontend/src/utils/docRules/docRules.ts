@@ -98,7 +98,6 @@ function defineRules(context: RuleContext): Rule[] {
       when: () => true,
       docs: [
         createDoc('GOVT_ID', 'Required for all borrowers', ['R-G-01']),
-        createDoc('SSN_VERIFICATION', 'Required for all borrowers', ['R-G-01']),
       ],
     },
     {
@@ -145,7 +144,6 @@ function defineRules(context: RuleContext): Rule[] {
       docs: [
         createDoc('PAYSTUB_30D', 'W2 employment - recent paystub', ['R-E-01']),
         createDoc('W2_LAST2Y', 'W2 employment - last 2 years', ['R-E-01']),
-        createDoc('VOE', 'W2 employment - verification', ['R-E-01']),
       ],
     },
     {
@@ -269,7 +267,7 @@ function defineRules(context: RuleContext): Rule[] {
       id: 'R-1099-01',
       title: '1099 or commission income requires 2 years of 1099s',
       when: (app) => 
-        app.incomes.some(inc => inc.type === 'Commission' || inc.type === '1099'),
+        app.incomes.some(inc => inc.type === 'Commission'),
       docs: [
         createDoc('FORM1099_LAST2Y', '1099 or commission income', ['R-1099-01']),
         createDoc('YTD_PNL', 'Year-to-date proof of receipts', ['R-1099-01']),
@@ -391,15 +389,7 @@ function defineRules(context: RuleContext): Rule[] {
     },
 
     // ===== STUDENT LOAN RULES =====
-    {
-      id: 'R-SL-01',
-      title: 'Student loans require payment documentation or deferment proof',
-      when: (app) => true, // This would need actual student loan data
-      docs: [
-        createDoc('STUDENT_LOAN_DOCS', 'Student loan payment or deferment documentation', ['R-SL-01']),
-      ],
-      conditional: true,
-    },
+    // Student loan documents intentionally omitted until student loan data is available
 
     // ===== GOVERNMENT PROGRAM SPECIFICS =====
     {
@@ -444,7 +434,6 @@ function defineRules(context: RuleContext): Rule[] {
       when: (app) => app.transactionType === 'Purchase',
       docs: [
         createDoc('PURCHASE_CONTRACT', 'Purchase contract', ['R-PR-01']),
-        createDoc('ADDENDA', 'Contract addenda', ['R-PR-01']),
         createDoc('EARNEST_MONEY_PROOF', 'Earnest money deposit proof', ['R-PR-01']),
       ],
     },
@@ -657,5 +646,11 @@ export function explain(app: LoanApplication): string[] {
  * Get document label by ID
  */
 export { getDocumentLabel };
+
+
+
+
+
+
 
 

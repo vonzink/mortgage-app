@@ -40,6 +40,7 @@ const ApplicationForm = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const editId = searchParams.get('edit');
+  const isViewing = searchParams.get('view') === '1';
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
 
@@ -259,6 +260,15 @@ const ApplicationForm = () => {
         return t;
       };
 
+      // Helper: normalize phone to 123-456-7890 when possible
+      const normalizePhone = (p) => {
+        if (!p) return null;
+        const digits = String(p).replace(/\D/g, '');
+        if (digits.length < 10) return p; // leave as-is if not enough digits
+        const last10 = digits.slice(-10);
+        return `${last10.slice(0,3)}-${last10.slice(3,6)}-${last10.slice(6)}`;
+      };
+
       const applicationData = {
         loanPurpose: data.loanPurpose || 'Purchase',
         loanType: data.loanType || 'Conventional',
@@ -306,7 +316,7 @@ const ApplicationForm = () => {
                     employerCity: null,
                     employerState: null,
                     employerZip: null,
-                    employerPhone: employment.employerPhone || null,
+                    employerPhone: normalizePhone(employment.employerPhone) || null,
                     selfEmployed: false
                   })),
               incomeSources: (borrower.incomeSources || [])
@@ -388,6 +398,18 @@ const ApplicationForm = () => {
       console.log('[DEBUG] Original application ID:', editId || 'N/A (new app)');
       console.log('[DEBUG] New application ID:', createdApplication.id);
       console.log('[DEBUG] New application number:', createdApplication.applicationNumber);
+      
+      // Run AI review (non-blocking for UX)
+      try {
+        const aiResult = await mortgageService.aiReviewApplication(createdApplication.id);
+        console.log('[DEBUG] AI Review Result:', aiResult);
+        sessionStorage.setItem(`aiReview_${createdApplication.id}`, JSON.stringify(aiResult));
+        if (aiResult?.summary) {
+          toast.info(`AI review: ${aiResult.summary.substring(0, 120)}${aiResult.summary.length > 120 ? '…' : ''}`);
+        }
+      } catch (aiErr) {
+        console.warn('[WARN] AI review failed:', aiErr);
+      }
       
       if (isEditing && editId) {
         toast.success(`Edited application saved as new version! (Original: ${editId}, New: ${createdApplication.id})`);
@@ -490,6 +512,7 @@ const ApplicationForm = () => {
                         onSubmit={handleSubmit(onSubmit)}
                         isSubmitting={isSubmitting}
                         isEditing={isEditing}
+                        isViewing={isViewing}
                     />
                 );
             default:
@@ -510,7 +533,9 @@ const ApplicationForm = () => {
           />
 
           <div className="step-content-container">
-            {renderStepContent()}
+            <fieldset disabled={isViewing} style={{ border: 'none', padding: 0, margin: 0 }}>
+              {renderStepContent()}
+            </fieldset>
           </div>
 
           {!isLastStep && (

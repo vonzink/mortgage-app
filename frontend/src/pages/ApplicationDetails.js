@@ -4,7 +4,8 @@ import { toast } from 'react-toastify';
 import { useDropzone } from 'react-dropzone';
 import { FaUpload, FaFile, FaDownload, FaTrash, FaCheckCircle, FaTimes, FaFileAlt, FaExclamationTriangle, FaInfoCircle } from 'react-icons/fa';
 import mortgageService from '../services/mortgageService';
-import { generateDocumentRecommendations } from '../utils/documentRecommendations';
+import { generateDocChecklist } from '../utils/docRules';
+import { adaptApiToLoanApplication } from '../utils/docRules/apiAdapter';
 
 const DOCUMENT_TYPES = [
   'Pay Stub',
@@ -31,7 +32,7 @@ const ApplicationDetails = () => {
   const [documents, setDocuments] = useState([]);
   const [uploading, setUploading] = useState(false);
   const [pendingFiles, setPendingFiles] = useState([]);
-  const [recommendations, setRecommendations] = useState(null);
+  const [docChecklist, setDocChecklist] = useState(null);
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [showUploadLog, setShowUploadLog] = useState(false);
   const [selectedDocumentName, setSelectedDocumentName] = useState('');
@@ -65,9 +66,10 @@ const ApplicationDetails = () => {
 
   useEffect(() => {
     if (application) {
-      const recs = generateDocumentRecommendations(application);
-      console.log('[DEBUG] Document recommendations:', recs);
-      setRecommendations(recs);
+      const adapted = adaptApiToLoanApplication(application);
+      const result = generateDocChecklist(adapted);
+      console.log('[DEBUG] Doc rules engine result:', result);
+      setDocChecklist(result);
     }
   }, [application]);
 
@@ -272,9 +274,13 @@ const ApplicationDetails = () => {
       <div className="card">
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
           <h2>Application #{application.applicationNumber}</h2>
-          <span className={`status ${getStatusClass(application.status)}`}>
-            {application.status || 'DRAFT'}
-          </span>
+          <button
+            className="btn btn-outline-primary"
+            onClick={() => navigate(`/application-form?edit=${application.id}&view=1`)}
+            title="View full application"
+          >
+            View
+          </button>
         </div>
 
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2rem' }}>
@@ -356,88 +362,140 @@ const ApplicationDetails = () => {
         </div>
       </div>
 
-      {/* Recommended Documents Section */}
-      {recommendations && (
+      {/* Document Checklist (Rules Engine) */}
+      {docChecklist && (
         <div className="card" style={{ marginTop: '2rem' }}>
           <h2><FaFileAlt /> Loan Document Checklist</h2>
           
-          {/* Document Tables by Category */}
-          <div className="doc-sections">
-            {Object.entries(recommendations).map(([category, items]) => {
-              if (!items || items.length === 0) return null;
-              
-              return (
-                <div key={category} className="doc-section" style={{ marginBottom: '1.5rem' }}>
-                  <h3 style={{ marginBottom: '0.5rem', fontSize: '1.1rem', color: 'var(--primary-color)', borderBottom: '2px solid var(--border-color)', paddingBottom: '0.35rem' }}>
-                    {category.charAt(0).toUpperCase() + category.slice(1).replace(/([A-Z])/g, ' $1')}
-                  </h3>
-                  <table className="doc-table" style={{ width: '100%', borderCollapse: 'collapse' }}>
-                    <thead>
-                      <tr style={{ backgroundColor: 'var(--bg-secondary)' }}>
-                        <th style={{ padding: '0.5rem', textAlign: 'left', borderBottom: '2px solid var(--border-color)', color: 'var(--text-primary)', fontSize: '0.9rem' }}>Document</th>
-                        <th style={{ padding: '0.5rem', textAlign: 'left', borderBottom: '2px solid var(--border-color)', width: '110px', color: 'var(--text-primary)', fontSize: '0.9rem' }}>Status</th>
-                        <th style={{ padding: '0.5rem', textAlign: 'left', borderBottom: '2px solid var(--border-color)', color: 'var(--text-primary)', fontSize: '0.9rem' }}>Reason</th>
-                        <th style={{ padding: '0.5rem', textAlign: 'center', borderBottom: '2px solid var(--border-color)', width: '80px', color: 'var(--text-primary)', fontSize: '0.9rem' }}>Upload</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {items.map((doc, idx) => {
-                        const documentName = doc.name || doc.document;
-                        const isUploaded = documents.some(d => d.documentType.toLowerCase().includes(documentName.toLowerCase()));
-                        return (
-                        <tr key={idx} style={{ borderBottom: '1px solid var(--border-color)' }}>
-                          <td style={{ padding: '0.5rem', fontWeight: '500', color: 'var(--text-primary)', fontSize: '0.9rem' }}>{documentName}</td>
-                          <td style={{ padding: '0.5rem' }}>
-                            <span className={`status ${getDocStatusClass(isUploaded ? 'ok' : doc.status)}`} style={{
-                              display: 'inline-flex',
-                              alignItems: 'center',
-                              gap: '0.25rem',
-                              padding: '0.25rem 0.6rem',
-                              borderRadius: '20px',
-                              fontSize: '0.75rem',
-                              fontWeight: '600',
-                              whiteSpace: 'nowrap',
-                              backgroundColor: 
-                                isUploaded ? '#28a745' :
-                                doc.status?.toLowerCase() === 'required' ? '#dc3545' :
-                                doc.status?.toLowerCase() === 'conditional' ? '#6c757d' :
-                                doc.status?.toLowerCase() === 'review' ? '#f0ad4e' :
-                                '#28a745',
-                              color: 'white'
-                            }}>
-                              {isUploaded ? <FaCheckCircle /> : getDocStatusIcon(doc.status)}
-                              {isUploaded ? 'Uploaded' : doc.status}
-                            </span>
-                          </td>
-                          <td style={{ padding: '0.5rem', color: 'var(--text-secondary)', fontSize: '0.85rem' }}>{doc.reason}</td>
-                          <td style={{ padding: '0.5rem', textAlign: 'center' }}>
-                            <button
-                              onClick={() => handleOpenUploadModal(documentName)}
-                              className="btn-icon btn-primary"
-                              title={`Upload ${documentName}`}
-                              style={{
-                                background: 'none',
-                                border: 'none',
-                                color: 'var(--primary-color)',
-                                cursor: 'pointer',
-                                fontSize: '1.1rem',
-                                padding: '0.25rem'
-                              }}
-                            >
-                              <FaUpload />
-                            </button>
-                          </td>
-                        </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
-              );
-            })}
+          {/* Required Documents */}
+          <div className="doc-section" style={{ marginTop: '1rem' }}>
+            <h3 style={{ marginBottom: '0.5rem', fontSize: '1.1rem', color: 'var(--primary-color)', borderBottom: '2px solid var(--border-color)', paddingBottom: '0.35rem' }}>
+              Required Documents ({docChecklist.required.length})
+            </h3>
+            <table className="doc-table" style={{ width: '100%', borderCollapse: 'collapse' }}>
+              <thead>
+                <tr style={{ backgroundColor: 'var(--bg-secondary)' }}>
+                  <th style={{ padding: '0.5rem', textAlign: 'left', borderBottom: '2px solid var(--border-color)', color: 'var(--text-primary)', fontSize: '0.9rem' }}>Document</th>
+                  <th style={{ padding: '0.5rem', textAlign: 'left', borderBottom: '2px solid var(--border-color)', width: '110px', color: 'var(--text-primary)', fontSize: '0.9rem' }}>Status</th>
+                  <th style={{ padding: '0.5rem', textAlign: 'left', borderBottom: '2px solid var(--border-color)', color: 'var(--text-primary)', fontSize: '0.9rem' }}>Reason</th>
+                  <th style={{ padding: '0.5rem', textAlign: 'center', borderBottom: '2px solid var(--border-color)', width: '80px', color: 'var(--text-primary)', fontSize: '0.9rem' }}>Upload</th>
+                </tr>
+              </thead>
+              <tbody>
+                {docChecklist.required.map((doc, idx) => {
+                  const documentName = doc.label;
+                  const isUploaded = documents.some(d => d.documentType?.toLowerCase().includes(documentName.toLowerCase()));
+                  return (
+                    <tr key={idx} style={{ borderBottom: '1px solid var(--border-color)' }}>
+                      <td style={{ padding: '0.5rem', fontWeight: '500', color: 'var(--text-primary)', fontSize: '0.9rem' }}>{documentName}</td>
+                      <td style={{ padding: '0.5rem' }}>
+                        <span className={`status ${getDocStatusClass(isUploaded ? 'ok' : 'required')}`} style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '0.25rem',
+                          padding: '0.25rem 0.6rem',
+                          borderRadius: '20px',
+                          fontSize: '0.75rem',
+                          fontWeight: '600',
+                          whiteSpace: 'nowrap',
+                          backgroundColor: isUploaded ? '#28a745' : '#dc3545',
+                          color: 'white'
+                        }}>
+                          {isUploaded ? <FaCheckCircle /> : getDocStatusIcon('required')}
+                          {isUploaded ? 'Uploaded' : 'Required'}
+                        </span>
+                      </td>
+                      <td style={{ padding: '0.5rem', color: 'var(--text-secondary)', fontSize: '0.85rem' }}>{doc.reason}</td>
+                      <td style={{ padding: '0.5rem', textAlign: 'center' }}>
+                        <button
+                          onClick={() => handleOpenUploadModal(documentName)}
+                          className="btn-icon btn-primary"
+                          title={`Upload ${documentName}`}
+                          style={{
+                            background: 'none',
+                            border: 'none',
+                            color: 'var(--primary-color)',
+                            cursor: 'pointer',
+                            fontSize: '1.1rem',
+                            padding: '0.25rem'
+                          }}
+                        >
+                          <FaUpload />
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
           </div>
+
+          {/* Optional Documents */}
+          {docChecklist.niceToHave.length > 0 && (
+            <div className="doc-section" style={{ marginTop: '1.5rem' }}>
+              <h3 style={{ marginBottom: '0.5rem', fontSize: '1.1rem', color: 'var(--primary-color)', borderBottom: '2px solid var(--border-color)', paddingBottom: '0.35rem' }}>
+                Optional Documents ({docChecklist.niceToHave.length})
+              </h3>
+              <table className="doc-table" style={{ width: '100%', borderCollapse: 'collapse' }}>
+                <thead>
+                  <tr style={{ backgroundColor: 'var(--bg-secondary)' }}>
+                    <th style={{ padding: '0.5rem', textAlign: 'left', borderBottom: '2px solid var(--border-color)', color: 'var(--text-primary)', fontSize: '0.9rem' }}>Document</th>
+                    <th style={{ padding: '0.5rem', textAlign: 'left', borderBottom: '2px solid var(--border-color)', width: '110px', color: 'var(--text-primary)', fontSize: '0.9rem' }}>Status</th>
+                    <th style={{ padding: '0.5rem', textAlign: 'left', borderBottom: '2px solid var(--border-color)', color: 'var(--text-primary)', fontSize: '0.9rem' }}>Reason</th>
+                    <th style={{ padding: '0.5rem', textAlign: 'center', borderBottom: '2px solid var(--border-color)', width: '80px', color: 'var(--text-primary)', fontSize: '0.9rem' }}>Upload</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {docChecklist.niceToHave.map((doc, idx) => {
+                    const documentName = doc.label;
+                    const isUploaded = documents.some(d => d.documentType?.toLowerCase().includes(documentName.toLowerCase()));
+                    return (
+                      <tr key={idx} style={{ borderBottom: '1px solid var(--border-color)' }}>
+                        <td style={{ padding: '0.5rem', fontWeight: '500', color: 'var(--text-primary)', fontSize: '0.9rem' }}>{documentName}</td>
+                        <td style={{ padding: '0.5rem' }}>
+                          <span className={`status ${getDocStatusClass(isUploaded ? 'ok' : 'conditional')}`} style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '0.25rem',
+                            padding: '0.25rem 0.6rem',
+                            borderRadius: '20px',
+                            fontSize: '0.75rem',
+                            fontWeight: '600',
+                            whiteSpace: 'nowrap',
+                            backgroundColor: isUploaded ? '#28a745' : '#6c757d',
+                            color: 'white'
+                          }}>
+                            {isUploaded ? <FaCheckCircle /> : getDocStatusIcon('conditional')}
+                            {isUploaded ? 'Uploaded' : 'Optional'}
+                          </span>
+                        </td>
+                        <td style={{ padding: '0.5rem', color: 'var(--text-secondary)', fontSize: '0.85rem' }}>{doc.reason}</td>
+                        <td style={{ padding: '0.5rem', textAlign: 'center' }}>
+                          <button
+                            onClick={() => handleOpenUploadModal(documentName)}
+                            className="btn-icon btn-primary"
+                            title={`Upload ${documentName}`}
+                            style={{
+                              background: 'none',
+                              border: 'none',
+                              color: 'var(--primary-color)',
+                              cursor: 'pointer',
+                              fontSize: '1.1rem',
+                              padding: '0.25rem'
+                            }}
+                          >
+                            <FaUpload />
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
             </div>
           )}
+        </div>
+      )}
           
       {/* Document Upload Section */}
       <div className="card" style={{ marginTop: '2rem' }}>

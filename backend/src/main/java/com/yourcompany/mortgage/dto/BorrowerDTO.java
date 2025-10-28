@@ -40,7 +40,7 @@ public class BorrowerDTO {
     
     private List<REOPropertyDTO> reoProperties;
     
-    private List<AssetDTO> assets = new java.util.ArrayList<>();
+    private List<AssetDTO> assets;
     
     private DeclarationDTO declaration;
     

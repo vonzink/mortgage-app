@@ -129,11 +129,10 @@ const ApplicationDetails = () => {
 
     for (const pendingFile of pendingFiles) {
       try {
-        await mortgageService.uploadDocument(
-          id,
-          pendingFile.documentType,
-          pendingFile.file
-        );
+        await mortgageService.uploadDocument(id, {
+          file: pendingFile.file,
+          documentType: pendingFile.documentType,
+        });
         successCount++;
       } catch (error) {
         console.error('Upload error:', error);

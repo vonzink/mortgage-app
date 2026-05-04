@@ -19,6 +19,11 @@ import { useFormSteps } from '../../hooks/useFormSteps';
 import { useBorrowerFieldArrays } from '../../hooks/useBorrowerFieldArrays';
 import { useFormValidation } from '../../hooks/useFormValidation';
 
+// Utils — format raw values from the backend (e.g. unformatted MISMO-imported
+// SSN/phone) before they reach the masked inputs. The PersonalInfoField mask
+// only fires on user typing; initial values need to arrive pre-formatted.
+import { formatSSN, formatPhone } from '../../utils/formHelpers';
+
 // Components
 import ProgressIndicator from '../shared/ProgressIndicator';
 import StepNavigation from '../shared/StepNavigation';
@@ -132,11 +137,11 @@ const ApplicationForm = () => {
               firstName: borrower.firstName,
               lastName: borrower.lastName,
               middleName: borrower.middleName,
-              ssn: borrower.ssn,
+              ssn: formatSSN(borrower.ssn),
               dateOfBirth: borrower.birthDate,
               maritalStatus: borrower.maritalStatus,
               email: borrower.email,
-              phone: borrower.phone,
+              phone: formatPhone(borrower.phone),
               citizenshipType: borrower.citizenshipType,
               dependents: borrower.dependentsCount,
               

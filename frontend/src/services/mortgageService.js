@@ -173,7 +173,10 @@ const mortgageService = {
 
   getApplicationDocuments: async (loanId) => {
     const { data } = await apiClient.get(`/loan-applications/${loanId}/documents`);
-    return data;
+    // Backend returns { count, documents: [...] }; callers want the array.
+    if (Array.isArray(data)) return data;
+    if (data && Array.isArray(data.documents)) return data.documents;
+    return [];
   },
 
   /** Returns a presigned GET URL good for ~15 min. Caller can window.location.href to it. */

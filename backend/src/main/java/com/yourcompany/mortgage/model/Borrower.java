@@ -86,7 +86,14 @@ public class Borrower {
     @Column(name = "current_zip_code")
     private String currentZipCode;
 
+    @Column(name = "cognito_sub")
+    private String cognitoSub;
+
     public Borrower() {}
+
+    public String getCognitoSub() { return cognitoSub; }
+    public void setCognitoSub(String cognitoSub) { this.cognitoSub = cognitoSub; }
+
 
     public Borrower(LoanApplication application, Integer sequenceNumber, String firstName, String lastName) {
         this.application = application;

@@ -5,6 +5,7 @@ import com.yourcompany.mortgage.service.S3DocumentService;
 import com.yourcompany.mortgage.service.S3DocumentService.PresignedDownloadResponse;
 import com.yourcompany.mortgage.service.S3DocumentService.PresignedUploadResponse;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -21,7 +22,7 @@ import java.util.Map;
  */
 @RestController
 @RequestMapping("/loan-applications/{loanId}/documents")
-@CrossOrigin(origins = "*")
+@PreAuthorize("@loanAccessGuard.canAccess(#loanId)")
 public class DocumentController {
 
     private final S3DocumentService s3DocumentService;

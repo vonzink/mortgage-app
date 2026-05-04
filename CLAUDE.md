@@ -22,10 +22,23 @@ trust the code and update this file.
 ```bash
 mvn -q -DskipTests compile                                   # type-check
 mvn spring-boot:run                                          # boot (H2 in memory, port 8080, context-path /api)
+mvn test                                                     # all tests
 mvn test -Dtest=ClassNameHere                                # single test
 ```
 
 Backend serves on `http://localhost:8080` with context-path `/api`. Java 17 source/target; Lombok pinned ≥ 1.18.42 to avoid `TypeTag :: UNKNOWN` under newer JDKs.
+
+Backend package layout under `com.yourcompany.mortgage`:
+
+- `controller/` + `dto/` — REST surface
+- `service/` — business logic
+- `model/` + `repository/` — JPA entities and Spring Data repos
+- `mismo/` — MISMO 3.4 XML exporter (StAX-based; importer not yet built)
+- `validation/` — bean-validation extensions
+- `security/` — `CognitoJwtConverter`, `CurrentUserService`, `LoanAccessGuard`
+- `exception/` — `@ControllerAdvice` global handler
+- `config/` — `SecurityConfig`, `S3Config`, `JpaConfig`
+- `integration/` — outbound clients (`GoHighLevelService`, stub `AiReviewService`)
 
 ### Frontend (run from `frontend/`)
 
@@ -36,6 +49,8 @@ CI=false npm run build                                       # prod build
 ```
 
 Copy `.env.example` to `.env`. The Cognito client ID + domain for the `mortgage-app-web` client are real values for the shared user pool `us-west-1_S6iE2uego`.
+
+`pages/` holds route-level views (e.g. `ApplicationDetails.js`, `ApplicationList.js`). `components/` holds reusable UI; `components/forms/` is the multi-step 1003. Add new routes in `App.js` pointing at `pages/`.
 
 ### Infra (run from `infra/`)
 
@@ -62,7 +77,7 @@ Current migrations:
 - `V4__document_metadata_model.sql` — drop file_path; rename file_name→original_filename, added_by_role→uploaded_by_role, uploaded_at→created_at; add display_name, updated_at, deleted_at.
 - `V5__users_and_cognito.sql` — users table; cognito_sub on borrowers.
 
-JPA `ddl-auto` is `update` for now (the long-term goal is `validate` once a `LiabilityOptimized` vs `Liability` collision is resolved — both currently map to the same `liabilities` table).
+JPA `ddl-auto` is `update` for now. The `LiabilityOptimized` vs `Liability` collision that previously blocked switching to `validate` was removed in the dead-code purge — flipping to `validate` is now safe but hasn't been done yet.
 
 ### Document storage
 
@@ -114,11 +129,59 @@ Cognito groups in this user pool: `Admin`, `Manager`, `LO`, `Processor`, `Extern
 - `App.js`'s `<AuthExpiredListener>` listens for `auth:expired` and triggers a fresh `signinRedirect()`.
 - `RequireAuth` gates `/applications`, `/applications/:id`, `/apply`. If `REACT_APP_COGNITO_CLIENT_ID` or `_DOMAIN` is missing, it shows a clear setup message instead of looping into a broken redirect.
 
-## Removed/never-built features (don't write code that calls these)
+## MISMO export
 
-- **AI / OpenAI integration** — earlier commits added it; it was removed before Phase A. No `/ai-review` endpoints exist on the current backend.
-- **MISMO 3.4 import/export** — described in old CLAUDE.md drafts as if implemented, but never actually built. No `MismoImporter` / `MismoExporter` / `MismoXmlWriter` classes exist.
+`MismoExporter` builds XML via StAX (`MismoXmlWriter` helper). Two variants:
+`CLOSING` (minimal closing-stage shape) and `FNM` (Fannie-Mae-flavored, with
+assets, expanded loan detail, down payments, full borrower DECLARATION,
+residences, per-employer addresses).
+
+```
+GET /loan-applications/{id}/export/mismo                     # CLOSING (default)
+GET /loan-applications/{id}/export/mismo?variant=fnm         # FNM
+```
+
+Gated by `@PreAuthorize("@loanAccessGuard.canAccess(#id)")`. Frontend calls
+this via `mortgageService.downloadMismoXml(applicationId, variant)` and uses
+the `Content-Disposition` header for the filename. **No XSD validation** —
+the output is hand-shaped to match what was previously generated client-side
+in `urlaExport.js`. If a real LP / Fannie XSD is procured, validation can be
+added in `MismoExporter.export` before returning bytes.
+
+The corresponding **MISMO importer** is not yet built. When it lands, see
+[`docs/archive/`](docs/archive/) for historical notes on the import flow that
+was once described in CLAUDE.md drafts but never implemented.
+
+## Partial / stubbed features
+
+- **AI review** is stubbed. The endpoints (`POST /loan-applications/{id}/ai-review`,
+  `POST /loan-applications/ai-review-preview`) exist and the
+  `ReviewSubmitStep` UI button works, but `AiReviewService` returns a
+  placeholder `AIReviewResult` ("AI review is not yet enabled..."). Replace
+  the body of `AiReviewService.evaluateApplication*` with real provider calls
+  when re-enabling. The DTO contract (`AIReviewResult`) is stable.
+- **Print URLA HTML** lives client-side at `frontend/src/utils/printUrla.js`
+  (popup window + browser print). This is intentional — it renders form
+  values for transient print, not a saved artifact. Distinct from the MISMO
+  XML export (which is server-side).
+
+## Never-built features (don't write code that calls these)
+
+- **MISMO 3.4 importer** — only the exporter is built. No `MismoImporter`
+  class, no `mismo:imported` event, no `mismo_imports` audit table.
 - **`loan_status_history` table** — referenced in old docs; not yet modeled.
-- **MapStruct DTO mappers** — dependency is in pom.xml but no generated mappers are wired up; conversions are still hand-written.
-- **Jasypt SSN encryption** — dependency is in pom.xml but no `@Convert` is applied to SSN fields.
-- **`DocumentService` (filesystem)** — replaced by `S3DocumentService` in Phase B; do not re-introduce filesystem storage.
+  `LoanApplicationService.updateApplicationStatus` exists but doesn't write
+  history rows.
+- **Assigned-LO / agent-on-loan ownership checks** — needs `loan_agents` /
+  `loan_assignments` join tables. Internal staff get blanket access in the
+  meantime via `LoanAccessGuard`.
+- **Jasypt SSN encryption** — dependency is in pom.xml and there's a
+  `// TODO: Implement SSN encryption` in `LoanApplicationService.java:146`
+  but no `@Convert` is applied to `Borrower.ssn` yet.
+- **`useDraftAutosave` hook** — referenced by an older CLAUDE.md draft, never
+  implemented. Form state is lost on refresh / auth round-trip.
+- **`DocumentService` (filesystem)** — replaced by `S3DocumentService`; do
+  not re-introduce filesystem storage.
+- **MapStruct DTO mappers** — the dependency was removed in the dead-code
+  purge. DTO conversions are hand-written in service classes (`toDTO`,
+  `convertToDTO`).

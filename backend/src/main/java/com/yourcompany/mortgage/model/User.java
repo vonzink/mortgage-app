@@ -1,70 +1,68 @@
 package com.yourcompany.mortgage.model;
 
 import jakarta.persistence.*;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
 import java.time.LocalDateTime;
 
 /**
- * Local mirror of a Cognito identity. {@link #cognitoSub} is the canonical key
- * (the {@code sub} claim from the JWT). {@code email} is stored for borrower
- * matching when a borrower-on-loan signs in for the first time.
+ * Local user record — materialized from a Cognito JWT on first sign-in. Mirrors the
+ * dashboard's pattern (see {@code dashboard.msfgco.com/backend/db/migrations/}).
+ *
+ * <p>Identity stays in Cognito; this row is just the local handle so we can foreign-key
+ * loan/borrower/agent assignments and audit who-did-what without round-tripping to AWS.
  */
 @Entity
 @Table(name = "users")
+@Data
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
 public class User {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    private Integer id;
+
+    @Column(nullable = false, unique = true)
+    private String email;
+
+    private String name;
+
+    private String initials;
+
+    /** borrower | agent | lo | processor | manager | admin (lower-case). */
+    @Column(nullable = false)
+    private String role;
 
     @Column(name = "cognito_sub", unique = true)
     private String cognitoSub;
 
-    @Column(name = "email")
-    private String email;
+    /** Mirrors a single Cognito group; if the user is in multiple, we record the most specific. */
+    @Column(name = "cognito_group")
+    private String cognitoGroup;
 
-    @Column(name = "display_name")
-    private String displayName;
+    private String phone;
 
-    @Column(name = "primary_role")
-    private String primaryRole;
-
-    @Column(name = "created_at")
+    @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
 
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
 
-    @Column(name = "last_sign_in_at")
-    private LocalDateTime lastSignInAt;
-
     @PrePersist
-    void onCreate() {
+    protected void onCreate() {
         LocalDateTime now = LocalDateTime.now();
-        if (createdAt == null) createdAt = now;
-        if (updatedAt == null) updatedAt = now;
+        createdAt = now;
+        updatedAt = now;
+        if (role == null) role = "borrower";
     }
 
     @PreUpdate
-    void onUpdate() {
+    protected void onUpdate() {
         updatedAt = LocalDateTime.now();
     }
-
-    public User() {}
-
-    public Long getId() { return id; }
-    public void setId(Long id) { this.id = id; }
-    public String getCognitoSub() { return cognitoSub; }
-    public void setCognitoSub(String cognitoSub) { this.cognitoSub = cognitoSub; }
-    public String getEmail() { return email; }
-    public void setEmail(String email) { this.email = email; }
-    public String getDisplayName() { return displayName; }
-    public void setDisplayName(String displayName) { this.displayName = displayName; }
-    public String getPrimaryRole() { return primaryRole; }
-    public void setPrimaryRole(String primaryRole) { this.primaryRole = primaryRole; }
-    public LocalDateTime getCreatedAt() { return createdAt; }
-    public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
-    public LocalDateTime getUpdatedAt() { return updatedAt; }
-    public void setUpdatedAt(LocalDateTime updatedAt) { this.updatedAt = updatedAt; }
-    public LocalDateTime getLastSignInAt() { return lastSignInAt; }
-    public void setLastSignInAt(LocalDateTime lastSignInAt) { this.lastSignInAt = lastSignInAt; }
 }

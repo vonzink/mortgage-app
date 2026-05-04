@@ -1,44 +1,45 @@
-// OIDC config for Cognito Hosted UI. Plug values into .env (see .env.example).
-//
-// The id_token (not access_token) is what the backend wants in the Authorization
-// header — Cognito access tokens omit the `email` claim that CurrentUserService
-// uses for borrower lookup. Both are signed by the same JWK set so signature
-// validation passes either way.
-
-const region = process.env.REACT_APP_COGNITO_REGION || 'us-west-1';
-const userPoolId = process.env.REACT_APP_COGNITO_USER_POOL_ID || 'us-west-1_S6iE2uego';
-const clientId = process.env.REACT_APP_COGNITO_CLIENT_ID || '';
-const cognitoDomain = process.env.REACT_APP_COGNITO_DOMAIN || '';
-
-const redirectUri =
-  process.env.REACT_APP_COGNITO_REDIRECT_URI ||
-  `${window.location.origin}/auth/callback`;
-
-const postLogoutRedirectUri =
-  process.env.REACT_APP_COGNITO_POST_LOGOUT_REDIRECT_URI ||
-  window.location.origin;
-
-export const cognitoOidcConfig = {
-  authority: `https://cognito-idp.${region}.amazonaws.com/${userPoolId}`,
-  client_id: clientId,
-  redirect_uri: redirectUri,
-  post_logout_redirect_uri: postLogoutRedirectUri,
+/**
+ * Cognito Hosted UI / OIDC config.
+ *
+ * Authority is the Cognito user-pool's IDP URL — that's where react-oidc-context fetches
+ * the OpenID discovery document, which in turn points at the hosted UI's authorize/token
+ * endpoints. Don't set authority to the hosted UI domain (common mistake).
+ *
+ * Cognito does not implement RP-Initiated Logout the way `oidc-client-ts` expects, so
+ * sign-out goes through the Cognito-specific /logout endpoint with `client_id` and
+ * `logout_uri` query params — handled in `signOut()` below, not by the library.
+ */
+export const cognitoConfig = {
+  authority: process.env.REACT_APP_COGNITO_AUTHORITY,
+  client_id: process.env.REACT_APP_COGNITO_CLIENT_ID,
+  redirect_uri: process.env.REACT_APP_COGNITO_REDIRECT_URI,
   response_type: 'code',
   scope: 'openid email profile',
-  loadUserInfo: false, // Cognito's userinfo endpoint requires the access token; we keep it simple
+
+  // Token refresh strategy: oidc-client-ts will use the refresh_token returned by Cognito's
+  // auth-code grant to silently get a new access token before the current one expires.
+  // No iframe required (Cognito doesn't play well with iframe-based silent renew).
   automaticSilentRenew: true,
+  // Start renewing 5 minutes before expiry. Cognito access tokens default to 60 min, so
+  // we get a generous renewal window — even if the renew request itself fails once, there's
+  // time to retry before a real expiry.
+  accessTokenExpiringNotificationTimeInSeconds: 300,
+
+  // Cognito's userinfo endpoint works, but the ID token already carries everything we need —
+  // saves a round-trip on each load.
+  loadUserInfo: false,
+
+  // Skip iframe-based session monitoring (Cognito doesn't broadcast session-changed events).
   monitorSession: false,
 };
 
-/** URL for the Cognito Hosted UI logout — Cognito needs this exact form. */
+/**
+ * Cognito's logout flow: redirect to {DOMAIN}/logout?client_id=...&logout_uri=...
+ * The user is signed out of the hosted UI session, then bounced back to our app.
+ */
 export function buildCognitoLogoutUrl() {
-  if (!cognitoDomain || !clientId) return postLogoutRedirectUri;
-  const logout = `https://${cognitoDomain}/logout`;
-  const params = new URLSearchParams({
-    client_id: clientId,
-    logout_uri: postLogoutRedirectUri,
-  });
-  return `${logout}?${params.toString()}`;
+  const domain = process.env.REACT_APP_COGNITO_DOMAIN;
+  const clientId = process.env.REACT_APP_COGNITO_CLIENT_ID;
+  const logoutUri = process.env.REACT_APP_COGNITO_POST_LOGOUT_REDIRECT_URI;
+  return `${domain}/logout?client_id=${encodeURIComponent(clientId)}&logout_uri=${encodeURIComponent(logoutUri)}`;
 }
-
-export const cognitoConfigured = Boolean(clientId && cognitoDomain);

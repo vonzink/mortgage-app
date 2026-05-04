@@ -177,3 +177,25 @@ export const isValidSSN = (ssn) => {
   const ssnRegex = /^\d{3}-?\d{2}-?\d{4}$/;
   return ssnRegex.test(ssn);
 };
+
+/**
+ * Format a Social Security Number as the user types: `xxx-xx-xxxx`.
+ * Strips all non-digits, takes the first 9, slices into 3/2/4 segments.
+ * Partial input is preserved gracefully (e.g. "12" → "12", "1234" → "123-4").
+ */
+export const formatSSN = (raw) => {
+  const digits = String(raw || '').replace(/\D/g, '').slice(0, 9);
+  if (digits.length <= 3) return digits;
+  if (digits.length <= 5) return `${digits.slice(0, 3)}-${digits.slice(3)}`;
+  return `${digits.slice(0, 3)}-${digits.slice(3, 5)}-${digits.slice(5)}`;
+};
+
+/**
+ * Format a US phone number as the user types: `xxx-xxx-xxxx`. Same partial-input rules.
+ */
+export const formatPhone = (raw) => {
+  const digits = String(raw || '').replace(/\D/g, '').slice(0, 10);
+  if (digits.length <= 3) return digits;
+  if (digits.length <= 6) return `${digits.slice(0, 3)}-${digits.slice(3)}`;
+  return `${digits.slice(0, 3)}-${digits.slice(3, 6)}-${digits.slice(6)}`;
+};

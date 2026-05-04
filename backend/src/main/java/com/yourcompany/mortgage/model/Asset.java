@@ -20,28 +20,25 @@ public class Asset {
     @NotNull(message = "Borrower is required")
     private Borrower borrower;
     
-    @Column(name = "asset_type", nullable = false)
-    @NotBlank(message = "Asset type is required")
-    @Pattern(regexp = "Checking|Savings|MoneyMarket|CertificateOfDeposit|MutualFunds|Stocks|Bonds|Retirement401k|IRA|Pension|EarnestMoney|Other", 
+    @Column(name = "asset_type")
+    @Pattern(regexp = "Checking|Savings|MoneyMarket|CertificateOfDeposit|MutualFunds|Stocks|Bonds|Retirement401k|IRA|Pension|EarnestMoney|Other",
              message = "Invalid asset type")
     private String assetType;
-    
+
     @Column(name = "bank_name")
     @Size(max = 100, message = "Bank name must not exceed 100 characters")
     private String bankName;
-    
+
     @Column(name = "account_number")
     @Size(max = 50, message = "Account number must not exceed 50 characters")
     private String accountNumber;
-    
-    @Column(name = "asset_value", nullable = false, precision = 15, scale = 2)
-    @NotNull(message = "Asset value is required")
+
+    @Column(name = "asset_value", precision = 15, scale = 2)
     @DecimalMin(value = "0.00", message = "Asset value must be non-negative")
     @DecimalMax(value = "99999999.99", message = "Asset value cannot exceed $99,999,999.99")
     private BigDecimal assetValue;
-    
-    @Column(name = "used_for_downpayment", nullable = false)
-    @NotNull(message = "Used for downpayment status is required")
+
+    @Column(name = "used_for_downpayment")
     private Boolean usedForDownpayment = false;
     
     @Column(name = "created_at", nullable = false, updatable = false)

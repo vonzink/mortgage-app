@@ -40,14 +40,18 @@ public class Property {
     @Size(max = 100, message = "County must not exceed 100 characters")
     private String county;
     
-    @Column(name = "property_type", nullable = false)
-    @NotBlank(message = "Property type is required")
-    @Pattern(regexp = "PrimaryResidence|SecondHome|Investment", 
+    /**
+     * Optional during application drafting and partial MISMO imports — borrower may not
+     * have a property selected yet, and LP exports don't always include this field.
+     * The borrower form's required-field UX enforces it at submit time.
+     */
+    @Column(name = "property_type")
+    @Pattern(regexp = "PrimaryResidence|SecondHome|Investment",
              message = "Property type must be PrimaryResidence, SecondHome, or Investment")
     private String propertyType;
-    
-    @Column(name = "property_value", nullable = false, precision = 15, scale = 2)
-    @NotNull(message = "Property value is required")
+
+    /** Same — optional in drafts. */
+    @Column(name = "property_value", precision = 15, scale = 2)
     @DecimalMin(value = "1000.00", message = "Property value must be at least $1,000")
     @DecimalMax(value = "99999999.99", message = "Property value cannot exceed $99,999,999.99")
     private BigDecimal propertyValue;
@@ -62,8 +66,7 @@ public class Property {
     @Max(value = 2030, message = "Year built cannot be in the future")
     private Integer yearBuilt;
     
-    @Column(name = "units_count", nullable = false)
-    @NotNull(message = "Units count is required")
+    @Column(name = "units_count")
     @Min(value = 1, message = "Units count must be at least 1")
     @Max(value = 4, message = "Units count cannot exceed 4 for residential properties")
     private Integer unitsCount = 1;

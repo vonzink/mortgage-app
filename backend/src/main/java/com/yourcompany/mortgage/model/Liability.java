@@ -29,35 +29,30 @@ public class Liability {
     @Size(max = 50, message = "Account number must not exceed 50 characters")
     private String accountNumber;
     
-    @Column(name = "creditor_name", nullable = false)
-    @NotBlank(message = "Creditor name is required")
+    /** Optional during partial imports — LP may report a liability with some fields blank. */
+    @Column(name = "creditor_name")
     @Size(max = 100, message = "Creditor name must not exceed 100 characters")
     private String creditorName;
-    
-    @Column(name = "liability_type", nullable = false)
-    @NotBlank(message = "Liability type is required")
-    @Pattern(regexp = "MortgageLoan|Revolving|Installment|StudentLoan|AutoLoan|CreditCard|Other", 
+
+    @Column(name = "liability_type")
+    @Pattern(regexp = "MortgageLoan|Revolving|Installment|StudentLoan|AutoLoan|CreditCard|Other",
              message = "Invalid liability type")
     private String liabilityType;
-    
-    @Column(name = "monthly_payment", nullable = false, precision = 15, scale = 2)
-    @NotNull(message = "Monthly payment is required")
+
+    @Column(name = "monthly_payment", precision = 15, scale = 2)
     @DecimalMin(value = "0.00", message = "Monthly payment must be non-negative")
     @DecimalMax(value = "99999.99", message = "Monthly payment cannot exceed $99,999.99")
     private BigDecimal monthlyPayment;
-    
-    @Column(name = "unpaid_balance", nullable = false, precision = 15, scale = 2)
-    @NotNull(message = "Unpaid balance is required")
+
+    @Column(name = "unpaid_balance", precision = 15, scale = 2)
     @DecimalMin(value = "0.00", message = "Unpaid balance must be non-negative")
     @DecimalMax(value = "9999999.99", message = "Unpaid balance cannot exceed $9,999,999.99")
     private BigDecimal unpaidBalance;
-    
-    @Column(name = "payoff_status", nullable = false)
-    @NotNull(message = "Payoff status is required")
+
+    @Column(name = "payoff_status")
     private Boolean payoffStatus = false;
-    
-    @Column(name = "to_be_paid_off", nullable = false)
-    @NotNull(message = "To be paid off status is required")
+
+    @Column(name = "to_be_paid_off")
     private Boolean toBePaidOff = false;
     
     @Column(name = "created_at", nullable = false, updatable = false)

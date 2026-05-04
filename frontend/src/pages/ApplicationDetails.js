@@ -2,10 +2,8 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { useDropzone } from 'react-dropzone';
-import { FaUpload, FaFile, FaDownload, FaTrash, FaCheckCircle, FaTimes, FaFileAlt, FaExclamationTriangle, FaInfoCircle, FaPencilAlt } from 'react-icons/fa';
+import { FaUpload, FaFile, FaDownload, FaTrash, FaCheckCircle, FaTimes, FaFileAlt, FaExclamationTriangle, FaInfoCircle } from 'react-icons/fa';
 import mortgageService from '../services/mortgageService';
-import { generateDocChecklist } from '../utils/docRules';
-import { adaptApiToLoanApplication } from '../utils/docRules/apiAdapter';
 
 const DOCUMENT_TYPES = [
   'Pay Stub',
@@ -32,7 +30,6 @@ const ApplicationDetails = () => {
   const [documents, setDocuments] = useState([]);
   const [uploading, setUploading] = useState(false);
   const [pendingFiles, setPendingFiles] = useState([]);
-  const [docChecklist, setDocChecklist] = useState(null);
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [showUploadLog, setShowUploadLog] = useState(false);
   const [selectedDocumentName, setSelectedDocumentName] = useState('');
@@ -64,14 +61,17 @@ const ApplicationDetails = () => {
     fetchDocuments();
   }, [fetchApplication, fetchDocuments]);
 
+  // Refresh after a MISMO import for this loan (fired by Header's upload action)
   useEffect(() => {
-    if (application) {
-      const adapted = adaptApiToLoanApplication(application);
-      const result = generateDocChecklist(adapted);
-      console.log('[DEBUG] Doc rules engine result:', result);
-      setDocChecklist(result);
-    }
-  }, [application]);
+    const handler = (e) => {
+      if (String(e.detail?.loanId) === String(id)) {
+        fetchApplication();
+        fetchDocuments();
+      }
+    };
+    window.addEventListener('mismo:imported', handler);
+    return () => window.removeEventListener('mismo:imported', handler);
+  }, [id, fetchApplication, fetchDocuments]);
 
   // Document upload handlers
   const handleOpenUploadModal = (documentName) => {
@@ -157,7 +157,7 @@ const ApplicationDetails = () => {
 
   const handleDownload = async (doc) => {
     try {
-      await mortgageService.downloadDocument(id, doc.docUuid, doc.originalFilename);
+      await mortgageService.downloadDocument(doc.id, doc.fileName);
       toast.success('Document downloaded successfully!');
     } catch (error) {
       toast.error('Failed to download document');
@@ -165,33 +165,18 @@ const ApplicationDetails = () => {
     }
   };
 
-  const handleDelete = async (doc) => {
-    if (!window.confirm(`Delete "${doc.displayName || doc.originalFilename}"?`)) {
+  const handleDelete = async (docId) => {
+    if (!window.confirm('Are you sure you want to delete this document?')) {
       return;
     }
 
     try {
-      await mortgageService.deleteDocument(id, doc.docUuid);
+      await mortgageService.deleteDocument(docId);
       toast.success('Document deleted successfully!');
       await fetchDocuments();
     } catch (error) {
       toast.error('Failed to delete document');
       console.error('Delete error:', error);
-    }
-  };
-
-  const handleRename = async (doc) => {
-    const current = doc.displayName || doc.originalFilename || '';
-    const next = window.prompt('Rename document:', current);
-    if (next == null || next.trim() === '' || next === current) return;
-
-    try {
-      await mortgageService.renameDocument(id, doc.docUuid, next.trim());
-      toast.success('Renamed.');
-      await fetchDocuments();
-    } catch (error) {
-      toast.error('Failed to rename document');
-      console.error('Rename error:', error);
     }
   };
 
@@ -377,141 +362,6 @@ const ApplicationDetails = () => {
         </div>
       </div>
 
-      {/* Document Checklist (Rules Engine) */}
-      {docChecklist && (
-        <div className="card" style={{ marginTop: '2rem' }}>
-          <h2><FaFileAlt /> Loan Document Checklist</h2>
-          
-          {/* Required Documents */}
-          <div className="doc-section" style={{ marginTop: '1rem' }}>
-            <h3 style={{ marginBottom: '0.5rem', fontSize: '1.1rem', color: 'var(--primary-color)', borderBottom: '2px solid var(--border-color)', paddingBottom: '0.35rem' }}>
-              Required Documents ({docChecklist.required.length})
-            </h3>
-            <table className="doc-table" style={{ width: '100%', borderCollapse: 'collapse' }}>
-              <thead>
-                <tr style={{ backgroundColor: 'var(--bg-secondary)' }}>
-                  <th style={{ padding: '0.5rem', textAlign: 'left', borderBottom: '2px solid var(--border-color)', color: 'var(--text-primary)', fontSize: '0.9rem' }}>Document</th>
-                  <th style={{ padding: '0.5rem', textAlign: 'left', borderBottom: '2px solid var(--border-color)', width: '110px', color: 'var(--text-primary)', fontSize: '0.9rem' }}>Status</th>
-                  <th style={{ padding: '0.5rem', textAlign: 'left', borderBottom: '2px solid var(--border-color)', color: 'var(--text-primary)', fontSize: '0.9rem' }}>Reason</th>
-                  <th style={{ padding: '0.5rem', textAlign: 'center', borderBottom: '2px solid var(--border-color)', width: '80px', color: 'var(--text-primary)', fontSize: '0.9rem' }}>Upload</th>
-                </tr>
-              </thead>
-              <tbody>
-                {docChecklist.required.map((doc, idx) => {
-                  const documentName = doc.label;
-                  const isUploaded = documents.some(d => d.documentType?.toLowerCase().includes(documentName.toLowerCase()));
-                  return (
-                    <tr key={idx} style={{ borderBottom: '1px solid var(--border-color)' }}>
-                      <td style={{ padding: '0.5rem', fontWeight: '500', color: 'var(--text-primary)', fontSize: '0.9rem' }}>{documentName}</td>
-                      <td style={{ padding: '0.5rem' }}>
-                        <span className={`status ${getDocStatusClass(isUploaded ? 'ok' : 'required')}`} style={{
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: '0.25rem',
-                          padding: '0.25rem 0.6rem',
-                          borderRadius: '20px',
-                          fontSize: '0.75rem',
-                          fontWeight: '600',
-                          whiteSpace: 'nowrap',
-                          backgroundColor: isUploaded ? '#28a745' : '#dc3545',
-                          color: 'white'
-                        }}>
-                          {isUploaded ? <FaCheckCircle /> : getDocStatusIcon('required')}
-                          {isUploaded ? 'Uploaded' : 'Required'}
-                        </span>
-                      </td>
-                      <td style={{ padding: '0.5rem', color: 'var(--text-secondary)', fontSize: '0.85rem' }}>{doc.reason}</td>
-                      <td style={{ padding: '0.5rem', textAlign: 'center' }}>
-                        <button
-                          onClick={() => handleOpenUploadModal(documentName)}
-                          className="btn-icon btn-primary"
-                          title={`Upload ${documentName}`}
-                          style={{
-                            background: 'none',
-                            border: 'none',
-                            color: 'var(--primary-color)',
-                            cursor: 'pointer',
-                            fontSize: '1.1rem',
-                            padding: '0.25rem'
-                          }}
-                        >
-                          <FaUpload />
-                        </button>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-
-          {/* Optional Documents */}
-          {docChecklist.niceToHave.length > 0 && (
-            <div className="doc-section" style={{ marginTop: '1.5rem' }}>
-              <h3 style={{ marginBottom: '0.5rem', fontSize: '1.1rem', color: 'var(--primary-color)', borderBottom: '2px solid var(--border-color)', paddingBottom: '0.35rem' }}>
-                Optional Documents ({docChecklist.niceToHave.length})
-              </h3>
-              <table className="doc-table" style={{ width: '100%', borderCollapse: 'collapse' }}>
-                <thead>
-                  <tr style={{ backgroundColor: 'var(--bg-secondary)' }}>
-                    <th style={{ padding: '0.5rem', textAlign: 'left', borderBottom: '2px solid var(--border-color)', color: 'var(--text-primary)', fontSize: '0.9rem' }}>Document</th>
-                    <th style={{ padding: '0.5rem', textAlign: 'left', borderBottom: '2px solid var(--border-color)', width: '110px', color: 'var(--text-primary)', fontSize: '0.9rem' }}>Status</th>
-                    <th style={{ padding: '0.5rem', textAlign: 'left', borderBottom: '2px solid var(--border-color)', color: 'var(--text-primary)', fontSize: '0.9rem' }}>Reason</th>
-                    <th style={{ padding: '0.5rem', textAlign: 'center', borderBottom: '2px solid var(--border-color)', width: '80px', color: 'var(--text-primary)', fontSize: '0.9rem' }}>Upload</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {docChecklist.niceToHave.map((doc, idx) => {
-                    const documentName = doc.label;
-                    const isUploaded = documents.some(d => d.documentType?.toLowerCase().includes(documentName.toLowerCase()));
-                    return (
-                      <tr key={idx} style={{ borderBottom: '1px solid var(--border-color)' }}>
-                        <td style={{ padding: '0.5rem', fontWeight: '500', color: 'var(--text-primary)', fontSize: '0.9rem' }}>{documentName}</td>
-                        <td style={{ padding: '0.5rem' }}>
-                          <span className={`status ${getDocStatusClass(isUploaded ? 'ok' : 'conditional')}`} style={{
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            gap: '0.25rem',
-                            padding: '0.25rem 0.6rem',
-                            borderRadius: '20px',
-                            fontSize: '0.75rem',
-                            fontWeight: '600',
-                            whiteSpace: 'nowrap',
-                            backgroundColor: isUploaded ? '#28a745' : '#6c757d',
-                            color: 'white'
-                          }}>
-                            {isUploaded ? <FaCheckCircle /> : getDocStatusIcon('conditional')}
-                            {isUploaded ? 'Uploaded' : 'Optional'}
-                          </span>
-                        </td>
-                        <td style={{ padding: '0.5rem', color: 'var(--text-secondary)', fontSize: '0.85rem' }}>{doc.reason}</td>
-                        <td style={{ padding: '0.5rem', textAlign: 'center' }}>
-                          <button
-                            onClick={() => handleOpenUploadModal(documentName)}
-                            className="btn-icon btn-primary"
-                            title={`Upload ${documentName}`}
-                            style={{
-                              background: 'none',
-                              border: 'none',
-                              color: 'var(--primary-color)',
-                              cursor: 'pointer',
-                              fontSize: '1.1rem',
-                              padding: '0.25rem'
-                            }}
-                          >
-                            <FaUpload />
-                          </button>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </div>
-      )}
-          
       {/* Document Upload Section */}
       <div className="card" style={{ marginTop: '2rem' }}>
         <h2><FaUpload /> Upload Documents</h2>
@@ -602,9 +452,9 @@ const ApplicationDetails = () => {
                   <tbody>
                     {documents.map(doc => (
                       <tr key={doc.id}>
-                        <td style={{ padding: '0.5rem', borderBottom: '1px solid var(--border-color)' }}>{doc.displayName || doc.originalFilename}</td>
+                        <td style={{ padding: '0.5rem', borderBottom: '1px solid var(--border-color)' }}>{doc.fileName}</td>
                         <td style={{ padding: '0.5rem', borderBottom: '1px solid var(--border-color)' }}>{doc.documentType}</td>
-                        <td style={{ padding: '0.5rem', borderBottom: '1px solid var(--border-color)' }}>{formatDate(doc.createdAt)}</td>
+                        <td style={{ padding: '0.5rem', borderBottom: '1px solid var(--border-color)' }}>{formatDate(doc.uploadedAt)}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -616,59 +466,40 @@ const ApplicationDetails = () => {
             <p className="empty-text">No documents uploaded yet.</p>
           ) : (
             <div className="uploaded-documents-list">
-              {Object.entries(
-                documents.reduce((acc, doc) => {
-                  const key = doc.documentType || 'Other';
-                  (acc[key] = acc[key] || []).push(doc);
-                  return acc;
-                }, {})
-              )
-                .sort(([a], [b]) => a.localeCompare(b))
-                .map(([category, docs]) => (
-                  <div key={category} className="document-category-group">
-                    <h4 className="document-category-header">{category} ({docs.length})</h4>
-                    {docs.map((doc) => (
-                      <div key={doc.id} className="uploaded-document-item">
-                        <div className="document-info">
-                          <FaCheckCircle className="success-icon" />
-                          <div className="document-details">
-                            <div className="document-name-row">
-                              <span className="document-name">{doc.displayName || doc.originalFilename}</span>
-                            </div>
-                            <div className="document-meta">
-                              <span>{formatFileSize(doc.fileSize)}</span>
-                              <span>•</span>
-                              <span>{formatDate(doc.createdAt)}</span>
-                            </div>
-                          </div>
-                        </div>
-                        <div className="document-actions">
-                          <button
-                            onClick={() => handleRename(doc)}
-                            className="btn-icon btn-secondary"
-                            title="Rename"
-                          >
-                            <FaPencilAlt />
-                          </button>
-                          <button
-                            onClick={() => handleDownload(doc)}
-                            className="btn-icon btn-secondary"
-                            title="Download"
-                          >
-                            <FaDownload />
-                          </button>
-                          <button
-                            onClick={() => handleDelete(doc)}
-                            className="btn-icon btn-danger"
-                            title="Delete"
-                          >
-                            <FaTrash />
-                          </button>
-                        </div>
+              {documents.map((doc) => (
+                <div key={doc.id} className="uploaded-document-item">
+                  <div className="document-info">
+                    <FaCheckCircle className="success-icon" />
+                    <div className="document-details">
+                      <div className="document-name-row">
+                        <span className="document-name">{doc.fileName}</span>
+                        <span className="document-type-badge">{doc.documentType}</span>
                       </div>
-                    ))}
+                      <div className="document-meta">
+                        <span>{formatFileSize(doc.fileSize)}</span>
+                        <span>•</span>
+                        <span>{formatDate(doc.uploadedAt)}</span>
+                      </div>
+                    </div>
                   </div>
-                ))}
+                  <div className="document-actions">
+                    <button
+                      onClick={() => handleDownload(doc)}
+                      className="btn-icon btn-secondary"
+                      title="Download"
+                    >
+                      <FaDownload />
+                    </button>
+                    <button
+                      onClick={() => handleDelete(doc.id)}
+                      className="btn-icon btn-danger"
+                      title="Delete"
+                    >
+                      <FaTrash />
+                    </button>
+                  </div>
+                </div>
+              ))}
             </div>
           )}
         </div>

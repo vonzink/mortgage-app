@@ -1,125 +1,133 @@
 package com.yourcompany.mortgage.security;
 
-import com.yourcompany.mortgage.model.Borrower;
 import com.yourcompany.mortgage.model.User;
-import com.yourcompany.mortgage.repository.BorrowerRepository;
 import com.yourcompany.mortgage.repository.UserRepository;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.core.Authentication;
-import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDateTime;
-import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
-import java.util.Set;
 
 /**
- * Materializes a local {@link User} row from the JWT on first sign-in, and
- * back-fills {@code borrowers.cognito_sub} when a borrower's Cognito email
- * matches an existing borrower row.
+ * Resolves the calling user (from the Cognito JWT on the SecurityContext) into a local
+ * {@link User} record, materializing the row on first sign-in.
+ *
+ * <p>The dashboard does the same thing in {@code backend/middleware/userContext.js}: lookup
+ * by email first, fall back to {@code cognito_sub}, and create a row keyed by both if neither
+ * exists. We keep the role aligned with the most specific Cognito group present in the JWT.
  */
 @Service
+@RequiredArgsConstructor
+@Slf4j
 public class CurrentUserService {
 
-    private static final Logger log = LoggerFactory.getLogger(CurrentUserService.class);
+    /** Cognito groups in priority order — most specific first. The "primary" group becomes the user.role. */
+    private static final List<String> GROUP_PRIORITY = List.of(
+            "Admin", "Manager", "Processor", "LO", "RealEstateAgent", "Borrower", "External"
+    );
 
     private final UserRepository userRepository;
-    private final BorrowerRepository borrowerRepository;
-
-    public CurrentUserService(UserRepository userRepository, BorrowerRepository borrowerRepository) {
-        this.userRepository = userRepository;
-        this.borrowerRepository = borrowerRepository;
-    }
-
-    /** The authenticated JWT, or empty if the request is anonymous. */
-    public Optional<Jwt> currentJwt() {
-        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-        if (auth instanceof JwtAuthenticationToken jwtAuth) {
-            return Optional.of(jwtAuth.getToken());
-        }
-        return Optional.empty();
-    }
-
-    /** {@code cognito:groups} from the JWT, normalized as a Set (without {@code ROLE_} prefix). */
-    public Set<String> currentRoles() {
-        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-        if (auth == null) return Set.of();
-        Collection<? extends GrantedAuthority> authorities = auth.getAuthorities();
-        java.util.HashSet<String> out = new java.util.HashSet<>();
-        for (GrantedAuthority a : authorities) {
-            String role = a.getAuthority();
-            if (role.startsWith("ROLE_")) out.add(role.substring(5));
-        }
-        return out;
-    }
-
-    public boolean hasAnyRole(String... roles) {
-        Set<String> mine = currentRoles();
-        for (String r : roles) if (mine.contains(r)) return true;
-        return false;
-    }
 
     /**
-     * Get-or-create the local User row for the current JWT.
-     * Looks up by cognito_sub first, then by email; backfills cognito_sub on the
-     * matched user row, and back-fills any borrower rows whose email matches.
+     * Look up (or create) the local user for the current request. Returns empty when there
+     * is no authenticated principal — callers should treat that as 401.
      */
     @Transactional
     public Optional<User> currentUser() {
-        return currentJwt().map(this::resolveUser);
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        if (!(auth instanceof JwtAuthenticationToken jwtAuth) || !auth.isAuthenticated()) {
+            return Optional.empty();
+        }
+        return Optional.of(resolveOrCreate(jwtAuth.getToken()));
     }
 
-    private User resolveUser(Jwt jwt) {
-        String sub = jwt.getSubject();
+    /**
+     * Look up by email then sub; create the row on first sign-in. Idempotent — repeated calls
+     * with the same JWT return the same user. Updates name/role if Cognito changed them.
+     */
+    @Transactional
+    public User resolveOrCreate(Jwt jwt) {
         String email = jwt.getClaimAsString("email");
+        String sub = jwt.getSubject();
 
-        Optional<User> bySub = userRepository.findByCognitoSub(sub);
-        User user = bySub.orElseGet(() -> {
-            if (email != null) {
-                return userRepository.findByEmail(email).orElseGet(() -> createUser(sub, email));
-            }
-            return createUser(sub, null);
-        });
-
-        boolean dirty = false;
-        if (user.getCognitoSub() == null) { user.setCognitoSub(sub); dirty = true; }
-        if (user.getEmail() == null && email != null) { user.setEmail(email); dirty = true; }
-        user.setLastSignInAt(LocalDateTime.now());
-        if (dirty) userRepository.save(user);
-        else userRepository.save(user); // updates last_sign_in_at
-
-        if (email != null && sub != null) {
-            backfillBorrowers(email, sub);
+        // Cognito access tokens omit `email`; only id tokens carry it. The frontend now sends
+        // id tokens, but be defensive: synthesize a placeholder email from the sub or username
+        // if it's still missing — the column is NOT NULL, and we'd rather have a row than 500.
+        if (email == null || email.isBlank()) {
+            String username = jwt.getClaimAsString("cognito:username");
+            email = (username != null && !username.isBlank())
+                    ? username + "@unknown.cognito"
+                    : sub + "@unknown.cognito";
+            log.warn("JWT had no email claim — using synthetic '{}'. Frontend may be sending access_token instead of id_token.", email);
         }
-        return user;
+
+        String name = jwt.getClaimAsString("name");
+        if (name == null || name.isBlank()) {
+            String given = jwt.getClaimAsString("given_name");
+            String family = jwt.getClaimAsString("family_name");
+            name = String.join(" ",
+                    given == null ? "" : given,
+                    family == null ? "" : family).trim();
+            if (name.isBlank()) name = email; // last-resort fallback
+        }
+        String primaryGroup = primaryGroup(jwt.getClaimAsStringList("cognito:groups"));
+        String role = primaryGroup == null ? "borrower" : primaryGroup.toLowerCase();
+
+        // Prefer email match (stable across Cognito refreshes), then sub
+        Optional<User> existing = (email == null || email.isBlank())
+                ? Optional.empty()
+                : userRepository.findByEmail(email);
+        if (existing.isEmpty() && sub != null) {
+            existing = userRepository.findByCognitoSub(sub);
+        }
+
+        if (existing.isPresent()) {
+            User u = existing.get();
+            // Backfill / refresh non-identifying fields
+            boolean dirty = false;
+            if (u.getCognitoSub() == null && sub != null) { u.setCognitoSub(sub); dirty = true; }
+            if (name != null && !name.equals(u.getName())) { u.setName(name); dirty = true; }
+            if (primaryGroup != null && !primaryGroup.equals(u.getCognitoGroup())) {
+                u.setCognitoGroup(primaryGroup);
+                u.setRole(role);
+                dirty = true;
+            }
+            return dirty ? userRepository.save(u) : u;
+        }
+
+        log.info("Materializing new user row for Cognito sub={} email={} group={}", sub, email, primaryGroup);
+        return userRepository.save(User.builder()
+                .email(email)
+                .name(name)
+                .initials(initialsOf(name))
+                .role(role)
+                .cognitoSub(sub)
+                .cognitoGroup(primaryGroup)
+                .build());
     }
 
-    private User createUser(String sub, String email) {
-        User u = new User();
-        u.setCognitoSub(sub);
-        u.setEmail(email);
-        u.setLastSignInAt(LocalDateTime.now());
-        return userRepository.save(u);
+    private static String primaryGroup(List<String> groups) {
+        if (groups == null || groups.isEmpty()) return null;
+        for (String preferred : GROUP_PRIORITY) {
+            if (groups.contains(preferred)) return preferred;
+        }
+        return groups.get(0);
     }
 
-    private void backfillBorrowers(String email, String sub) {
-        try {
-            List<Borrower> matches = borrowerRepository.findByEmail(email);
-            for (Borrower b : matches) {
-                if (b.getCognitoSub() == null) {
-                    b.setCognitoSub(sub);
-                    borrowerRepository.save(b);
-                }
-            }
-        } catch (RuntimeException e) {
-            log.warn("Borrower backfill failed for email {}: {}", email, e.getMessage());
+    private static String initialsOf(String name) {
+        if (name == null || name.isBlank()) return "";
+        String[] parts = name.trim().split("\\s+");
+        StringBuilder sb = new StringBuilder();
+        for (String p : parts) {
+            if (!p.isEmpty()) sb.append(Character.toUpperCase(p.charAt(0)));
+            if (sb.length() >= 3) break;
         }
+        return sb.toString();
     }
 }

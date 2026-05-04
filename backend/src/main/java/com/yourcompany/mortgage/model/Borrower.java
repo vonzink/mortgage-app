@@ -20,6 +20,14 @@ public class Borrower {
     @JsonBackReference
     private LoanApplication application;
 
+    /**
+     * Local users.id of the borrower's signed-in account. Null until the borrower has
+     * authenticated via Cognito at least once (then {@link com.yourcompany.mortgage.security.CurrentUserService}
+     * stamps it). Drives borrower-side ownership checks in {@code LoanAccessGuard}.
+     */
+    @Column(name = "user_id")
+    private Integer userId;
+
     @Column(name = "sequence_number")
     private Integer sequenceNumber;
 
@@ -86,14 +94,7 @@ public class Borrower {
     @Column(name = "current_zip_code")
     private String currentZipCode;
 
-    @Column(name = "cognito_sub")
-    private String cognitoSub;
-
     public Borrower() {}
-
-    public String getCognitoSub() { return cognitoSub; }
-    public void setCognitoSub(String cognitoSub) { this.cognitoSub = cognitoSub; }
-
 
     public Borrower(LoanApplication application, Integer sequenceNumber, String firstName, String lastName) {
         this.application = application;
@@ -116,6 +117,14 @@ public class Borrower {
 
     public void setApplication(LoanApplication application) {
         this.application = application;
+    }
+
+    public Integer getUserId() {
+        return userId;
+    }
+
+    public void setUserId(Integer userId) {
+        this.userId = userId;
     }
 
     public Integer getSequenceNumber() {

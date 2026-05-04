@@ -13,28 +13,42 @@ import java.util.Collection;
 import java.util.List;
 
 /**
- * Maps the {@code cognito:groups} claim to Spring {@code ROLE_*} authorities.
- * Cognito groups in our user pool: Admin, Manager, LO, Processor, External,
- * Borrower, RealEstateAgent.
+ * Converts an incoming Cognito JWT into a Spring {@link JwtAuthenticationToken}, mapping the
+ * {@code cognito:groups} claim to {@code ROLE_*} authorities so we can use
+ * {@code @PreAuthorize("hasRole('LO')")} or HTTP request matchers like
+ * {@code .hasRole("Borrower")} elsewhere in the app.
  *
- * Principal name is the {@code email} claim if present (id_token always carries it),
- * falling back to {@code sub} (always present in any token).
+ * <p>Cognito groups in this pool: Admin, Manager, LO, Processor, External, Borrower, RealEstateAgent.
+ *
+ * <p>The principal name is set to the user's email (preferred) or {@code sub} as a fallback,
+ * matching the lookup pattern used by dashboard.msfgco.com (see backend/middleware/userContext.js).
  */
 @Component
 public class CognitoJwtConverter implements Converter<Jwt, AbstractAuthenticationToken> {
 
+    private static final String GROUPS_CLAIM = "cognito:groups";
+    private static final String EMAIL_CLAIM = "email";
+
     @Override
     public AbstractAuthenticationToken convert(Jwt jwt) {
+        Collection<GrantedAuthority> authorities = extractAuthorities(jwt);
+        String principalName = jwt.getClaimAsString(EMAIL_CLAIM);
+        if (principalName == null || principalName.isBlank()) {
+            principalName = jwt.getSubject();
+        }
+        return new JwtAuthenticationToken(jwt, authorities, principalName);
+    }
+
+    private Collection<GrantedAuthority> extractAuthorities(Jwt jwt) {
         Collection<GrantedAuthority> authorities = new ArrayList<>();
-        Object groups = jwt.getClaim("cognito:groups");
-        if (groups instanceof List<?> list) {
-            for (Object g : list) {
-                if (g != null) authorities.add(new SimpleGrantedAuthority("ROLE_" + g));
+        Object raw = jwt.getClaim(GROUPS_CLAIM);
+        if (raw instanceof List<?> groups) {
+            for (Object g : groups) {
+                if (g != null) {
+                    authorities.add(new SimpleGrantedAuthority("ROLE_" + g));
+                }
             }
         }
-
-        String name = jwt.getClaimAsString("email");
-        if (name == null || name.isBlank()) name = jwt.getSubject();
-        return new JwtAuthenticationToken(jwt, authorities, name);
+        return authorities;
     }
 }

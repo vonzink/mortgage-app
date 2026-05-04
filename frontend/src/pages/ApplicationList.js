@@ -1,27 +1,41 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
-import { FaFileAlt, FaEye, FaClock, FaCheckCircle, FaTimesCircle, FaFileCode, FaCopy, FaChevronDown } from 'react-icons/fa';
+import { FaFileAlt, FaEye, FaEdit, FaTrash, FaClock, FaCheckCircle, FaTimesCircle, FaFileDownload, FaCopy, FaFileUpload, FaPlus } from 'react-icons/fa';
 import mortgageService from '../services/mortgageService';
 
 const ApplicationList = () => {
   const navigate = useNavigate();
   const [applications, setApplications] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [showExportDropdown, setShowExportDropdown] = useState(null);
+  const [importingMismo, setImportingMismo] = useState(false);
+  const mismoInputRef = useRef(null);
+
+  /**
+   * Start a fresh application by importing a MISMO XML file. The backend creates an empty
+   * application, runs the importer to populate it, auto-assigns the calling LO if applicable,
+   * and returns the new ID — we navigate the user straight into the editor.
+   */
+  const handleStartFromMismo = () => mismoInputRef.current?.click();
+  const handleMismoFileSelected = async (e) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    try {
+      setImportingMismo(true);
+      const result = await mortgageService.createFromMismo(file);
+      toast.success(`New application ${result.applicationNumber || ''} created from MISMO. ${result.changeCount} field${result.changeCount === 1 ? '' : 's'} populated.`);
+      navigate(`/apply?edit=${result.id}`);
+    } catch (err) {
+      toast.error(`MISMO import failed: ${err.message || err}`);
+    } finally {
+      setImportingMismo(false);
+    }
+  };
 
   useEffect(() => {
     fetchApplications();
   }, []);
-
-  // Close dropdown when clicking outside
-  useEffect(() => {
-    const handleClickOutside = () => setShowExportDropdown(null);
-    if (showExportDropdown) {
-      document.addEventListener('click', handleClickOutside);
-      return () => document.removeEventListener('click', handleClickOutside);
-    }
-  }, [showExportDropdown]);
 
   const fetchApplications = async () => {
     try {
@@ -166,25 +180,34 @@ const ApplicationList = () => {
     }
   };
 
-  const handleExportMISMO34Closing = async (applicationId) => {
+  /**
+   * Download a MISMO XML for the loan via the backend exporter (richer output than the
+   * legacy frontend-only generator: SSN, DOB, marital status, full BORROWER_DETAIL, etc.).
+   */
+  const handleDownloadMismo = async (applicationId) => {
     try {
-      await mortgageService.downloadMismoXml(applicationId, 'closing');
-      toast.success('MISMO 3.4 Closing XML downloaded successfully!');
-      setShowExportDropdown(null);
-    } catch (error) {
-      toast.error('Failed to export XML. Please try again.');
-      console.error('XML export error:', error);
+      const filename = await mortgageService.exportMismo(applicationId);
+      toast.success(`Downloaded ${filename}`);
+    } catch (e) {
+      toast.error(`MISMO export failed: ${e.message || e}`);
     }
   };
 
-  const handleExportMISMO34FNM = async (applicationId) => {
+  const handleDeleteApplication = async (applicationId, applicationNumber) => {
+    const ok = window.confirm(
+      `Delete application ${applicationNumber || `#${applicationId}`}?\n\n` +
+      `This permanently removes the application and all of its borrowers, employment, ` +
+      `income, residences, assets, REOs, liabilities, and document records.\n\n` +
+      `This cannot be undone.`
+    );
+    if (!ok) return;
     try {
-      await mortgageService.downloadMismoXml(applicationId, 'fnm');
-      toast.success('MISMO 3.4 FNM XML downloaded successfully!');
-      setShowExportDropdown(null);
-    } catch (error) {
-      toast.error('Failed to export XML. Please try again.');
-      console.error('XML export error:', error);
+      await mortgageService.deleteApplication(applicationId);
+      toast.success(`Deleted ${applicationNumber || `application #${applicationId}`}`);
+      // Refresh the list
+      fetchApplications();
+    } catch (e) {
+      toast.error(`Delete failed: ${e.message || e}`);
     }
   };
 
@@ -202,18 +225,36 @@ const ApplicationList = () => {
   return (
     <div className="applications-container">
       <div className="card">
-        <div className="applications-header">
-          <h2><FaFileAlt /> My Applications</h2>
+        <div className="applications-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.75rem' }}>
+          <h2 style={{ margin: 0 }}><FaFileAlt /> My Applications</h2>
+          <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+            <Link to="/apply" className="btn btn-primary">
+              <FaPlus /> Start New Application
+            </Link>
+            <button
+              type="button"
+              onClick={handleStartFromMismo}
+              disabled={importingMismo}
+              className="btn btn-secondary"
+              title="Upload a MISMO 3.4 XML file to start a new application pre-populated with its data"
+            >
+              <FaFileUpload /> {importingMismo ? 'Importing…' : 'Start from MISMO'}
+            </button>
+            <input
+              ref={mismoInputRef}
+              type="file"
+              accept=".xml,application/xml,text/xml"
+              style={{ display: 'none' }}
+              onChange={handleMismoFileSelected}
+            />
+          </div>
         </div>
-        
+
         {applications.length === 0 ? (
           <div className="empty-state">
             <FaFileAlt className="empty-icon" />
             <h3>No Applications Yet</h3>
-            <p>You haven't submitted any applications yet. Start your first mortgage application to get started.</p>
-            <Link to="/apply" className="btn btn-primary btn-large">
-              <FaFileAlt /> Start Your First Application
-            </Link>
+            <p>Use the buttons above to start a fresh application or import a MISMO file from another system.</p>
           </div>
         ) : (
           <div className="applications-grid">
@@ -262,99 +303,48 @@ const ApplicationList = () => {
                   </div>
                 </div>
                 
-                <div className="application-actions">
-                  <Link 
-                    to={`/applications/${application.id}`} 
+                <div className="application-actions" style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                  <Link
+                    to={`/apply?edit=${application.id}`}
                     className="btn btn-primary"
+                    title="Edit this application"
                   >
-                    <FaEye /> View & Upload Docs
+                    <FaEdit /> Edit
                   </Link>
+                  <Link
+                    to={`/applications/${application.id}`}
+                    className="btn btn-secondary"
+                    title="View read-only details and upload documents"
+                  >
+                    <FaEye /> View / Docs
+                  </Link>
+                  <button
+                    type="button"
+                    onClick={() => handleDownloadMismo(application.id)}
+                    className="btn btn-outline-primary"
+                    title="Download a MISMO 3.4 XML of this application"
+                  >
+                    <FaFileDownload /> MISMO
+                  </button>
                   {isLatest && (
-                    <>
-                      <button
-                        type="button"
-                        onClick={() => handleCopyToNewApplication(application.id)}
-                        className="btn btn-secondary"
-                        title="Start a new application with Assets, Liabilities, and REO from this one"
-                      >
-                        <FaCopy /> Copy to New
-                      </button>
-                      <div style={{ position: 'relative', display: 'inline-block' }}>
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setShowExportDropdown(showExportDropdown === application.id ? null : application.id);
-                          }}
-                          className="btn btn-outline-primary"
-                          title="Export to XML (MISMO 3.4 Format)"
-                          style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}
-                        >
-                          <FaFileCode /> Export XML <FaChevronDown style={{ fontSize: '0.8rem' }} />
-                        </button>
-                        {showExportDropdown === application.id && (
-                          <div 
-                            style={{
-                              position: 'absolute',
-                              top: '100%',
-                              left: 0,
-                              marginTop: '0.25rem',
-                              backgroundColor: 'white',
-                              border: '1px solid var(--border-color)',
-                              borderRadius: 'var(--border-radius)',
-                              boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
-                              zIndex: 1000,
-                              minWidth: '200px'
-                            }}
-                          >
-                            <button
-                              type="button"
-                              onClick={() => handleExportMISMO34Closing(application.id)}
-                              style={{
-                                width: '100%',
-                                padding: '0.75rem 1rem',
-                                border: 'none',
-                                background: 'transparent',
-                                textAlign: 'left',
-                                cursor: 'pointer',
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: '0.5rem',
-                                fontSize: '0.9rem',
-                                transition: 'background-color 0.2s'
-                              }}
-                              onMouseEnter={(e) => e.target.style.backgroundColor = 'var(--bg-secondary)'}
-                              onMouseLeave={(e) => e.target.style.backgroundColor = 'transparent'}
-                            >
-                              <FaFileCode /> MISMO 3.4 Closing
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => handleExportMISMO34FNM(application.id)}
-                              style={{
-                                width: '100%',
-                                padding: '0.75rem 1rem',
-                                border: 'none',
-                                background: 'transparent',
-                                textAlign: 'left',
-                                cursor: 'pointer',
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: '0.5rem',
-                                fontSize: '0.9rem',
-                                borderTop: '1px solid var(--border-color)',
-                                transition: 'background-color 0.2s'
-                              }}
-                              onMouseEnter={(e) => e.target.style.backgroundColor = 'var(--bg-secondary)'}
-                              onMouseLeave={(e) => e.target.style.backgroundColor = 'transparent'}
-                            >
-                              <FaFileCode /> MISMO 3.4 FNM
-                            </button>
-                          </div>
-                        )}
-                      </div>
-                    </>
+                    <button
+                      type="button"
+                      onClick={() => handleCopyToNewApplication(application.id)}
+                      className="btn btn-secondary"
+                      title="Start a new application with Assets, Liabilities, and REO from this one"
+                    >
+                      <FaCopy /> Copy to New
+                    </button>
                   )}
+                  <button
+                    type="button"
+                    onClick={() => handleDeleteApplication(application.id, application.applicationNumber)}
+                    className="btn btn-outline-danger"
+                    title="Delete this application permanently"
+                    style={{ marginLeft: 'auto' }}
+                  >
+                    <FaTrash /> Delete
+                  </button>
                 </div>
               </div>
                 );

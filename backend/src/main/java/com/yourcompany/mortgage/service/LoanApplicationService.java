@@ -4,6 +4,8 @@ import com.yourcompany.mortgage.dto.*;
 import com.yourcompany.mortgage.model.*;
 import com.yourcompany.mortgage.repository.*;
 import com.yourcompany.mortgage.exception.ResourceNotFoundException;
+import com.yourcompany.mortgage.model.LoanStatus;
+import com.yourcompany.mortgage.model.LoanStatusHistory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -37,7 +39,10 @@ public class LoanApplicationService {
     
     @Autowired
     private ResidenceRepository residenceRepository;
-    
+
+    @Autowired
+    private LoanStatusHistoryRepository loanStatusHistoryRepository;
+
     public LoanApplication createApplication(LoanApplicationDTO applicationDTO) {
         // Create main application
         LoanApplication application = new LoanApplication();
@@ -112,12 +117,38 @@ public class LoanApplicationService {
         loanApplicationRepository.deleteById(id);
     }
     
+    /**
+     * Move a loan to a new status. Validates the requested value against {@link LoanStatus}
+     * (legacy DRAFT/SUBMITTED/PROCESSING values are accepted and remapped); writes a row to
+     * {@code loan_status_history} for auditing; updates {@code loan_applications.status}.
+     *
+     * <p>The {@code transitionedByUserId} is left null for now — Phase 3 (LO UI) will resolve the
+     * caller from the JWT and stamp it. The note column is reserved for an LO-entered comment.
+     */
     public LoanApplication updateApplicationStatus(Long id, String status) {
         LoanApplication application = loanApplicationRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Application not found"));
-        
-        application.setStatus(status);
-        return loanApplicationRepository.save(application);
+
+        LoanStatus parsed = LoanStatus.fromString(status)
+                .orElseThrow(() -> new IllegalArgumentException(
+                        "Unknown loan status: '" + status + "'. Valid: " +
+                                java.util.Arrays.toString(LoanStatus.values())));
+
+        // No-op short-circuit: don't pollute history when status didn't actually change
+        String currentStatus = application.getStatus();
+        if (parsed.name().equals(currentStatus)) {
+            return application;
+        }
+
+        application.setLoanStatus(parsed);
+        LoanApplication saved = loanApplicationRepository.save(application);
+
+        loanStatusHistoryRepository.save(LoanStatusHistory.builder()
+                .loanApplicationId(saved.getId())
+                .status(parsed.name())
+                .build());
+
+        return saved;
     }
     
     private Property createProperty(PropertyDTO propertyDTO, LoanApplication application) {

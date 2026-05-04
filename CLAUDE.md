@@ -2,18 +2,15 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-This file describes what is **actually in the code on `main`** — not aspirational
-target architecture. If you find a section here that doesn't match the code,
-trust the code and update this file.
-
 ## Repository shape
 
-- `backend/` — Spring Boot 3.2 / Java 17, Maven. Currently runs on H2 (in-memory) for dev. Flyway-driven schema. Cognito JWT auth. AWS SDK v2 for S3.
-- `frontend/` — Create React App (React 18). `react-oidc-context` for Cognito Hosted UI, axios for API calls, react-hook-form for the multi-step 1003.
-- `infra/` — AWS CDK v2 (TypeScript). Two stacks for `dev`: `Documents` (S3 documents bucket + access-log bucket + lifecycle + CORS + Object Lock) and `Iam` (EC2 instance role with denied governance bypass). Prod stacks stubbed out, ready to enable.
+A three-app monorepo for MSFG's mortgage origination platform:
 
-`README.md`, `LATEST_UPDATES.md`, `CURRENCY_FORMATTING_UPDATE.md`,
-`DOCUMENT_RULES_ENGINE_SUMMARY.md` predate everything here. Trust the code.
+- `backend/` — Spring Boot 3.2 / Java 17, Maven, Postgres (RDS) in prod, H2 in PostgreSQL-mode in dev. Flyway-driven schema. Cognito JWT auth. AWS SDK v2 for S3.
+- `frontend/` — Create React App (React 18). `react-oidc-context` for Cognito Hosted UI, axios for API calls, react-hook-form for the multi-step 1003.
+- `infra/` — AWS CDK v2 (TypeScript). Two stacks per env (prod + dev): `Documents` (S3 + lifecycle + Object Lock + access logging) and `Iam` (EC2 instance role with denied governance bypass).
+
+Living docs live in `docs/` (currently just `UI_DESIGN_REFERENCES.md`). The top-level `README.md`, `LATEST_UPDATES.md`, `CURRENCY_FORMATTING_UPDATE.md`, and `DOCUMENT_RULES_ENGINE_SUMMARY.md` predate the current architecture and describe removed features (AI/docRules, in-memory DB, application versioning). Trust the code, not those files.
 
 ## Commands
 
@@ -21,167 +18,126 @@ trust the code and update this file.
 
 ```bash
 mvn -q -DskipTests compile                                   # type-check
-mvn spring-boot:run                                          # boot (H2 in memory, port 8080, context-path /api)
-mvn test                                                     # all tests
-mvn test -Dtest=ClassNameHere                                # single test
+mvn spring-boot:run -Dspring-boot.run.profiles=dev           # boot dev (H2 in PG mode, port 8081)
+
+# Smoke test the full stack against the deployed dev S3 bucket
+AWS_S3_DOCUMENTS_BUCKET=msfg-mortgage-app-documents-dev \
+AWS_REGION=us-west-1 \
+mvn spring-boot:run -Dspring-boot.run.profiles=dev
+
+# Single test class
+mvn test -Dtest=ClassNameHere
 ```
 
-Backend serves on `http://localhost:8080` with context-path `/api`. Java 17 source/target; Lombok pinned ≥ 1.18.42 to avoid `TypeTag :: UNKNOWN` under newer JDKs.
-
 Backend package layout under `com.yourcompany.mortgage`:
-
 - `controller/` + `dto/` — REST surface
-- `service/` — business logic
+- `service/` — business logic; `LoanAccessGuard` lives in `security/`
 - `model/` + `repository/` — JPA entities and Spring Data repos
-- `mismo/` — MISMO 3.4 XML exporter (StAX-based; importer not yet built)
+- `mismo/` + `xml/` — MISMO 3.4 importer (DOM, namespace-agnostic) and exporter (StAX)
+- `mapper/` — entity ↔ DTO conversions
 - `validation/` — bean-validation extensions
 - `security/` — `CognitoJwtConverter`, `CurrentUserService`, `LoanAccessGuard`
 - `exception/` — `@ControllerAdvice` global handler
-- `config/` — `SecurityConfig`, `S3Config`, `JpaConfig`
-- `integration/` — outbound clients (`GoHighLevelService`, stub `AiReviewService`)
+- `config/` — `SecurityConfig`, AWS clients, etc.
+- `integration/` — outbound third-party clients
+
+The backend serves on `http://localhost:8081` with context-path `/api` (so health is at `/api/health`). Spring Boot 3.2 is pinned to Java 17 source/target, but the build runs on Java 25 — Lombok must stay ≥ 1.18.42 to avoid the `TypeTag :: UNKNOWN` error.
 
 ### Frontend (run from `frontend/`)
 
 ```bash
 npm install --legacy-peer-deps                               # CRA 5 vs newer TS peer
 npm start                                                    # dev server on :3000
-CI=false npm run build                                       # prod build
+npm test                                                     # CRA Jest runner (watch mode by default)
+CI=false npm run build                                       # prod build (CI=true treats warnings as errors)
 ```
 
-Copy `.env.example` to `.env`. The Cognito client ID + domain for the `mortgage-app-web` client are real values for the shared user pool `us-west-1_S6iE2uego`.
+Copy `.env.example` to `.env`. The Cognito client ID + domain are real values for the shared user pool `us-west-1_S6iE2uego`.
 
 `pages/` holds route-level views (e.g. `ApplicationDetails.js`, `ApplicationList.js`). `components/` holds reusable UI; `components/forms/` is the multi-step 1003. Add new routes in `App.js` pointing at `pages/`.
 
 ### Infra (run from `infra/`)
 
 ```bash
-npm install
 npx cdk synth                                                # local-only validation, no AWS calls
-npx cdk diff MortgageApp-Dev-Iam                             # diff IAM stack
-npx cdk deploy MortgageApp-Dev-Iam                           # creates MortgageAppBackend-dev role + instance profile
+npx cdk diff MortgageApp-Dev-Documents                       # diff against deployed dev stack
+npx cdk deploy MortgageApp-Dev-Documents MortgageApp-Dev-Iam # deploy dev pair (CDK auto-orders)
+npm test                                                     # Jest (CDK assertions)
 ```
 
-The dev documents bucket and logs bucket already exist physically (created Apr 29 2026). Plain `cdk deploy MortgageApp-Dev-Documents` will fail because the names are taken. Use `cdk import` instead — see [`infra/README.md`](infra/README.md) for the pre-flight checklist and import procedure. **Never `cdk destroy`** — `removalPolicy: RETAIN` is set everywhere, and Object Lock makes destruction a compliance event.
+The dev S3 bucket and IAM role are already deployed; never `cdk destroy` (`removalPolicy: RETAIN` and Object Lock are intentional).
 
-## Architecture — what's actually built
+## Architecture — the parts that matter
 
-### Schema management
+### Canonical data model
 
-All schema changes go through Flyway under [`backend/src/main/resources/db/migration/V*__*.sql`](backend/src/main/resources/db/migration). Migrations are append-only once committed.
+**Spec to reread when in doubt:** [docs/UI_DESIGN_REFERENCES.md](docs/UI_DESIGN_REFERENCES.md) for the LO/borrower UI patterns from the UWM EASE source images.
 
-Current migrations:
+The Postgres database is the **operational store** (fast queries, joins, JPA-mapped). MISMO 3.4 XML files in S3 are the **canonical source of truth** for application data and the version history substrate. System metadata (workflow status, doc visibility flags, Cognito mappings, audit logs) lives only in the DB. **MISMO is not the system; it's the application-data system-of-record.**
 
-- `V1__init.sql` — loan_applications, properties, borrowers, employment, income_sources, liabilities, reo_properties, residences, declarations, assets, documents (initial), ghl_integration_logs.
-- `V2__document_s3_fields.sql` — add doc_uuid, s3_key, safe_filename, content_type, upload_status to documents.
-- `V3__document_visibility.sql` — add party_role, added_by_role, uploaded_by_user_id, visibility flags to documents.
-- `V4__document_metadata_model.sql` — drop file_path; rename file_name→original_filename, added_by_role→uploaded_by_role, uploaded_at→created_at; add display_name, updated_at, deleted_at.
-- `V5__users_and_cognito.sql` — users table; cognito_sub on borrowers.
-
-JPA `ddl-auto` is `update` for now. The `LiabilityOptimized` vs `Liability` collision that previously blocked switching to `validate` was removed in the dead-code purge — flipping to `validate` is now safe but hasn't been done yet.
-
-### Document storage
-
-The Postgres `documents` row is the **source of truth for user-facing identity** (display_name, visibility, audit). S3 only stores the bytes. The frontend never sees the s3 key — `docUuid` is the public handle.
-
-S3 key convention (server-generated, never client-supplied):
-
-```
-applications/{applicationId}/{partyRole}/{documentType}/{docUuid}-{safeFilename}
-```
-
-Lifecycle is driven by S3 **object tags**, not by key prefixes — keys are immutable. Tags applied at confirm time by [`S3DocumentService.applyLifecycleTags`](backend/src/main/java/com/yourcompany/mortgage/service/S3DocumentService.java): `loan_state`, `sensitivity`, `retention_class`, `source`, `application_id`, `doc_uuid`. The CDK lifecycle rules in [`infra/lib/documents-stack.ts`](infra/lib/documents-stack.ts) match against these tags.
-
-Upload is a 3-step direct-to-S3 flow:
-
-1. `POST /loan-applications/{loanId}/documents/upload-url` — backend validates content-type and extension, creates a `pending` Document row, returns a presigned PUT URL with content-type pinned (so S3 enforces the claimed type).
-2. Browser PUTs the file straight to S3.
-3. `PUT /loan-applications/{loanId}/documents/{docUuid}/confirm` — backend HEADs the object, validates size against `aws.s3.max-upload-bytes` (default 50 MiB), applies tags, flips status to `uploaded`. Oversized uploads are deleted from S3 and the row marked `failed`.
-
-Other endpoints:
-
-- `GET /loan-applications/{loanId}/documents` — list non-deleted, ordered by documentType + createdAt.
-- `GET /loan-applications/{loanId}/documents/{docUuid}/download-url` — presigned GET with `Content-Disposition: attachment; filename="{originalFilename}"`.
-- `PATCH /loan-applications/{loanId}/documents/{docUuid}` — Dropbox-style rename of `displayName`. Original filename and s3 key stay immutable.
-- `DELETE /loan-applications/{loanId}/documents/{docUuid}` — soft delete: sets `deleted_at`, best-effort S3 delete (Object Lock-aware — refusal is fine, the row hides regardless).
-
-Validation rules in [`DocumentUploadValidator`](backend/src/main/java/com/yourcompany/mortgage/service/DocumentUploadValidator.java):
-
-- Content-type allow-list: PDF, common images (PNG/JPEG/HEIC/HEIF/TIFF/WebP), text/plain, text/csv, Word/Excel formats.
-- Filename extension deny-list: exe, bat, cmd, com, scr, msi, vbs, js, jar, sh, html, svg, xhtml, etc.
-- Size cap: `aws.s3.max-upload-bytes` (default 50 MiB).
-- Party role allow-list: `{borrower, agent, lo, system}` — anything else falls back to `borrower`.
+The merge rule for MISMO imports is **always overwrite** every field we model — including borrower name and SSN — and audit every import in `mismo_imports`. Drift protection is a UI prompt: if the file's `<CreatedDatetime>` is older than the application's `updatedDate`, the backend returns 409; the frontend confirms and re-submits with `?force=true`.
 
 ### Auth flow (Cognito Hosted UI + Spring resource server)
 
-1. Frontend redirects to Cognito Hosted UI (auth-code grant + PKCE) via `react-oidc-context`.
-2. Cognito returns `id_token`, `access_token`, `refresh_token`. **The frontend sends `id_token` in the `Authorization` header** — Cognito access tokens omit the `email` claim, but `CurrentUserService` resolves users by email-then-sub. Both tokens are signed by the same JWK set, so signature validation works either way. See [`frontend/src/services/apiClient.js`](frontend/src/services/apiClient.js).
-3. Spring's resource server validates against `cognito-idp.us-west-1.amazonaws.com/us-west-1_S6iE2uego/.well-known/openid-configuration`.
-4. [`CognitoJwtConverter`](backend/src/main/java/com/yourcompany/mortgage/security/CognitoJwtConverter.java) maps the `cognito:groups` claim → `ROLE_*` Spring authorities.
-5. [`CurrentUserService`](backend/src/main/java/com/yourcompany/mortgage/security/CurrentUserService.java) materializes a local `users` row on first sign-in (looks up by `cognito_sub` then `email`, creating if neither matches), and back-fills `borrowers.cognito_sub` when a borrower's email matches.
-6. **Per-loan ownership** is enforced by `@PreAuthorize("@loanAccessGuard.canAccess(#loanId)")` on document endpoints. [`LoanAccessGuard`](backend/src/main/java/com/yourcompany/mortgage/security/LoanAccessGuard.java) ruleset: internal staff (Admin, Manager, LO, Processor) get blanket access; Borrower role only when their Cognito email matches a borrower-on-loan; everything else is denied. Assigned-LO and agent-on-loan checks need `loan_agents` / `loan_assignments` join tables that aren't modeled yet — internal staff are blanket-allowed in the meantime.
+1. Frontend redirects to Cognito Hosted UI (auth-code grant + PKCE).
+2. Cognito returns `id_token`, `access_token`, `refresh_token`. **The frontend sends `id_token` (not `access_token`) in the `Authorization` header** — Cognito access tokens omit the `email` claim, but our backend resolves users by email-then-sub. See `frontend/src/services/apiClient.js`.
+3. Spring's resource server validates against `cognito-idp.us-west-1.amazonaws.com/us-west-1_S6iE2uego/.well-known/openid-configuration`. Both id and access tokens are signed by the same JWK set, so either works.
+4. `CognitoJwtConverter` maps the `cognito:groups` claim → `ROLE_*` Spring authorities. Path-level rules in `SecurityConfig` use those.
+5. `CurrentUserService` materializes a local `users` row on first sign-in (looking up by email → cognito_sub, creating if neither exists). Synthesizes a placeholder email from `cognito:username` if the JWT lacks one.
+6. **Per-loan ownership** is enforced separately by `@PreAuthorize("@loanAccessGuard.canAccess(#id)")` on controller methods. `LoanAccessGuard` checks: superuser group → assigned LO → borrower-on-loan → agent-on-loan.
 
-Cognito groups in this user pool: `Admin`, `Manager`, `LO`, `Processor`, `External`, `Borrower`, `RealEstateAgent`. The mortgage-app-web app client (`34rg0vqoobfv8hhvg8kunkd738`) has callbacks for `localhost:3000/auth/callback` and `apply.msfgco.com/auth/callback`.
+### Status workflow
 
-### Frontend networking
+11 stages defined in `LoanStatus` enum: `REGISTERED → APPLICATION → DISCLOSURES_SENT → DISCLOSURES_SIGNED → UNDERWRITING → APPROVED → APPRAISAL → INSURANCE → CTC → DOCS_OUT → FUNDED`, plus terminal `DISPOSITIONED`. The column is `VARCHAR(30)` in Postgres; the enum is the validation gate. `LoanStatus.fromString` accepts legacy values (`DRAFT`/`SUBMITTED`/`PROCESSING`/`DENIED`) and remaps them. `LoanApplicationService.updateApplicationStatus` writes a `loan_status_history` row on every transition; the `transitioned_by_user_id` is null until Phase 3 wires it up.
 
-- [`services/apiClient.js`](frontend/src/services/apiClient.js) is the only axios instance that attaches the auth token. Reads the OIDC user from sessionStorage, sends `id_token` (falls back to `access_token`), dispatches `auth:expired` on 401.
-- The direct-to-S3 PUT uses **bare axios** so the backend's Authorization header doesn't poison the presigned signature.
-- `App.js`'s `<AuthExpiredListener>` listens for `auth:expired` and triggers a fresh `signinRedirect()`.
-- `RequireAuth` gates `/applications`, `/applications/:id`, `/apply`. If `REACT_APP_COGNITO_CLIENT_ID` or `_DOMAIN` is missing, it shows a clear setup message instead of looping into a broken redirect.
+### Schema management
 
-## MISMO export
+All schema changes go through Flyway migrations under `backend/src/main/resources/db/migration/V*__*.sql`. Postgres-flavored SQL (`BIGSERIAL`, `BOOLEAN`, separate `CREATE INDEX` after `CREATE TABLE`). The `MODE=PostgreSQL` H2 in dev parses these directly. **Never edit a committed migration** — add a new one. JPA `ddl-auto` is `validate` in both dev and prod; Hibernate compares entities against the post-Flyway schema and fails boot on drift.
 
-`MismoExporter` builds XML via StAX (`MismoXmlWriter` helper). Two variants:
-`CLOSING` (minimal closing-stage shape) and `FNM` (Fannie-Mae-flavored, with
-assets, expanded loan detail, down payments, full borrower DECLARATION,
-residences, per-employer addresses).
+Current migrations (next is `V11`):
+- `V1` — initial schema
+- `V2` — `loan_status_history` audit table
+- `V3` — `users` + per-loan assignments (assigned_lo_id, borrower/agent join tables)
+- `V4` — document visibility flags (LO-controlled per-doc toggles)
+- `V5` — `assets` table (entity existed before the schema did)
+- `V6` — `created_at` / `updated_at` audit columns on entities that already declared them
+- `V7` — Document S3 fields for the presigned-PUT borrower upload flow
+- `V8` — loan identifiers (LP R-number, MERS MIN, etc.)
+- `V9` — `mismo_imports` audit table
+- `V10` — closing-stage data (1:1 `closing_information` per loan)
+
+Most child entities have **relaxed bean-validation annotations** (`@NotNull` / `@NotBlank` removed from many fields) because partial MISMO imports would otherwise fail. Required-field UX lives in the React form (`useDraftAutosave` + `summarizeErrors` on the next-step trigger) — the backend trusts the form and the importer.
+
+### S3 layout (deployed buckets: `msfg-mortgage-app-documents-{dev,prod}` + `-logs` siblings)
+
+Key convention enforced by `S3DocumentService`:
 
 ```
-GET /loan-applications/{id}/export/mismo                     # CLOSING (default)
-GET /loan-applications/{id}/export/mismo?variant=fnm         # FNM
+applications/{application_id}/{party_role}/{document_type}/{doc_uuid}-{safe_filename}
+loans/{loan_id}/{party_role}/{document_type}/{doc_uuid}-{safe_filename}
 ```
 
-Gated by `@PreAuthorize("@loanAccessGuard.canAccess(#id)")`. Frontend calls
-this via `mortgageService.downloadMismoXml(applicationId, variant)` and uses
-the `Content-Disposition` header for the filename. **No XSD validation** —
-the output is hand-shaped to match what was previously generated client-side
-in `urlaExport.js`. If a real LP / Fannie XSD is procured, validation can be
-added in `MismoExporter.export` before returning bytes.
+Lifecycle / disposition state lives in **S3 object tags**, not in the key (keys are immutable). Tags drive the lifecycle policies that move objects to STANDARD_IA / GLACIER_IR / GLACIER_DEEP_ARCHIVE based on `loan_state` and `retention_class`. See [`infra/lib/documents-stack.ts`](infra/lib/documents-stack.ts) for the rule set and [`backend/.../S3DocumentService.java`](backend/src/main/java/com/yourcompany/mortgage/service/S3DocumentService.java) for the upload/download flow.
 
-The corresponding **MISMO importer** is not yet built. When it lands, see
-[`docs/archive/`](docs/archive/) for historical notes on the import flow that
-was once described in CLAUDE.md drafts but never implemented.
+The borrower-portal upload is a 3-step direct-to-S3 flow: client asks for a presigned PUT URL (backend creates a `Document` row with `upload_status='pending'`), client PUTs the file directly to S3, client calls `/confirm` which HEADs the object and applies tags.
 
-## Partial / stubbed features
+### MISMO export/import
 
-- **AI review** is stubbed. The endpoints (`POST /loan-applications/{id}/ai-review`,
-  `POST /loan-applications/ai-review-preview`) exist and the
-  `ReviewSubmitStep` UI button works, but `AiReviewService` returns a
-  placeholder `AIReviewResult` ("AI review is not yet enabled..."). Replace
-  the body of `AiReviewService.evaluateApplication*` with real provider calls
-  when re-enabling. The DTO contract (`AIReviewResult`) is stable.
-- **Print URLA HTML** lives client-side at `frontend/src/utils/printUrla.js`
-  (popup window + browser print). This is intentional — it renders form
-  values for transient print, not a saved artifact. Distinct from the MISMO
-  XML export (which is server-side).
+`MismoExporter` builds XML via StAX (`MismoXmlWriter` helper). v1 emits application-stage data only — anything closing-stage (escrows, fees, AUS findings, MI, integrated disclosures) flows back from LendingPad on import but is not yet modeled in our DB.
 
-## Never-built features (don't write code that calls these)
+`MismoImporter` walks the DOM via `local-name()` XPath (namespace-agnostic). Filters PARTY elements by `PartyRoleType='Borrower'` to skip the LO/title/agent parties LP also includes. Whole-list replace for residences, employment, income sources, assets, REOs, liabilities, declarations. Per-borrower matching by `SequenceNumber`; creates new borrowers if the file has more parties than the DB. **There is no MISMO XSD in the project** — mapping is hand-derived from a sample file and `LoanIdentifierType` discriminators (`LenderLoan` for the LP R-number, `MERS_MIN`, etc.).
 
-- **MISMO 3.4 importer** — only the exporter is built. No `MismoImporter`
-  class, no `mismo:imported` event, no `mismo_imports` audit table.
-- **`loan_status_history` table** — referenced in old docs; not yet modeled.
-  `LoanApplicationService.updateApplicationStatus` exists but doesn't write
-  history rows.
-- **Assigned-LO / agent-on-loan ownership checks** — needs `loan_agents` /
-  `loan_assignments` join tables. Internal staff get blanket access in the
-  meantime via `LoanAccessGuard`.
-- **Jasypt SSN encryption** — dependency is in pom.xml and there's a
-  `// TODO: Implement SSN encryption` in `LoanApplicationService.java:146`
-  but no `@Convert` is applied to `Borrower.ssn` yet.
-- **`useDraftAutosave` hook** — referenced by an older CLAUDE.md draft, never
-  implemented. Form state is lost on refresh / auth round-trip.
-- **`DocumentService` (filesystem)** — replaced by `S3DocumentService`; do
-  not re-introduce filesystem storage.
-- **MapStruct DTO mappers** — the dependency was removed in the dead-code
-  purge. DTO conversions are hand-written in service classes (`toDTO`,
-  `convertToDTO`).
+### Frontend conventions worth knowing
+
+- `services/apiClient.js` is the only place that touches the auth token; everything else uses the shared axios instance.
+- A `auth:expired` event is dispatched on 401; `App.js`'s `<AuthExpiredListener>` triggers `signinRedirect()`. Form drafts in sessionStorage (via `useDraftAutosave`) survive the round-trip.
+- `mismo:imported` event refreshes `ApplicationDetails` after a cog-dropdown upload.
+- Down-payment $/% toggle has a separate raw-input state for % mode to prevent fighting react-hook-form's controlled re-renders. `LoanInformationStep.js` is the reference for that pattern.
+- SSN/phone masking via the `maskedRegister` helper in `PersonalInfoField.js`. Validation regex matches the masked shape (`xxx-xx-xxxx`, `xxx-xxx-xxxx`).
+
+### Stale files / removed features
+
+- **AI integration was removed.** No OpenAI service, no `/ai-review` endpoints. `DOCUMENT_RULES_ENGINE_SUMMARY.md` and the `frontend/src/utils/docRules/` directory are gone but `LATEST_UPDATES.md` still mentions them.
+- **Application versioning was removed.** Edit mode now actually updates the existing record (was previously cloning to a new "version"). `CURRENCY_FORMATTING_UPDATE.md` references the older flow.
+- **Two duplicate controllers** existed (`LoanApplicationController` + `…Refactored`) — the refactored one was deleted. If you see references in old branches/notes, only the original remains.
+- **In-progress cleanup on `main`:** if `git status` shows uncommitted deletions of `OpenAIService.java`, `AIReviewResult.java`, `frontend/src/utils/docRules/`, `DocumentChecklist.tsx`, `useDocumentChecklist.ts`, the legacy `schema.sql`, or `LoanApplicationServiceRefactored.java`, that's the AI/docRules removal in progress — don't restore them.

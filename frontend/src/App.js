@@ -1,30 +1,38 @@
 import React, { useEffect } from 'react';
-import { BrowserRouter as Router, Routes, Route, useNavigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { useAuth } from 'react-oidc-context';
-import { ToastContainer } from 'react-toastify';
+import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 
 // Components
 import Header from './components/Header';
+import RequireAuth from './auth/RequireAuth';
+
+// Pages
 import ApplicationForm from './pages/ApplicationForm';
 import ApplicationList from './pages/ApplicationList';
 import ApplicationDetails from './pages/ApplicationDetails';
-
-// Auth
-import RequireAuth from './auth/RequireAuth';
 
 // Styles
 import './App.css';
 
 /**
- * Listens for the `auth:expired` event dispatched by apiClient on 401 and
- * triggers a fresh sign-in redirect. Keeps each call site free of auth logic.
+ * Listens for `auth:expired` events from {@link apiClient} (a 401 came back from the API).
+ * Routes the user through Cognito sign-in again. The form drafts in sessionStorage survive
+ * the round-trip, so anything they were typing is still there when they land back.
  */
 function AuthExpiredListener() {
   const auth = useAuth();
   useEffect(() => {
     const handler = () => {
-      if (!auth.activeNavigator) auth.signinRedirect();
+      // Show a friendly toast so the user understands what's about to happen
+      toast.warn('Session expired — signing you back in. Your work has been saved.', { autoClose: 4000 });
+      // Save where the user is so we can return them after re-auth
+      const returnTo = window.location.pathname + window.location.search;
+      // Brief delay so the toast renders before the redirect
+      setTimeout(() => {
+        auth.signinRedirect({ state: { returnTo } }).catch(() => {});
+      }, 500);
     };
     window.addEventListener('auth:expired', handler);
     return () => window.removeEventListener('auth:expired', handler);
@@ -33,16 +41,24 @@ function AuthExpiredListener() {
 }
 
 /**
- * Cognito redirect target. AuthProvider's onSigninCallback already stripped
- * the query string; we just send the user somewhere useful.
+ * Cognito redirects back to /auth/callback after sign-in. The AuthProvider in index.js
+ * handles the code-exchange transparently — we just need a route at this path so the
+ * redirect doesn't 404. Once auth state settles, send the user to their loans.
  */
 function AuthCallback() {
   const auth = useAuth();
-  const navigate = useNavigate();
-  useEffect(() => {
-    if (auth.isAuthenticated) navigate('/applications', { replace: true });
-  }, [auth.isAuthenticated, navigate]);
-  return <div style={{ padding: '2rem' }}>Signing in…</div>;
+  if (auth.isLoading) {
+    return <div style={{ padding: '2rem', textAlign: 'center' }}>Finishing sign-in…</div>;
+  }
+  if (auth.error) {
+    return (
+      <div style={{ padding: '2rem' }}>
+        <h2>Sign-in error</h2>
+        <p style={{ color: '#b91c1c' }}>{auth.error.message}</p>
+      </div>
+    );
+  }
+  return <Navigate to="/applications" replace />;
 }
 
 function App() {
@@ -54,10 +70,24 @@ function App() {
         <main className="main-content">
           <Routes>
             <Route path="/auth/callback" element={<AuthCallback />} />
+
+            {/* Marketing/landing route is the apply form (no auth required to start filling out;
+                the gate kicks in when the user tries to save). Phase 2D will replace this with a
+                proper public landing page that funnels into Cognito sign-up. */}
             <Route path="/" element={<ApplicationForm />} />
-            <Route path="/apply" element={<RequireAuth><ApplicationForm /></RequireAuth>} />
-            <Route path="/applications" element={<RequireAuth><ApplicationList /></RequireAuth>} />
-            <Route path="/applications/:id" element={<RequireAuth><ApplicationDetails /></RequireAuth>} />
+
+            <Route
+              path="/apply"
+              element={<RequireAuth><ApplicationForm /></RequireAuth>}
+            />
+            <Route
+              path="/applications"
+              element={<RequireAuth><ApplicationList /></RequireAuth>}
+            />
+            <Route
+              path="/applications/:id"
+              element={<RequireAuth><ApplicationDetails /></RequireAuth>}
+            />
           </Routes>
         </main>
         <ToastContainer

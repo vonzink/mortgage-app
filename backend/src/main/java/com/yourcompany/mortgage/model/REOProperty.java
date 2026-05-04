@@ -21,40 +21,33 @@ public class REOProperty {
     @NotNull(message = "Borrower is required")
     private Borrower borrower;
     
-    @Column(name = "sequence_number", nullable = false)
-    @NotNull(message = "Sequence number is required")
+    @Column(name = "sequence_number")
     @Min(value = 1, message = "Sequence number must be positive")
     private Integer sequenceNumber;
-    
-    @Column(name = "address_line", nullable = false)
-    @NotBlank(message = "Address line is required")
+
+    @Column(name = "address_line")
     @Size(max = 255, message = "Address line must not exceed 255 characters")
     private String addressLine;
-    
-    @Column(name = "city", nullable = false)
-    @NotBlank(message = "City is required")
+
+    @Column(name = "city")
     @Size(max = 100, message = "City must not exceed 100 characters")
     private String city;
-    
-    @Column(name = "state", nullable = false)
-    @NotBlank(message = "State is required")
+
+    @Column(name = "state")
     @Size(min = 2, max = 2, message = "State must be 2 characters")
     private String state;
-    
-    @Column(name = "zip_code", nullable = false)
-    @NotBlank(message = "ZIP code is required")
+
+    @Column(name = "zip_code")
     @Pattern(regexp = "\\d{5}(-\\d{4})?", message = "ZIP code must be in format 12345 or 12345-6789")
     private String zipCode;
-    
-    @Column(name = "property_type", nullable = false)
-    @NotBlank(message = "Property type is required")
-    @Pattern(regexp = "PrimaryResidence|SecondHome|Investment", 
+
+    @Column(name = "property_type")
+    @Pattern(regexp = "PrimaryResidence|SecondHome|Investment",
              message = "Property type must be PrimaryResidence, SecondHome, or Investment")
     private String propertyType;
-    
-    @Column(name = "property_value", nullable = false, precision = 15, scale = 2)
-    @NotNull(message = "Property value is required")
-    @DecimalMin(value = "1000.00", message = "Property value must be at least $1,000")
+
+    @Column(name = "property_value", precision = 15, scale = 2)
+    @DecimalMin(value = "0.00", message = "Property value must be non-negative")
     @DecimalMax(value = "99999999.99", message = "Property value cannot exceed $99,999,999.99")
     private BigDecimal propertyValue;
     

@@ -3,16 +3,34 @@
  * Reusable personal information input component
  */
 import React from 'react';
+import { formatSSN, formatPhone } from '../../utils/formHelpers';
 
-const PersonalInfoField = ({ 
-  register, 
-  errors, 
-  prefix = '', 
+const PersonalInfoField = ({
+  register,
+  errors,
+  prefix = '',
   required = false,
   label = 'Personal Information'
 }) => {
   const getFieldName = (field) => prefix ? `${prefix}.${field}` : field;
   const getError = (field) => prefix ? errors[prefix]?.[field] : errors[field];
+
+  /**
+   * Wire react-hook-form's register into a controlled input that reformats on every keystroke.
+   * The stored value is the formatted version (e.g. `123-45-6789`), so the backend gets
+   * something the regex validators are happy with.
+   */
+  const maskedRegister = (fieldName, validation, format) => {
+    const reg = register(fieldName, validation);
+    return {
+      ...reg,
+      onChange: (e) => {
+        const formatted = format(e.target.value);
+        e.target.value = formatted;
+        return reg.onChange(e);
+      },
+    };
+  };
 
   return (
     <div className="personal-info-fields">
@@ -74,13 +92,15 @@ const PersonalInfoField = ({
           <input
             type="text"
             id={getFieldName('ssn')}
-            {...register(getFieldName('ssn'), { 
+            {...maskedRegister(getFieldName('ssn'), {
               pattern: {
-                value: /^\d{3}-?\d{2}-?\d{4}$/,
+                value: /^\d{3}-\d{2}-\d{4}$/,
                 message: 'Invalid SSN format'
               }
-            })}
-            placeholder="123-45-6789"
+            }, formatSSN)}
+            placeholder="xxx-xx-xxxx"
+            inputMode="numeric"
+            autoComplete="off"
             className={getError('ssn') ? 'error' : ''}
           />
           {getError('ssn') && (
@@ -170,14 +190,16 @@ const PersonalInfoField = ({
           <input
             type="tel"
             id={getFieldName('phone')}
-            {...register(getFieldName('phone'), { 
+            {...maskedRegister(getFieldName('phone'), {
               required: required ? 'Phone number is required' : false,
               pattern: {
-                value: /^\(?([0-9]{3})\)?[-. ]?([0-9]{3})[-. ]?([0-9]{4})$/,
+                value: /^\d{3}-\d{3}-\d{4}$/,
                 message: 'Invalid phone number format'
               }
-            })}
-            placeholder="(555) 123-4567"
+            }, formatPhone)}
+            placeholder="xxx-xxx-xxxx"
+            inputMode="tel"
+            autoComplete="tel"
             className={getError('phone') ? 'error' : ''}
           />
           {getError('phone') && (

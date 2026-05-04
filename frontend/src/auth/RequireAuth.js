@@ -1,38 +1,50 @@
-import React, { useEffect } from 'react';
+import React from 'react';
 import { useAuth } from 'react-oidc-context';
-import { cognitoConfigured } from './cognitoConfig';
 
 /**
- * Route guard. If the user is unauthenticated, kick to Cognito Hosted UI.
- * If Cognito isn't configured (missing env vars), render a clear setup message
- * instead of looping into a broken redirect.
+ * Gate component for protected routes. Renders children once authenticated.
+ * If not authenticated, kicks off the Cognito redirect flow.
+ *
+ * Use:
+ *   <Route path="/applications" element={
+ *     <RequireAuth><ApplicationList /></RequireAuth>
+ *   } />
  */
 export default function RequireAuth({ children }) {
   const auth = useAuth();
 
-  useEffect(() => {
-    if (!cognitoConfigured) return;
-    if (!auth.isLoading && !auth.isAuthenticated && !auth.activeNavigator) {
-      auth.signinRedirect();
-    }
-  }, [auth, auth.isLoading, auth.isAuthenticated, auth.activeNavigator]);
-
-  if (!cognitoConfigured) {
+  // While react-oidc-context is bootstrapping (page just loaded, has refresh token, etc.)
+  if (auth.isLoading) {
     return (
-      <div style={{ padding: '2rem', maxWidth: 640, margin: '0 auto' }}>
-        <h2>Cognito not configured</h2>
-        <p>
-          Set <code>REACT_APP_COGNITO_CLIENT_ID</code> and{' '}
-          <code>REACT_APP_COGNITO_DOMAIN</code> in <code>frontend/.env</code> and
-          restart the dev server.
-        </p>
+      <div style={{ padding: '2rem', textAlign: 'center' }}>
+        Checking your sign-in…
       </div>
     );
   }
 
-  if (auth.isLoading) return <div style={{ padding: '2rem' }}>Loading…</div>;
-  if (auth.error) return <div style={{ padding: '2rem' }}>Sign-in error: {auth.error.message}</div>;
-  if (!auth.isAuthenticated) return <div style={{ padding: '2rem' }}>Redirecting to sign-in…</div>;
+  // OIDC error path (token expired, network failure during silent renew, etc.)
+  if (auth.error) {
+    return (
+      <div style={{ padding: '2rem' }}>
+        <h2>Sign-in error</h2>
+        <p style={{ color: '#b91c1c' }}>{auth.error.message}</p>
+        <button onClick={() => auth.signinRedirect()}>Sign in again</button>
+      </div>
+    );
+  }
+
+  if (!auth.isAuthenticated) {
+    // Trigger the Cognito hosted UI redirect. Returns once redirect happens.
+    auth.signinRedirect({
+      // After successful sign-in, return to the page they were trying to reach.
+      state: { returnTo: window.location.pathname + window.location.search },
+    });
+    return (
+      <div style={{ padding: '2rem', textAlign: 'center' }}>
+        Redirecting to sign-in…
+      </div>
+    );
+  }
 
   return children;
 }

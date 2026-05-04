@@ -102,10 +102,6 @@ hs_err_pid*
 
 # Maven
 target/
-
-# Local file uploads (legacy DocumentService path; replaced by S3 in Phase B)
-uploads/
-backend/uploads/
 pom.xml.tag
 pom.xml.releaseBackup
 pom.xml.versionsBackup
@@ -147,7 +143,6 @@ hs_err_pid*
 # Eclipse
 .metadata
 bin/
-!infra/bin/
 tmp/
 *.tmp
 *.bak

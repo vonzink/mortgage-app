@@ -26,4 +26,25 @@ public interface LoanApplicationRepository extends JpaRepository<LoanApplication
     
     @Query("SELECT COUNT(la) FROM LoanApplication la WHERE la.status = :status")
     Long countByStatus(@Param("status") String status);
+
+    /** Loans where the given user is one of the borrowers. */
+    @Query("""
+            SELECT DISTINCT la FROM LoanApplication la
+            JOIN la.borrowers b
+            WHERE b.userId = :userId
+            ORDER BY la.createdDate DESC
+            """)
+    List<LoanApplication> findByBorrowerUserId(@Param("userId") Integer userId);
+
+    /** Loans where the given user is the assigned LO. */
+    List<LoanApplication> findByAssignedLoIdOrderByCreatedDateDesc(Integer assignedLoId);
+
+    /** Loans where the given user is one of the attached real-estate agents. */
+    @Query(value = """
+            SELECT DISTINCT la.* FROM loan_applications la
+            JOIN loan_agents agt ON agt.loan_application_id = la.id
+            WHERE agt.user_id = :userId
+            ORDER BY la.created_date DESC
+            """, nativeQuery = true)
+    List<LoanApplication> findByAgentUserId(@Param("userId") Integer userId);
 }

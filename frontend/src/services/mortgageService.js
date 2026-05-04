@@ -1,183 +1,198 @@
 import apiClient from './apiClient';
 
-// Bare axios for the direct-to-S3 PUT only — that hits the presigned URL on
-// AWS, not our backend, and must NOT carry our Authorization header.
-import axios from 'axios';
-
-// Pulls filename out of `attachment; filename="…"` headers; safe for blob downloads.
-function parseFilename(disposition) {
-  if (!disposition) return null;
-  const match = /filename\*?=(?:UTF-8'')?["']?([^"';]+)["']?/i.exec(disposition);
-  return match ? decodeURIComponent(match[1]) : null;
-}
-
+/**
+ * Backend API surface for the borrower portal.
+ *
+ * Auth: every call is automatically attached a Bearer token by apiClient's request
+ * interceptor (read from sessionStorage where react-oidc-context stores the user).
+ *
+ * Document upload: Phase 2B switched from the old multipart upload endpoint to a
+ * presigned-URL flow. The new sequence is documented on the methods below.
+ */
 const mortgageService = {
-  // ----- Loan applications -----
+  // ────────────────── Loan applications ──────────────────
+
+  /** Create a fresh loan application. Backend stamps the assigned LO if the JWT belongs to one. */
   createApplication: async (applicationData) => {
     try {
-      const response = await apiClient.post('/loan-applications', applicationData);
-      return response.data;
+      const { data } = await apiClient.post('/loan-applications', applicationData);
+      return data;
     } catch (error) {
-      console.error('API Error:', error.response?.data);
-      const errorMessage = error.response?.data?.message ||
-                          error.response?.data?.error ||
-                          error.response?.data ||
-                          'Failed to create application';
-      throw new Error(typeof errorMessage === 'string' ? errorMessage : 'Request validation failed');
+      const fieldErrors = error.response?.data?.fieldErrors;
+      if (fieldErrors) console.error('Field validation errors:', fieldErrors);
+      const msg = error.response?.data?.message || error.response?.data?.error || error.response?.data || 'Failed to create application';
+      throw new Error(typeof msg === 'string' ? msg : 'Request validation failed');
     }
   },
 
   getApplications: async () => {
-    try {
-      const response = await apiClient.get('/loan-applications');
-      return response.data;
-    } catch (error) {
-      throw new Error(error.response?.data?.message || 'Failed to fetch applications');
-    }
+    const { data } = await apiClient.get('/loan-applications');
+    return data;
   },
 
   getApplication: async (id) => {
-    try {
-      const response = await apiClient.get(`/loan-applications/${id}`);
-      return response.data;
-    } catch (error) {
-      throw new Error(error.response?.data?.message || 'Failed to fetch application');
-    }
+    const { data } = await apiClient.get(`/loan-applications/${id}`);
+    return data;
   },
 
   updateApplication: async (id, applicationData) => {
-    try {
-      const response = await apiClient.put(`/loan-applications/${id}`, applicationData);
-      return response.data;
-    } catch (error) {
-      throw new Error(error.response?.data?.message || 'Failed to update application');
-    }
-  },
-
-  aiReviewApplication: async (id) => {
-    try {
-      const response = await apiClient.post(`/loan-applications/${id}/ai-review`);
-      return response.data;
-    } catch (error) {
-      throw new Error(error.response?.data?.message || 'AI review failed');
-    }
-  },
-
-  aiReviewPreview: async (applicationData) => {
-    try {
-      const response = await apiClient.post('/loan-applications/ai-review-preview', applicationData);
-      return response.data;
-    } catch (error) {
-      throw new Error(error.response?.data?.message || 'AI review preview failed');
-    }
+    const { data } = await apiClient.put(`/loan-applications/${id}`, applicationData);
+    return data;
   },
 
   deleteApplication: async (id) => {
-    try {
-      await apiClient.delete(`/loan-applications/${id}`);
-    } catch (error) {
-      throw new Error(error.response?.data?.message || 'Failed to delete application');
-    }
+    await apiClient.delete(`/loan-applications/${id}`);
   },
 
-  // ----- MISMO export (backend-generated, gated by LoanAccessGuard) -----
-  // variant: "closing" | "fnm"
-  downloadMismoXml: async (applicationId, variant = 'closing') => {
-    try {
-      const resp = await apiClient.get(
-        `/loan-applications/${applicationId}/export/mismo`,
-        { params: { variant }, responseType: 'blob' }
-      );
-      const filename = parseFilename(resp.headers['content-disposition'])
-        || `MISMO-3.4-${variant}-${applicationId}.xml`;
-      const url = window.URL.createObjectURL(resp.data);
-      const link = document.createElement('a');
-      link.href = url;
-      link.setAttribute('download', filename);
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      window.URL.revokeObjectURL(url);
-    } catch (error) {
-      throw new Error(error.response?.data?.message || 'Failed to download MISMO XML');
-    }
+  /** Status timeline for the borrower portal's progress view. */
+  getStatusHistory: async (id) => {
+    const { data } = await apiClient.get(`/loan-applications/${id}/status-history`);
+    return data;
   },
 
-  // ----- Documents (3-step direct-to-S3 flow) -----
-  uploadDocument: async (applicationId, documentType, file, options = {}) => {
-    const { partyRole = 'borrower' } = options;
-    try {
-      const presignResp = await apiClient.post(
-        `/loan-applications/${applicationId}/documents/upload-url`,
-        {
-          documentType,
-          partyRole,
-          fileName: file.name,
-          contentType: file.type || 'application/octet-stream',
-        }
-      );
-      const { docUuid, uploadUrl } = presignResp.data;
+  // ────────────────── MISMO export / import ──────────────────
 
-      // Direct-to-S3 PUT — must use bare axios so our backend's Authorization
-      // header doesn't tag along (it would break the presigned signature).
-      await axios.put(uploadUrl, file, {
-        headers: { 'Content-Type': file.type || 'application/octet-stream' },
-        transformRequest: [(data) => data],
+  /**
+   * Download a MISMO 3.4 XML file for the loan and trigger a browser save dialog.
+   * Returns the suggested filename so the caller can show a confirmation toast.
+   */
+  exportMismo: async (loanId) => {
+    const response = await apiClient.get(`/loan-applications/${loanId}/export/mismo`, {
+      responseType: 'blob',
+    });
+    // Filename comes back via Content-Disposition; parse it (apiClient exposes it)
+    const cd = response.headers?.['content-disposition'] || '';
+    const m = /filename="?([^"]+)"?/.exec(cd);
+    const filename = m ? m[1] : `MSFG-loan-${loanId}.xml`;
+    const url = window.URL.createObjectURL(new Blob([response.data], { type: 'application/xml' }));
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', filename);
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    window.URL.revokeObjectURL(url);
+    return filename;
+  },
+
+  /**
+   * Create a brand-new loan application by importing a MISMO XML file. Used by the "Start from
+   * MISMO" entry point on /applications. Returns { ok, id, applicationNumber, changeCount, ... }.
+   */
+  createFromMismo: async (file) => {
+    const form = new FormData();
+    form.append('file', file);
+    try {
+      const { data } = await apiClient.post('/loan-applications/from-mismo', form, {
+        headers: { 'Content-Type': 'multipart/form-data' },
       });
+      return data;
+    } catch (e) {
+      throw new Error(e.response?.data?.message || e.response?.data?.error || 'Create-from-MISMO failed');
+    }
+  },
 
-      const confirmResp = await apiClient.put(
-        `/loan-applications/${applicationId}/documents/${docUuid}/confirm`
+  /**
+   * Upload a MISMO XML file. Returns the parsed result on success ({ ok, changeCount, changes, ... }).
+   *
+   * If the file's CreatedDatetime is older than the application's last-update time, the backend
+   * returns 409 with drift details. Throw a special DriftError so the caller can prompt and
+   * optionally retry with force=true.
+   */
+  importMismo: async (loanId, file, { force = false } = {}) => {
+    const form = new FormData();
+    form.append('file', file);
+    try {
+      const { data } = await apiClient.post(
+        `/loan-applications/${loanId}/import/mismo${force ? '?force=true' : ''}`,
+        form,
+        { headers: { 'Content-Type': 'multipart/form-data' } }
       );
-      return confirmResp.data;
-    } catch (error) {
-      throw new Error(error.response?.data?.message || error.message || 'Failed to upload document');
+      return data;
+    } catch (e) {
+      if (e.response?.status === 409 && e.response.data?.error === 'drift_detected') {
+        const err = new Error('drift_detected');
+        err.drift = e.response.data;
+        throw err;
+      }
+      throw new Error(e.response?.data?.message || e.response?.data?.error || 'MISMO import failed');
     }
   },
 
-  getApplicationDocuments: async (applicationId) => {
-    try {
-      const response = await apiClient.get(`/loan-applications/${applicationId}/documents`);
-      return response.data;
-    } catch (error) {
-      throw new Error(error.response?.data?.message || 'Failed to fetch documents');
-    }
+  /** Update status (LO/Admin only). Note: the backend uses PATCH and a `status` query param. */
+  updateApplicationStatus: async (id, status) => {
+    const { data } = await apiClient.patch(`/loan-applications/${id}/status?status=${encodeURIComponent(status)}`);
+    return data;
   },
 
-  downloadDocument: async (applicationId, docUuid, fileName) => {
-    try {
-      const resp = await apiClient.get(
-        `/loan-applications/${applicationId}/documents/${docUuid}/download-url`
-      );
-      const link = document.createElement('a');
-      link.href = resp.data.downloadUrl;
-      if (fileName) link.setAttribute('download', fileName);
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-    } catch (error) {
-      throw new Error(error.response?.data?.message || 'Failed to download document');
-    }
+  // ────────────────── "Me" (user-scoped) ──────────────────
+
+  getMe: async () => {
+    const { data } = await apiClient.get('/me');
+    return data;
   },
 
-  renameDocument: async (applicationId, docUuid, displayName) => {
-    try {
-      const resp = await apiClient.patch(
-        `/loan-applications/${applicationId}/documents/${docUuid}`,
-        { displayName }
-      );
-      return resp.data;
-    } catch (error) {
-      throw new Error(error.response?.data?.message || 'Failed to rename document');
-    }
+  getMyLoans: async () => {
+    const { data } = await apiClient.get('/me/loans');
+    return data;
   },
 
-  deleteDocument: async (applicationId, docUuid) => {
-    try {
-      await apiClient.delete(`/loan-applications/${applicationId}/documents/${docUuid}`);
-    } catch (error) {
-      throw new Error(error.response?.data?.message || 'Failed to delete document');
-    }
-  }
+  // ────────────────── Documents (Phase 2B presigned URL flow) ──────────────────
+
+  /**
+   * Step 1: ask the backend for a presigned PUT URL.
+   * Returns: { documentId, docUuid, s3Key, bucket, uploadUrl, contentType, expiresInSeconds }
+   */
+  getDocumentUploadUrl: async (loanId, { fileName, documentType, partyRole, contentType }) => {
+    const { data } = await apiClient.post(`/loan-applications/${loanId}/documents/upload-url`, {
+      fileName, documentType, partyRole,
+      contentType: contentType || 'application/octet-stream',
+    });
+    return data;
+  },
+
+  /**
+   * Step 2: upload directly to S3 using the presigned URL. No auth header — the URL itself
+   * is the credential. Content-Type must match what we asked for.
+   */
+  uploadFileToS3: async (uploadUrl, file) => {
+    await fetch(uploadUrl, {
+      method: 'PUT',
+      headers: { 'Content-Type': file.type || 'application/octet-stream' },
+      body: file,
+    }).then(r => {
+      if (!r.ok) throw new Error(`S3 upload failed: HTTP ${r.status}`);
+    });
+  },
+
+  /** Step 3: tell the backend the upload finished. Backend HEADs S3, applies tags, flips status. */
+  confirmDocumentUpload: async (loanId, docUuid) => {
+    const { data } = await apiClient.put(`/loan-applications/${loanId}/documents/${docUuid}/confirm`);
+    return data;
+  },
+
+  getApplicationDocuments: async (loanId) => {
+    const { data } = await apiClient.get(`/loan-applications/${loanId}/documents`);
+    return data;
+  },
+
+  /** Returns a presigned GET URL good for ~15 min. Caller can window.location.href to it. */
+  getDocumentDownloadUrl: async (loanId, docUuid) => {
+    const { data } = await apiClient.get(`/loan-applications/${loanId}/documents/${docUuid}/download-url`);
+    return data; // { downloadUrl, expiresInSeconds }
+  },
+
+  /** Convenience: full upload sequence. Returns the saved document record. */
+  uploadDocument: async (loanId, { file, documentType, partyRole = 'borrower' }) => {
+    const slot = await mortgageService.getDocumentUploadUrl(loanId, {
+      fileName: file.name,
+      documentType,
+      partyRole,
+      contentType: file.type,
+    });
+    await mortgageService.uploadFileToS3(slot.uploadUrl, file);
+    return mortgageService.confirmDocumentUpload(loanId, slot.docUuid);
+  },
 };
 
 export default mortgageService;

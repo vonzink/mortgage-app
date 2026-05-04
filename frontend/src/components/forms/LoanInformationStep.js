@@ -1,14 +1,92 @@
 /**
  * Loan Information Step Component
  * Step 1: Basic loan details
+ *
+ * UX:
+ *   - Purchase loans show "Purchase Price" + Down Payment ($/% toggle); Loan Amount auto-
+ *     computes from Purchase Price - Down Payment, but is editable (then DP recomputes).
+ *   - Refinance / CashOut show "Property Value"; no down-payment block; Loan Amount is direct.
+ *   - All three monetary fields stay in sync via per-field onChange handlers (no useEffect
+ *     ping-ponging) so user input remains responsive.
  */
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { FaHome } from 'react-icons/fa';
 import FormSection from '../shared/FormSection';
 import CurrencyInput from '../form-fields/CurrencyInput';
 
 const LoanInformationStep = ({ register, errors, watch, setValue, getValues }) => {
   const loanPurpose = watch('loanPurpose');
+  const isPurchase = loanPurpose === 'Purchase';
+
+  // Local UI state for the down-payment input mode. The stored field (`downPayment`) is
+  // ALWAYS the dollar amount; the toggle just changes how the user enters it.
+  const [dpMode, setDpMode] = useState('$');
+
+  // For % mode only, track raw user input so the field doesn't fight the recompute on
+  // every keystroke. ($ mode is handled by CurrencyInput's own internal state.)
+  const [pctRaw, setPctRaw] = useState(null);
+
+  const num = (v) => {
+    const n = parseFloat(String(v ?? '').replace(/,/g, ''));
+    return Number.isFinite(n) ? n : 0;
+  };
+
+  const purchasePrice = num(watch('propertyValue'));
+  const downPayment = num(watch('downPayment'));
+
+  // % mode display: derived from stored $ unless the user is actively typing
+  const pctDerived = purchasePrice > 0 ? ((downPayment / purchasePrice) * 100).toFixed(2) : '';
+  const pctDisplay = pctRaw !== null ? pctRaw : pctDerived;
+
+  useEffect(() => { setPctRaw(null); }, [dpMode]);
+
+  // ── Per-field handlers ─────────────────────────────────────────────────────
+  const onPurchasePriceChange = (e) => {
+    const newPP = num(e.target.value);
+    setValue('propertyValue', e.target.value);
+    if (!isPurchase) return;
+    setValue('loanAmount', Math.max(newPP - downPayment, 0).toFixed(2));
+  };
+
+  // $ mode: CurrencyInput passes us a numeric value already
+  const onDpDollarChange = (e) => {
+    const dpDollar = num(e.target.value);
+    setValue('downPayment', dpDollar);
+    if (!isPurchase) return;
+    setValue('loanAmount', Math.max(purchasePrice - dpDollar, 0).toFixed(2));
+  };
+
+  // % mode: track the raw string so partial values like "1" → "12" → "12." → "12.5" don't
+  // bounce around. Compute the $ amount from the typed % and store that.
+  const onDpPercentChange = (e) => {
+    const raw = e.target.value;
+    setPctRaw(raw);
+    const pct = num(raw);
+    const dpDollar = purchasePrice * pct / 100;
+    setValue('downPayment', Number(dpDollar.toFixed(2)));
+    if (!isPurchase) return;
+    setValue('loanAmount', Math.max(purchasePrice - dpDollar, 0).toFixed(2));
+  };
+  const onDpPercentFocus = () => setPctRaw(pctDerived);
+  const onDpPercentBlur = () => setPctRaw(null);
+
+  const onLoanAmountChange = (e) => {
+    const newLA = num(e.target.value);
+    setValue('loanAmount', e.target.value);
+    if (!isPurchase) return;
+    setValue('downPayment', Math.max(purchasePrice - newLA, 0).toFixed(2));
+    setPctRaw(null);  // refresh the % display from new stored value
+  };
+
+  const toggleStyle = (active) => ({
+    padding: '0.4rem 0.75rem',
+    border: '1px solid var(--primary-color, #2563eb)',
+    background: active ? 'var(--primary-color, #2563eb)' : 'white',
+    color: active ? 'white' : 'var(--primary-color, #2563eb)',
+    cursor: 'pointer',
+    fontWeight: 500,
+  });
+
   return (
     <FormSection
       title="Loan Information"
@@ -54,13 +132,84 @@ const LoanInformationStep = ({ register, errors, watch, setValue, getValues }) =
 
       <div className="form-row">
         <div className="form-group">
-          <label htmlFor="loanAmount">Loan Amount</label>
+          <label htmlFor="propertyValue">
+            {isPurchase ? 'Purchase Price' : 'Property Value'}
+          </label>
+          <CurrencyInput
+            id="propertyValue"
+            name="propertyValue"
+            value={watch('propertyValue') || ''}
+            onChange={onPurchasePriceChange}
+            placeholder={isPurchase ? '500,000.00' : '600,000.00'}
+            className={errors.propertyValue ? 'error' : ''}
+          />
+          {errors.propertyValue && (
+            <span className="error-message">{errors.propertyValue.message}</span>
+          )}
+        </div>
+
+        {isPurchase && (
+          <div className="form-group">
+            <label htmlFor="downPayment">
+              Down Payment
+              <span style={{ marginLeft: '0.75rem', display: 'inline-flex', borderRadius: 4, overflow: 'hidden' }}>
+                <button type="button" onClick={() => setDpMode('$')} style={{ ...toggleStyle(dpMode === '$'), borderRadius: '4px 0 0 4px' }}>$</button>
+                <button type="button" onClick={() => setDpMode('%')} style={{ ...toggleStyle(dpMode === '%'), borderLeft: 0, borderRadius: '0 4px 4px 0' }}>%</button>
+              </span>
+            </label>
+            {dpMode === '$' ? (
+              <CurrencyInput
+                id="downPayment"
+                name="downPayment"
+                value={watch('downPayment') || ''}
+                onChange={onDpDollarChange}
+                placeholder="100,000.00"
+                className={errors.downPayment ? 'error' : ''}
+              />
+            ) : (
+              <input
+                type="number"
+                id="downPayment"
+                value={pctDisplay}
+                onChange={onDpPercentChange}
+                onFocus={onDpPercentFocus}
+                onBlur={onDpPercentBlur}
+                placeholder="20.00"
+                step="0.01"
+                min="0"
+                max="100"
+                className={errors.downPayment ? 'error' : ''}
+                inputMode="decimal"
+              />
+            )}
+            <small style={{ color: 'var(--text-secondary, #666)', marginTop: '0.25rem', display: 'block' }}>
+              {dpMode === '$' && purchasePrice > 0
+                ? `${((downPayment / purchasePrice) * 100).toFixed(2)}% of purchase price`
+                : dpMode === '%' && purchasePrice > 0
+                ? `≈ $${downPayment.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+                : null}
+            </small>
+            {errors.downPayment && (
+              <span className="error-message">{errors.downPayment.message}</span>
+            )}
+          </div>
+        )}
+      </div>
+
+      <div className="form-row">
+        <div className="form-group">
+          <label htmlFor="loanAmount">
+            Loan Amount
+            {isPurchase && <small style={{ color: 'var(--text-secondary, #666)', marginLeft: '0.5rem', fontWeight: 400 }}>
+              (auto-calculated; you can override)
+            </small>}
+          </label>
           <CurrencyInput
             id="loanAmount"
             name="loanAmount"
             value={watch('loanAmount') || ''}
-            onChange={(e) => setValue('loanAmount', e.target.value)}
-            placeholder="500,000.00"
+            onChange={onLoanAmountChange}
+            placeholder="400,000.00"
             className={errors.loanAmount ? 'error' : ''}
           />
           {errors.loanAmount && (
@@ -68,39 +217,7 @@ const LoanInformationStep = ({ register, errors, watch, setValue, getValues }) =
           )}
         </div>
 
-        <div className="form-group">
-          <label htmlFor="propertyValue">Property Value</label>
-          <CurrencyInput
-            id="propertyValue"
-            name="propertyValue"
-            value={watch('propertyValue') || ''}
-            onChange={(e) => setValue('propertyValue', e.target.value)}
-            placeholder="600,000.00"
-            className={errors.propertyValue ? 'error' : ''}
-          />
-          {errors.propertyValue && (
-            <span className="error-message">{errors.propertyValue.message}</span>
-          )}
-        </div>
-      </div>
-
-      {loanPurpose === 'Purchase' && (
-        <div className="form-row">
-          <div className="form-group">
-            <label htmlFor="downPayment">Down Payment</label>
-            <CurrencyInput
-              id="downPayment"
-              name="downPayment"
-              value={watch('downPayment') || ''}
-              onChange={(e) => setValue('downPayment', e.target.value)}
-              placeholder="100,000.00"
-              className={errors.downPayment ? 'error' : ''}
-            />
-            {errors.downPayment && (
-              <span className="error-message">{errors.downPayment.message}</span>
-            )}
-          </div>
-
+        {isPurchase && (
           <div className="form-group">
             <label htmlFor="downPaymentSource">Down Payment Source</label>
             <select
@@ -119,8 +236,8 @@ const LoanInformationStep = ({ register, errors, watch, setValue, getValues }) =
               <span className="error-message">{errors.downPaymentSource.message}</span>
             )}
           </div>
-        </div>
-      )}
+        )}
+      </div>
 
       <div className="form-row">
         <div className="form-group">

@@ -35,10 +35,10 @@ import mortgageService from '../../services/mortgageService';
 
 // Utils
 import { createDefaultBorrower } from '../../utils/fieldArrayHelpers';
+import { summarizeErrors } from '../../utils/formErrorHelpers';
+import { useDraftAutosave, clearDraft } from '../../hooks/useDraftAutosave';
 
 const ApplicationForm = () => {
-  const [aiReviewLoading, setAiReviewLoading] = useState(false);
-  const [aiReviewResult, setAiReviewResult] = useState(null);
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const editId = searchParams.get('edit');
@@ -51,6 +51,15 @@ const ApplicationForm = () => {
     defaultValues: {
       borrowers: [createDefaultBorrower(1)]
     }
+  });
+
+  // Draft autosave — survives session-expired re-auth round-trips. Distinct keys for new
+  // vs edit so we don't cross-contaminate.
+  const draftKey = editId ? `draft:edit:${editId}` : 'draft:new';
+  useDraftAutosave({
+    watch, getValues, reset,
+    storageKey: draftKey,
+    enabled: !isViewing,
   });
 
   // Load carry-over data if available
@@ -214,7 +223,7 @@ const ApplicationForm = () => {
     { number: 2, title: 'Borrower', icon: <FaUser />, description: 'Personal details and residence history' },
     { number: 3, title: 'Property', icon: <FaHome />, description: 'Property information' },
     { number: 4, title: 'Employment', icon: <FaBriefcase />, description: 'Work and income details' },
-    { number: 5, title: 'Assets', icon: <FaFileAlt />, description: 'Assets and liabilities including REO properties' },
+    { number: 5, title: 'Finances', icon: <FaFileAlt />, description: 'Assets, liabilities, and real estate owned' },
     { number: 6, title: 'Declarations', icon: <FaFileAlt />, description: 'Mortgage declarations' },
     { number: 7, title: 'Submit', icon: <FaCheck />, description: 'Review and submit application' }
   ];
@@ -224,9 +233,26 @@ const ApplicationForm = () => {
     const isStepValid = await trigger();
     if (isStepValid) {
       nextStep();
-    } else {
-      toast.error('Please fix the errors before proceeding to the next step.');
+      return;
     }
+    // Surface specific missing/invalid fields instead of a generic message.
+    const summary = summarizeErrors(errors);
+    if (!summary) {
+      toast.error('Please fix the errors before proceeding to the next step.');
+      return;
+    }
+    const heading = summary.count === 1
+      ? 'Please complete this field before continuing:'
+      : `Please complete these ${summary.count} fields before continuing:`;
+    toast.error(
+      <div>
+        <div style={{ fontWeight: 600, marginBottom: '0.4rem' }}>{heading}</div>
+        <ul style={{ margin: 0, paddingLeft: '1.2rem' }}>
+          {summary.lines.map((line, i) => <li key={i}>{line}</li>)}
+        </ul>
+      </div>,
+      { autoClose: 8000 }
+    );
   };
 
   const handlePrevStep = () => {
@@ -386,38 +412,22 @@ const ApplicationForm = () => {
       console.log('[DEBUG] Number of borrowers:', applicationData.borrowers?.length);
       console.log('[DEBUG] Number of liabilities:', applicationData.liabilities?.length);
 
-      // Always create a new application (even when editing)
-      // This preserves the original and creates a new edited version
+      // Edit mode actually updates the existing record; new mode creates fresh.
+      // (Previously this always created a new "version" — that behavior was removed.)
+      let savedApplication;
       if (isEditing && editId) {
-        console.log('[DEBUG] EDIT MODE: Creating new version of application', editId);
+        console.log('[DEBUG] EDIT MODE: Updating application', editId);
+        savedApplication = await mortgageService.updateApplication(editId, applicationData);
       } else {
         console.log('[DEBUG] NEW APPLICATION: Creating fresh application');
+        savedApplication = await mortgageService.createApplication(applicationData);
       }
-      
-      console.log('[DEBUG] Calling mortgageService.createApplication...');
-      const createdApplication = await mortgageService.createApplication(applicationData);
-      console.log('[DEBUG] Application created successfully! Response:', createdApplication);
-      console.log('[DEBUG] Original application ID:', editId || 'N/A (new app)');
-      console.log('[DEBUG] New application ID:', createdApplication.id);
-      console.log('[DEBUG] New application number:', createdApplication.applicationNumber);
-      
-      // Run AI review (non-blocking for UX)
-      try {
-        const aiResult = await mortgageService.aiReviewApplication(createdApplication.id);
-        console.log('[DEBUG] AI Review Result:', aiResult);
-        sessionStorage.setItem(`aiReview_${createdApplication.id}`, JSON.stringify(aiResult));
-        if (aiResult?.summary) {
-          toast.info(`AI review: ${aiResult.summary.substring(0, 120)}${aiResult.summary.length > 120 ? '…' : ''}`);
-        }
-      } catch (aiErr) {
-        console.warn('[WARN] AI review failed:', aiErr);
-      }
-      
-      if (isEditing && editId) {
-        toast.success(`Edited application saved as new version! (Original: ${editId}, New: ${createdApplication.id})`);
-      } else {
-        toast.success('Application submitted successfully!');
-      }
+      console.log('[DEBUG] Application saved successfully! Response:', savedApplication);
+
+      // Successful submit — drop the autosaved draft so the user doesn't see it next time.
+      clearDraft(draftKey);
+
+      toast.success(isEditing ? 'Application updated successfully!' : 'Application submitted successfully!');
       
       // Navigate to My Applications after a brief delay to show the success message
       setTimeout(() => {
@@ -446,129 +456,6 @@ const ApplicationForm = () => {
       toast.error(errorMessage, { autoClose: 5000 });
     } finally {
       setIsSubmitting(false);
-    }
-  };
-
-  // Run AI review preview without saving; allow user to edit afterward
-  const onAIReview = async () => {
-    try {
-      setAiReviewLoading(true);
-      setAiReviewResult(null);
-      const data = getValues();
-
-      const hasValue = (v) => v !== undefined && v !== null && String(v).trim() !== '';
-      const normalizeLiabilityType = (type) => (type || '').toUpperCase();
-
-      const applicationData = {
-        loanPurpose: data.loanPurpose,
-        loanType: data.loanType,
-        loanAmount: parseFloat(data.loanAmount) || 0,
-        propertyValue: parseFloat(data.propertyValue) || 0,
-        status: 'DRAFT',
-        property: {
-          addressLine: hasValue(data.property?.addressLine) ? data.property.addressLine : null,
-          city: hasValue(data.property?.city) ? data.property.city : null,
-          state: hasValue(data.property?.state) ? data.property.state : null,
-          zipCode: hasValue(data.property?.zipCode) ? data.property.zipCode : null,
-          occupancy: data.occupancy || 'PrimaryResidence',
-          constructionType: hasValue(data.constructionType) ? data.constructionType : 'SiteBuilt',
-          yearBuilt: hasValue(data.yearBuilt) ? parseInt(data.yearBuilt) : null,
-          unitsCount: hasValue(data.unitsCount) ? parseInt(data.unitsCount) : 1
-        },
-        borrowers: (data.borrowers || [])
-          .filter(b => hasValue(b.firstName) && hasValue(b.lastName))
-          .map((borrower, idx) => ({
-            sequenceNumber: idx + 1,
-            firstName: borrower.firstName,
-            lastName: borrower.lastName,
-            ssn: borrower.ssn || null,
-            birthDate: borrower.dateOfBirth || null,
-            maritalStatus: borrower.maritalStatus || null,
-            email: borrower.email || null,
-            phone: borrower.phone || null,
-            citizenshipType: borrower.citizenshipType || null,
-            dependentsCount: parseInt(borrower.dependentsCount) || 0,
-            employmentHistory: (borrower.employmentHistory || [])
-              .filter(emp => hasValue(emp.employerName) && hasValue(emp.startDate) && hasValue(emp.employmentStatus))
-              .map((emp, eIdx) => ({
-                sequenceNumber: eIdx + 1,
-                employerName: emp.employerName,
-                employmentStatus: emp.employmentStatus,
-                selfEmployed: !!emp.selfEmployed,
-                position: emp.position || null,
-                startDate: emp.startDate || null,
-                endDate: emp.endDate || null,
-                monthlyIncome: parseFloat(emp.monthlyIncome) || 0
-              })),
-            incomeSources: (borrower.incomeSources || [])
-              .filter(income => hasValue(income.incomeType) && parseFloat(income.monthlyAmount) > 0)
-              .map((income, iIdx) => ({
-                sequenceNumber: iIdx + 1,
-                incomeType: income.incomeType,
-                monthlyAmount: parseFloat(income.monthlyAmount) || 0
-              })),
-            residences: (borrower.residences || [])
-              .filter(res => hasValue(res.addressLine))
-              .map((res, rIdx) => ({
-                sequenceNumber: rIdx + 1,
-                addressLine: res.addressLine,
-                city: res.city || null,
-                state: res.state || null,
-                zipCode: res.zipCode || null,
-                occupancy: res.occupancy || null,
-                startDate: res.startDate || null,
-                endDate: res.endDate || null
-              })),
-            reoProperties: (borrower.reoProperties || [])
-              .filter(reo => hasValue(reo.addressLine) && hasValue(reo.city))
-              .map((reo, pIdx) => ({
-                sequenceNumber: pIdx + 1,
-                addressLine: reo.addressLine,
-                city: reo.city,
-                state: reo.state || null,
-                zipCode: reo.zipCode || null,
-                propertyType: reo.propertyType || null,
-                propertyValue: parseFloat(reo.propertyValue) || 0,
-                monthlyRentalIncome: parseFloat(reo.monthlyRentalIncome) || 0,
-                monthlyPayment: parseFloat(reo.monthlyPayment) || 0,
-                unpaidBalance: parseFloat(reo.unpaidBalance) || 0
-              })),
-            assets: (borrower.assets || [])
-              .filter(asset => hasValue(asset.assetType) && parseFloat(asset.assetValue) > 0)
-              .map(asset => ({
-                assetType: asset.assetType,
-                bankName: asset.bankName || null,
-                accountNumber: asset.accountNumber || null,
-                assetValue: parseFloat(asset.assetValue) || 0,
-                usedForDownpayment: asset.usedForDownpayment || false
-              }))
-          })),
-        liabilities: (data.borrowers || [])
-          .filter(b => hasValue(b.firstName) && hasValue(b.lastName))
-          .flatMap(b => (b.liabilities || [])
-            .filter(l => hasValue(l.creditorName) && hasValue(l.liabilityType))
-            .map(l => ({
-              creditorName: l.creditorName,
-              accountNumber: l.accountNumber || null,
-              liabilityType: normalizeLiabilityType(l.liabilityType),
-              monthlyPayment: parseFloat(l.monthlyPayment) || 0,
-              unpaidBalance: parseFloat(l.unpaidBalance) || 0,
-              payoffStatus: false,
-              toBePaidOff: false
-            }))
-          )
-      };
-
-      const result = await mortgageService.aiReviewPreview(applicationData);
-      setAiReviewResult(result);
-      if (result?.summary) {
-        toast.success('AI Review complete. See recommendations below.');
-      }
-    } catch (e) {
-      console.error('[AI Review] Failed:', e);
-      toast.error(e.message || 'AI review failed');
-    } finally {
-      setAiReviewLoading(false);
     }
   };
 
@@ -638,9 +525,6 @@ const ApplicationForm = () => {
                         isSubmitting={isSubmitting}
                         isEditing={isEditing}
                         isViewing={isViewing}
-                        onAIReview={onAIReview}
-                        aiReviewLoading={aiReviewLoading}
-                        aiReviewResult={aiReviewResult}
                     />
                 );
             default:

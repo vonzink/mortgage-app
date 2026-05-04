@@ -23,13 +23,12 @@ public class Employment {
     @NotNull(message = "Borrower is required")
     private Borrower borrower;
     
-    @Column(name = "sequence_number", nullable = false)
-    @NotNull(message = "Sequence number is required")
+    @Column(name = "sequence_number")
     @Min(value = 1, message = "Sequence number must be positive")
     private Integer sequenceNumber;
-    
-    @Column(name = "employer_name", nullable = false)
-    @NotBlank(message = "Employer name is required")
+
+    /** Optional during partial imports — MISMO data may stub an employer without a name yet. */
+    @Column(name = "employer_name")
     @Size(max = 100, message = "Employer name must not exceed 100 characters")
     private String employerName;
     
@@ -57,30 +56,28 @@ public class Employment {
     @Pattern(regexp = "\\d{5}(-\\d{4})?", message = "ZIP code must be in format 12345 or 12345-6789")
     private String employerZip;
     
-    @Column(name = "start_date", nullable = false)
-    @NotNull(message = "Start date is required")
-    @PastOrPresent(message = "Start date cannot be in the future")
+    @Column(name = "start_date")
     private LocalDate startDate;
-    
+
     @Column(name = "end_date")
     private LocalDate endDate;
-    
-    @Column(name = "monthly_income", nullable = false, precision = 15, scale = 2)
-    @NotNull(message = "Monthly income is required")
-    @DecimalMin(value = "0.00", message = "Monthly income must be non-negative")
-    @DecimalMax(value = "999999.99", message = "Monthly income cannot exceed $999,999.99")
+
+    /**
+     * Monthly income. Validators removed because partial MISMO imports often have stale or
+     * absent data — we accept what comes in and trust the borrower form to enforce sane
+     * values when the user manually edits.
+     */
+    @Column(name = "monthly_income", precision = 15, scale = 2)
     private BigDecimal monthlyIncome;
-    
-    @Column(name = "employment_status", nullable = false)
-    @NotBlank(message = "Employment status is required")
-    @Pattern(regexp = "Present|Prior", message = "Employment status must be Present or Prior")
+
+    @Column(name = "employment_status")
+    @Pattern(regexp = "Present|Prior|Current|Previous", message = "Employment status must be Present/Prior/Current/Previous")
     private String employmentStatus;
-    
+
     @Column(name = "is_present")
     private Boolean isPresent = false;
-    
-    @Column(name = "self_employed", nullable = false)
-    @NotNull(message = "Self-employed status is required")
+
+    @Column(name = "self_employed")
     private Boolean selfEmployed = false;
     
     @Column(name = "created_at", nullable = false, updatable = false)

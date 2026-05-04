@@ -3,7 +3,6 @@ import { Link, useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { FaFileAlt, FaEye, FaClock, FaCheckCircle, FaTimesCircle, FaFileCode, FaCopy, FaChevronDown } from 'react-icons/fa';
 import mortgageService from '../services/mortgageService';
-import { downloadMISMO34Closing, downloadMISMO34FNM } from '../utils/urlaExport';
 
 const ApplicationList = () => {
   const navigate = useNavigate();
@@ -169,8 +168,7 @@ const ApplicationList = () => {
 
   const handleExportMISMO34Closing = async (applicationId) => {
     try {
-      const applicationData = await mortgageService.getApplication(applicationId);
-      downloadMISMO34Closing(applicationData);
+      await mortgageService.downloadMismoXml(applicationId, 'closing');
       toast.success('MISMO 3.4 Closing XML downloaded successfully!');
       setShowExportDropdown(null);
     } catch (error) {
@@ -181,8 +179,7 @@ const ApplicationList = () => {
 
   const handleExportMISMO34FNM = async (applicationId) => {
     try {
-      const applicationData = await mortgageService.getApplication(applicationId);
-      downloadMISMO34FNM(applicationData);
+      await mortgageService.downloadMismoXml(applicationId, 'fnm');
       toast.success('MISMO 3.4 FNM XML downloaded successfully!');
       setShowExportDropdown(null);
     } catch (error) {

@@ -6,7 +6,7 @@ import React from 'react';
 import { FaCheck, FaFilePdf, FaRobot, FaLock } from 'react-icons/fa';
 import FormSection from '../shared/FormSection';
 import { formatCurrency, formatDate } from '../../utils/formHelpers';
-import { printURLAFormat } from '../../utils/urlaExport';
+import { printURLAFormat } from '../../utils/printUrla';
 import { toast } from 'react-toastify';
 
 const ReviewSubmitStep = ({ register, errors, getValues, onSubmit, isSubmitting, isEditing, isViewing = false, onAIReview, aiReviewLoading = false, aiReviewResult = null }) => {

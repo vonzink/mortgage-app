@@ -4,6 +4,13 @@ import apiClient from './apiClient';
 // AWS, not our backend, and must NOT carry our Authorization header.
 import axios from 'axios';
 
+// Pulls filename out of `attachment; filename="…"` headers; safe for blob downloads.
+function parseFilename(disposition) {
+  if (!disposition) return null;
+  const match = /filename\*?=(?:UTF-8'')?["']?([^"';]+)["']?/i.exec(disposition);
+  return match ? decodeURIComponent(match[1]) : null;
+}
+
 const mortgageService = {
   // ----- Loan applications -----
   createApplication: async (applicationData) => {
@@ -70,6 +77,29 @@ const mortgageService = {
       await apiClient.delete(`/loan-applications/${id}`);
     } catch (error) {
       throw new Error(error.response?.data?.message || 'Failed to delete application');
+    }
+  },
+
+  // ----- MISMO export (backend-generated, gated by LoanAccessGuard) -----
+  // variant: "closing" | "fnm"
+  downloadMismoXml: async (applicationId, variant = 'closing') => {
+    try {
+      const resp = await apiClient.get(
+        `/loan-applications/${applicationId}/export/mismo`,
+        { params: { variant }, responseType: 'blob' }
+      );
+      const filename = parseFilename(resp.headers['content-disposition'])
+        || `MISMO-3.4-${variant}-${applicationId}.xml`;
+      const url = window.URL.createObjectURL(resp.data);
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', filename);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      throw new Error(error.response?.data?.message || 'Failed to download MISMO XML');
     }
   },
 

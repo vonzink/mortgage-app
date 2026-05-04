@@ -2,15 +2,20 @@ package com.yourcompany.mortgage.controller;
 
 import com.yourcompany.mortgage.dto.AIReviewResult;
 import com.yourcompany.mortgage.dto.LoanApplicationDTO;
+import com.yourcompany.mortgage.mismo.MismoExporter;
 import com.yourcompany.mortgage.model.LoanApplication;
 import com.yourcompany.mortgage.service.LoanApplicationService;
 import com.yourcompany.mortgage.integration.AiReviewService;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
+import java.io.IOException;
 import java.util.List;
 import java.util.Optional;
 
@@ -23,6 +28,30 @@ public class LoanApplicationController {
 
     @Autowired
     private AiReviewService aiReviewService;
+
+    @Autowired
+    private MismoExporter mismoExporter;
+
+    /**
+     * MISMO 3.4 XML export. {@code variant} is "closing" (default) or "fnm" (Fannie Mae shape).
+     * Gated by LoanAccessGuard: only assigned LO/internal staff or a borrower-on-loan can export.
+     */
+    @GetMapping("/{id}/export/mismo")
+    @PreAuthorize("@loanAccessGuard.canAccess(#id)")
+    public ResponseEntity<byte[]> exportMismo(@PathVariable Long id,
+                                              @RequestParam(value = "variant", defaultValue = "closing") String variant) throws IOException {
+        Optional<LoanApplication> applicationOpt = loanApplicationService.getApplicationById(id);
+        if (applicationOpt.isEmpty()) {
+            return ResponseEntity.notFound().build();
+        }
+        LoanApplication application = applicationOpt.get();
+        byte[] xml = mismoExporter.export(application, variant);
+        String filename = mismoExporter.suggestedFilename(application, variant);
+        return ResponseEntity.ok()
+                .contentType(MediaType.APPLICATION_XML)
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + filename + "\"")
+                .body(xml);
+    }
     
     @PostMapping
     public ResponseEntity<LoanApplication> createApplication(@Valid @RequestBody LoanApplicationDTO applicationDTO) {

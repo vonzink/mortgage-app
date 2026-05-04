@@ -109,57 +109,70 @@ const mortgageService = {
     }
   },
 
-  // Document management methods
-  uploadDocument: async (applicationId, documentType, file) => {
+  // Document management — 3-step direct-to-S3 flow
+  // 1) backend issues a presigned PUT URL
+  // 2) browser PUTs the file straight to S3
+  // 3) backend HEADs the object, applies tags, flips status to `uploaded`
+  uploadDocument: async (applicationId, documentType, file, options = {}) => {
+    const { partyRole = 'borrower' } = options;
     try {
-      const formData = new FormData();
-      formData.append('applicationId', applicationId);
-      formData.append('documentType', documentType);
-      formData.append('file', file);
+      const presignResp = await axios.post(
+        `${API_BASE_URL}/loan-applications/${applicationId}/documents/upload-url`,
+        {
+          documentType,
+          partyRole,
+          fileName: file.name,
+          contentType: file.type || 'application/octet-stream',
+        }
+      );
+      const { docUuid, uploadUrl } = presignResp.data;
 
-      const response = await axios.post(`${API_BASE_URL}/documents/upload`, formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
+      await axios.put(uploadUrl, file, {
+        headers: { 'Content-Type': file.type || 'application/octet-stream' },
+        transformRequest: [(data) => data],
       });
-      return response.data;
+
+      const confirmResp = await axios.put(
+        `${API_BASE_URL}/loan-applications/${applicationId}/documents/${docUuid}/confirm`
+      );
+      return confirmResp.data;
     } catch (error) {
-      throw new Error(error.response?.data?.message || 'Failed to upload document');
+      throw new Error(error.response?.data?.message || error.message || 'Failed to upload document');
     }
   },
 
   getApplicationDocuments: async (applicationId) => {
     try {
-      const response = await axios.get(`${API_BASE_URL}/documents/application/${applicationId}`);
+      const response = await axios.get(
+        `${API_BASE_URL}/loan-applications/${applicationId}/documents`
+      );
       return response.data;
     } catch (error) {
       throw new Error(error.response?.data?.message || 'Failed to fetch documents');
     }
   },
 
-  downloadDocument: async (documentId, fileName) => {
+  downloadDocument: async (applicationId, docUuid, fileName) => {
     try {
-      const response = await axios.get(`${API_BASE_URL}/documents/download/${documentId}`, {
-        responseType: 'blob',
-      });
-      
-      // Create a download link
-      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const resp = await axios.get(
+        `${API_BASE_URL}/loan-applications/${applicationId}/documents/${docUuid}/download-url`
+      );
       const link = document.createElement('a');
-      link.href = url;
-      link.setAttribute('download', fileName);
+      link.href = resp.data.downloadUrl;
+      if (fileName) link.setAttribute('download', fileName);
       document.body.appendChild(link);
       link.click();
       link.remove();
-      window.URL.revokeObjectURL(url);
     } catch (error) {
       throw new Error(error.response?.data?.message || 'Failed to download document');
     }
   },
 
-  deleteDocument: async (documentId) => {
+  deleteDocument: async (applicationId, docUuid) => {
     try {
-      await axios.delete(`${API_BASE_URL}/documents/${documentId}`);
+      await axios.delete(
+        `${API_BASE_URL}/loan-applications/${applicationId}/documents/${docUuid}`
+      );
     } catch (error) {
       throw new Error(error.response?.data?.message || 'Failed to delete document');
     }

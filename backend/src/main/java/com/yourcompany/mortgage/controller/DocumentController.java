@@ -1,113 +1,75 @@
 package com.yourcompany.mortgage.controller;
 
 import com.yourcompany.mortgage.dto.DocumentDTO;
-import com.yourcompany.mortgage.service.DocumentService;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.core.io.Resource;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.MediaType;
+import com.yourcompany.mortgage.service.S3DocumentService;
+import com.yourcompany.mortgage.service.S3DocumentService.PresignedDownloadResponse;
+import com.yourcompany.mortgage.service.S3DocumentService.PresignedUploadResponse;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.multipart.MultipartFile;
 
-import java.io.IOException;
 import java.util.List;
+import java.util.Map;
 
+/**
+ * 3-step direct-to-S3 upload:
+ *   1. POST /upload-url   → backend creates `pending` Document row + presigned PUT URL
+ *   2. browser PUTs file to S3 (no backend involvement)
+ *   3. PUT  /{docUuid}/confirm → backend HEADs object, applies tags, flips status to `uploaded`
+ *
+ * Endpoints are nested under loan-applications/{loanId}/... so Phase D can attach
+ * @PreAuthorize("@loanAccessGuard.canAccess(#loanId)") at this layer without restructuring.
+ */
 @RestController
-@RequestMapping("/api/documents")
+@RequestMapping("/loan-applications/{loanId}/documents")
 @CrossOrigin(origins = "*")
 public class DocumentController {
 
-    @Autowired
-    private DocumentService documentService;
+    private final S3DocumentService s3DocumentService;
 
-    /**
-     * Upload a document for a specific application
-     */
-    @PostMapping("/upload")
-    public ResponseEntity<?> uploadDocument(
-            @RequestParam("applicationId") Long applicationId,
-            @RequestParam("documentType") String documentType,
-            @RequestParam("file") MultipartFile file) {
-        try {
-            DocumentDTO document = documentService.uploadDocument(applicationId, documentType, file);
-            return ResponseEntity.ok(document);
-        } catch (IllegalArgumentException e) {
-            return ResponseEntity.badRequest().body(e.getMessage());
-        } catch (IOException e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body("Failed to upload file: " + e.getMessage());
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body("An error occurred: " + e.getMessage());
-        }
+    public DocumentController(S3DocumentService s3DocumentService) {
+        this.s3DocumentService = s3DocumentService;
     }
 
-    /**
-     * Get all documents for a specific application
-     */
-    @GetMapping("/application/{applicationId}")
-    public ResponseEntity<List<DocumentDTO>> getApplicationDocuments(@PathVariable Long applicationId) {
-        try {
-            List<DocumentDTO> documents = documentService.getApplicationDocuments(applicationId);
-            return ResponseEntity.ok(documents);
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
-        }
+    public record UploadUrlRequest(String documentType, String partyRole,
+                                   String fileName, String contentType) {}
+
+    @PostMapping("/upload-url")
+    public ResponseEntity<PresignedUploadResponse> requestUploadUrl(
+            @PathVariable Long loanId,
+            @RequestBody UploadUrlRequest req) {
+        PresignedUploadResponse resp = s3DocumentService.createPresignedUpload(
+                loanId,
+                req.documentType(),
+                req.partyRole(),
+                req.fileName(),
+                req.contentType());
+        return ResponseEntity.ok(resp);
     }
 
-    /**
-     * Get document metadata by ID
-     */
-    @GetMapping("/{documentId}")
-    public ResponseEntity<DocumentDTO> getDocument(@PathVariable Long documentId) {
-        try {
-            DocumentDTO document = documentService.getDocumentById(documentId);
-            return ResponseEntity.ok(document);
-        } catch (RuntimeException e) {
-            return ResponseEntity.notFound().build();
-        }
+    @PutMapping("/{docUuid}/confirm")
+    public ResponseEntity<DocumentDTO> confirmUpload(
+            @PathVariable Long loanId,
+            @PathVariable String docUuid) {
+        return ResponseEntity.ok(s3DocumentService.confirmUpload(docUuid));
     }
 
-    /**
-     * Download a document by ID
-     */
-    @GetMapping("/download/{documentId}")
-    public ResponseEntity<Resource> downloadDocument(@PathVariable Long documentId) {
-        try {
-            DocumentDTO documentDTO = documentService.getDocumentById(documentId);
-            Resource resource = documentService.downloadDocument(documentId);
-
-            String contentType = "application/octet-stream";
-            
-            return ResponseEntity.ok()
-                    .contentType(MediaType.parseMediaType(contentType))
-                    .header(HttpHeaders.CONTENT_DISPOSITION, 
-                            "attachment; filename=\"" + documentDTO.getFileName() + "\"")
-                    .body(resource);
-        } catch (IOException e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
-        } catch (RuntimeException e) {
-            return ResponseEntity.notFound().build();
-        }
+    @GetMapping
+    public ResponseEntity<List<DocumentDTO>> list(@PathVariable Long loanId) {
+        return ResponseEntity.ok(s3DocumentService.listForApplication(loanId));
     }
 
-    /**
-     * Delete a document
-     */
-    @DeleteMapping("/{documentId}")
-    public ResponseEntity<String> deleteDocument(@PathVariable Long documentId) {
-        try {
-            documentService.deleteDocument(documentId);
-            return ResponseEntity.ok("Document deleted successfully");
-        } catch (IOException e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body("Failed to delete file: " + e.getMessage());
-        } catch (RuntimeException e) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                    .body(e.getMessage());
-        }
+    @GetMapping("/{docUuid}/download-url")
+    public ResponseEntity<PresignedDownloadResponse> downloadUrl(
+            @PathVariable Long loanId,
+            @PathVariable String docUuid) {
+        return ResponseEntity.ok(s3DocumentService.createPresignedDownload(docUuid));
+    }
+
+    @DeleteMapping("/{docUuid}")
+    public ResponseEntity<Map<String, String>> delete(
+            @PathVariable Long loanId,
+            @PathVariable String docUuid) {
+        s3DocumentService.softDelete(docUuid);
+        return ResponseEntity.ok(Map.of("status", "deleted"));
     }
 }
-

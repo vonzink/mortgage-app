@@ -157,7 +157,7 @@ const ApplicationDetails = () => {
 
   const handleDownload = async (doc) => {
     try {
-      await mortgageService.downloadDocument(doc.id, doc.fileName);
+      await mortgageService.downloadDocument(id, doc.docUuid, doc.fileName);
       toast.success('Document downloaded successfully!');
     } catch (error) {
       toast.error('Failed to download document');
@@ -165,13 +165,13 @@ const ApplicationDetails = () => {
     }
   };
 
-  const handleDelete = async (docId) => {
+  const handleDelete = async (doc) => {
     if (!window.confirm('Are you sure you want to delete this document?')) {
       return;
     }
 
     try {
-      await mortgageService.deleteDocument(docId);
+      await mortgageService.deleteDocument(id, doc.docUuid);
       toast.success('Document deleted successfully!');
       await fetchDocuments();
     } catch (error) {
@@ -626,7 +626,7 @@ const ApplicationDetails = () => {
                       <FaDownload />
                     </button>
                     <button
-                      onClick={() => handleDelete(doc.id)}
+                      onClick={() => handleDelete(doc)}
                       className="btn-icon btn-danger"
                       title="Delete"
                     >

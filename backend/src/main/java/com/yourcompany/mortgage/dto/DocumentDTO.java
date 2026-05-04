@@ -2,22 +2,29 @@ package com.yourcompany.mortgage.dto;
 
 import java.time.LocalDateTime;
 
+/**
+ * Public-facing document representation. Note: never includes s3Key — that's an
+ * implementation detail. The frontend uses {@code docUuid} as the document handle.
+ */
 public class DocumentDTO {
 
     private Long id;
     private Long applicationId;
     private String docUuid;
     private String documentType;
-    private String fileName;
+    private String originalFilename;
     private String safeFilename;
+    private String displayName;
     private String contentType;
     private Long fileSize;
     private String uploadStatus;
     private String partyRole;
-    private String addedByRole;
+    private String uploadedByRole;
+    private Long uploadedByUserId;
     private Boolean visibleToBorrower;
     private Boolean visibleToAgent;
-    private LocalDateTime uploadedAt;
+    private LocalDateTime createdAt;
+    private LocalDateTime updatedAt;
 
     public DocumentDTO() {}
 
@@ -33,11 +40,14 @@ public class DocumentDTO {
     public String getDocumentType() { return documentType; }
     public void setDocumentType(String documentType) { this.documentType = documentType; }
 
-    public String getFileName() { return fileName; }
-    public void setFileName(String fileName) { this.fileName = fileName; }
+    public String getOriginalFilename() { return originalFilename; }
+    public void setOriginalFilename(String originalFilename) { this.originalFilename = originalFilename; }
 
     public String getSafeFilename() { return safeFilename; }
     public void setSafeFilename(String safeFilename) { this.safeFilename = safeFilename; }
+
+    public String getDisplayName() { return displayName; }
+    public void setDisplayName(String displayName) { this.displayName = displayName; }
 
     public String getContentType() { return contentType; }
     public void setContentType(String contentType) { this.contentType = contentType; }
@@ -51,8 +61,11 @@ public class DocumentDTO {
     public String getPartyRole() { return partyRole; }
     public void setPartyRole(String partyRole) { this.partyRole = partyRole; }
 
-    public String getAddedByRole() { return addedByRole; }
-    public void setAddedByRole(String addedByRole) { this.addedByRole = addedByRole; }
+    public String getUploadedByRole() { return uploadedByRole; }
+    public void setUploadedByRole(String uploadedByRole) { this.uploadedByRole = uploadedByRole; }
+
+    public Long getUploadedByUserId() { return uploadedByUserId; }
+    public void setUploadedByUserId(Long uploadedByUserId) { this.uploadedByUserId = uploadedByUserId; }
 
     public Boolean getVisibleToBorrower() { return visibleToBorrower; }
     public void setVisibleToBorrower(Boolean visibleToBorrower) { this.visibleToBorrower = visibleToBorrower; }
@@ -60,6 +73,9 @@ public class DocumentDTO {
     public Boolean getVisibleToAgent() { return visibleToAgent; }
     public void setVisibleToAgent(Boolean visibleToAgent) { this.visibleToAgent = visibleToAgent; }
 
-    public LocalDateTime getUploadedAt() { return uploadedAt; }
-    public void setUploadedAt(LocalDateTime uploadedAt) { this.uploadedAt = uploadedAt; }
+    public LocalDateTime getCreatedAt() { return createdAt; }
+    public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
+
+    public LocalDateTime getUpdatedAt() { return updatedAt; }
+    public void setUpdatedAt(LocalDateTime updatedAt) { this.updatedAt = updatedAt; }
 }

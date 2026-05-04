@@ -168,6 +168,18 @@ const mortgageService = {
     }
   },
 
+  renameDocument: async (applicationId, docUuid, displayName) => {
+    try {
+      const resp = await axios.patch(
+        `${API_BASE_URL}/loan-applications/${applicationId}/documents/${docUuid}`,
+        { displayName }
+      );
+      return resp.data;
+    } catch (error) {
+      throw new Error(error.response?.data?.message || 'Failed to rename document');
+    }
+  },
+
   deleteDocument: async (applicationId, docUuid) => {
     try {
       await axios.delete(

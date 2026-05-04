@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { useDropzone } from 'react-dropzone';
-import { FaUpload, FaFile, FaDownload, FaTrash, FaCheckCircle, FaTimes, FaFileAlt, FaExclamationTriangle, FaInfoCircle } from 'react-icons/fa';
+import { FaUpload, FaFile, FaDownload, FaTrash, FaCheckCircle, FaTimes, FaFileAlt, FaExclamationTriangle, FaInfoCircle, FaPencilAlt } from 'react-icons/fa';
 import mortgageService from '../services/mortgageService';
 import { generateDocChecklist } from '../utils/docRules';
 import { adaptApiToLoanApplication } from '../utils/docRules/apiAdapter';
@@ -157,7 +157,7 @@ const ApplicationDetails = () => {
 
   const handleDownload = async (doc) => {
     try {
-      await mortgageService.downloadDocument(id, doc.docUuid, doc.fileName);
+      await mortgageService.downloadDocument(id, doc.docUuid, doc.originalFilename);
       toast.success('Document downloaded successfully!');
     } catch (error) {
       toast.error('Failed to download document');
@@ -166,7 +166,7 @@ const ApplicationDetails = () => {
   };
 
   const handleDelete = async (doc) => {
-    if (!window.confirm('Are you sure you want to delete this document?')) {
+    if (!window.confirm(`Delete "${doc.displayName || doc.originalFilename}"?`)) {
       return;
     }
 
@@ -177,6 +177,21 @@ const ApplicationDetails = () => {
     } catch (error) {
       toast.error('Failed to delete document');
       console.error('Delete error:', error);
+    }
+  };
+
+  const handleRename = async (doc) => {
+    const current = doc.displayName || doc.originalFilename || '';
+    const next = window.prompt('Rename document:', current);
+    if (next == null || next.trim() === '' || next === current) return;
+
+    try {
+      await mortgageService.renameDocument(id, doc.docUuid, next.trim());
+      toast.success('Renamed.');
+      await fetchDocuments();
+    } catch (error) {
+      toast.error('Failed to rename document');
+      console.error('Rename error:', error);
     }
   };
 
@@ -587,9 +602,9 @@ const ApplicationDetails = () => {
                   <tbody>
                     {documents.map(doc => (
                       <tr key={doc.id}>
-                        <td style={{ padding: '0.5rem', borderBottom: '1px solid var(--border-color)' }}>{doc.fileName}</td>
+                        <td style={{ padding: '0.5rem', borderBottom: '1px solid var(--border-color)' }}>{doc.displayName || doc.originalFilename}</td>
                         <td style={{ padding: '0.5rem', borderBottom: '1px solid var(--border-color)' }}>{doc.documentType}</td>
-                        <td style={{ padding: '0.5rem', borderBottom: '1px solid var(--border-color)' }}>{formatDate(doc.uploadedAt)}</td>
+                        <td style={{ padding: '0.5rem', borderBottom: '1px solid var(--border-color)' }}>{formatDate(doc.createdAt)}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -601,40 +616,59 @@ const ApplicationDetails = () => {
             <p className="empty-text">No documents uploaded yet.</p>
           ) : (
             <div className="uploaded-documents-list">
-              {documents.map((doc) => (
-                <div key={doc.id} className="uploaded-document-item">
-                  <div className="document-info">
-                    <FaCheckCircle className="success-icon" />
-                    <div className="document-details">
-                      <div className="document-name-row">
-                        <span className="document-name">{doc.fileName}</span>
-                        <span className="document-type-badge">{doc.documentType}</span>
+              {Object.entries(
+                documents.reduce((acc, doc) => {
+                  const key = doc.documentType || 'Other';
+                  (acc[key] = acc[key] || []).push(doc);
+                  return acc;
+                }, {})
+              )
+                .sort(([a], [b]) => a.localeCompare(b))
+                .map(([category, docs]) => (
+                  <div key={category} className="document-category-group">
+                    <h4 className="document-category-header">{category} ({docs.length})</h4>
+                    {docs.map((doc) => (
+                      <div key={doc.id} className="uploaded-document-item">
+                        <div className="document-info">
+                          <FaCheckCircle className="success-icon" />
+                          <div className="document-details">
+                            <div className="document-name-row">
+                              <span className="document-name">{doc.displayName || doc.originalFilename}</span>
+                            </div>
+                            <div className="document-meta">
+                              <span>{formatFileSize(doc.fileSize)}</span>
+                              <span>•</span>
+                              <span>{formatDate(doc.createdAt)}</span>
+                            </div>
+                          </div>
+                        </div>
+                        <div className="document-actions">
+                          <button
+                            onClick={() => handleRename(doc)}
+                            className="btn-icon btn-secondary"
+                            title="Rename"
+                          >
+                            <FaPencilAlt />
+                          </button>
+                          <button
+                            onClick={() => handleDownload(doc)}
+                            className="btn-icon btn-secondary"
+                            title="Download"
+                          >
+                            <FaDownload />
+                          </button>
+                          <button
+                            onClick={() => handleDelete(doc)}
+                            className="btn-icon btn-danger"
+                            title="Delete"
+                          >
+                            <FaTrash />
+                          </button>
+                        </div>
                       </div>
-                      <div className="document-meta">
-                        <span>{formatFileSize(doc.fileSize)}</span>
-                        <span>•</span>
-                        <span>{formatDate(doc.uploadedAt)}</span>
-                      </div>
-                    </div>
+                    ))}
                   </div>
-                  <div className="document-actions">
-                    <button
-                      onClick={() => handleDownload(doc)}
-                      className="btn-icon btn-secondary"
-                      title="Download"
-                    >
-                      <FaDownload />
-                    </button>
-                    <button
-                      onClick={() => handleDelete(doc)}
-                      className="btn-icon btn-danger"
-                      title="Delete"
-                    >
-                      <FaTrash />
-                    </button>
-                  </div>
-                </div>
-              ))}
+                ))}
             </div>
           )}
         </div>

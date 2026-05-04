@@ -15,19 +15,12 @@ public interface DocumentRepository extends JpaRepository<Document, Long> {
 
     List<Document> findByApplication(LoanApplication application);
 
-    @Query("SELECT d FROM Document d WHERE d.application.id = :applicationId")
-    List<Document> findByApplicationId(@Param("applicationId") Long applicationId);
-
-    @Query("SELECT d FROM Document d WHERE d.application.id = :applicationId AND d.uploadStatus <> :status")
-    List<Document> findByApplicationIdAndUploadStatusNot(@Param("applicationId") Long applicationId,
-                                                         @Param("status") String status);
+    @Query("SELECT d FROM Document d WHERE d.application.id = :applicationId AND d.deletedAt IS NULL "
+            + "ORDER BY d.documentType, d.createdAt")
+    List<Document> findByApplicationIdAndDeletedAtIsNull(@Param("applicationId") Long applicationId);
 
     Optional<Document> findByDocUuid(String docUuid);
 
-    @Query("SELECT d FROM Document d WHERE d.documentType = :documentType")
+    @Query("SELECT d FROM Document d WHERE d.documentType = :documentType AND d.deletedAt IS NULL")
     List<Document> findByDocumentType(@Param("documentType") String documentType);
-
-    @Query("SELECT d FROM Document d WHERE d.application.id = :applicationId AND d.documentType = :documentType")
-    List<Document> findByApplicationIdAndDocumentType(@Param("applicationId") Long applicationId,
-                                                      @Param("documentType") String documentType);
 }

@@ -33,6 +33,8 @@ public class DocumentController {
     public record UploadUrlRequest(String documentType, String partyRole,
                                    String fileName, String contentType) {}
 
+    public record RenameRequest(String displayName) {}
+
     @PostMapping("/upload-url")
     public ResponseEntity<PresignedUploadResponse> requestUploadUrl(
             @PathVariable Long loanId,
@@ -63,6 +65,14 @@ public class DocumentController {
             @PathVariable Long loanId,
             @PathVariable String docUuid) {
         return ResponseEntity.ok(s3DocumentService.createPresignedDownload(docUuid));
+    }
+
+    @PatchMapping("/{docUuid}")
+    public ResponseEntity<DocumentDTO> rename(
+            @PathVariable Long loanId,
+            @PathVariable String docUuid,
+            @RequestBody RenameRequest req) {
+        return ResponseEntity.ok(s3DocumentService.rename(docUuid, req.displayName()));
     }
 
     @DeleteMapping("/{docUuid}")

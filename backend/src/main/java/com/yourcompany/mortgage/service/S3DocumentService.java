@@ -24,26 +24,33 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import java.util.Set;
 import java.util.UUID;
 
 /**
- * Documents live in S3. The Postgres `documents` row is metadata only.
+ * Documents on S3, metadata in Postgres.
  *
- * Key convention (mirrors what Phase D access control will gate against):
- *   applications/{applicationId}/{partyRole}/{documentType}/{docUuid}-{safeFilename}
+ * <h2>Key convention</h2>
+ * <pre>applications/{applicationId}/{partyRole}/{documentType}/{docUuid}-{safeFilename}</pre>
+ * Generated server-side. Clients never supply or see the s3 key.
  *
- * Lifecycle is driven by S3 object tags (loan_state, sensitivity, retention_class, source),
- * not by key — keys are immutable. CDK in Phase C owns the lifecycle rules.
+ * <h2>Identity model</h2>
+ * Public handle is {@link Document#getDocUuid()}. The s3 key is internal. The user-facing
+ * label is {@link Document#getDisplayName()} (renameable). The original filename is preserved
+ * for downloads and audit.
  */
 @Service
 public class S3DocumentService {
 
     private static final Logger log = LoggerFactory.getLogger(S3DocumentService.class);
 
+    private static final Set<String> ALLOWED_PARTY_ROLES = Set.of("borrower", "agent", "lo", "system");
+
     private final S3Client s3Client;
     private final S3Presigner s3Presigner;
     private final DocumentRepository documentRepository;
     private final LoanApplicationRepository loanApplicationRepository;
+    private final DocumentUploadValidator validator;
 
     @Value("${aws.s3.documents-bucket}")
     private String bucket;
@@ -54,22 +61,24 @@ public class S3DocumentService {
     public S3DocumentService(S3Client s3Client,
                              S3Presigner s3Presigner,
                              DocumentRepository documentRepository,
-                             LoanApplicationRepository loanApplicationRepository) {
+                             LoanApplicationRepository loanApplicationRepository,
+                             DocumentUploadValidator validator) {
         this.s3Client = s3Client;
         this.s3Presigner = s3Presigner;
         this.documentRepository = documentRepository;
         this.loanApplicationRepository = loanApplicationRepository;
+        this.validator = validator;
     }
 
-    public record PresignedUploadResponse(String docUuid, String uploadUrl, String s3Key,
-                                          long expiresInSeconds) {}
+    public record PresignedUploadResponse(String docUuid, String uploadUrl,
+                                          long expiresInSeconds, long maxBytes) {}
 
     public record PresignedDownloadResponse(String docUuid, String downloadUrl,
                                             String fileName, long expiresInSeconds) {}
 
     /**
-     * Step 1 of upload: create a `pending` Document row and return a presigned PUT URL.
-     * The browser PUTs directly to S3 against this URL, then calls confirm().
+     * Step 1: validate inputs, generate a server-side s3 key, persist a `pending`
+     * Document row, and return a presigned PUT URL.
      */
     @Transactional
     public PresignedUploadResponse createPresignedUpload(Long applicationId,
@@ -80,7 +89,9 @@ public class S3DocumentService {
         LoanApplication application = loanApplicationRepository.findById(applicationId)
                 .orElseThrow(() -> new IllegalArgumentException("Application not found: " + applicationId));
 
-        String safePartyRole = sanitizeSegment(partyRole != null ? partyRole : "borrower");
+        validator.validateRequested(contentType, fileName);
+
+        String safePartyRole = normalizePartyRole(partyRole);
         String safeDocumentType = sanitizeSegment(documentType != null ? documentType : "Other");
         String safeFilename = sanitizeFilename(fileName);
         String docUuid = UUID.randomUUID().toString();
@@ -93,13 +104,13 @@ public class S3DocumentService {
         doc.setDocUuid(docUuid);
         doc.setS3Key(s3Key);
         doc.setDocumentType(documentType);
-        doc.setFileName(fileName);
+        doc.setOriginalFilename(fileName);
         doc.setSafeFilename(safeFilename);
+        doc.setDisplayName(fileName);   // user-renameable later
         doc.setContentType(contentType);
         doc.setPartyRole(safePartyRole);
-        doc.setAddedByRole(safePartyRole);
+        doc.setUploadedByRole(safePartyRole);
         doc.setUploadStatus(Document.STATUS_PENDING);
-        doc.setUploadedAt(LocalDateTime.now());
         documentRepository.save(doc);
 
         PutObjectRequest putRequest = PutObjectRequest.builder()
@@ -114,17 +125,17 @@ public class S3DocumentService {
                 .build();
 
         PresignedPutObjectRequest presigned = s3Presigner.presignPutObject(presignRequest);
-        return new PresignedUploadResponse(docUuid, presigned.url().toString(), s3Key, presignedTtlSeconds);
+        return new PresignedUploadResponse(docUuid, presigned.url().toString(),
+                presignedTtlSeconds, validator.getMaxUploadBytes());
     }
 
     /**
-     * Step 3 of upload: HEAD the object to verify the browser upload landed,
-     * apply lifecycle tags, flip status to 'uploaded'.
+     * Step 3: HEAD the object, validate size, apply lifecycle tags, flip status to uploaded.
+     * If the size check fails, the S3 object is deleted and the row marked failed.
      */
     @Transactional
     public DocumentDTO confirmUpload(String docUuid) {
-        Document doc = documentRepository.findByDocUuid(docUuid)
-                .orElseThrow(() -> new IllegalArgumentException("Document not found: " + docUuid));
+        Document doc = loadByUuidStrict(docUuid);
 
         if (Document.STATUS_UPLOADED.equals(doc.getUploadStatus())) {
             return toDTO(doc);
@@ -145,10 +156,18 @@ public class S3DocumentService {
             throw e;
         }
 
-        doc.setFileSize(head.contentLength());
-        if (doc.getContentType() == null) {
-            doc.setContentType(head.contentType());
+        try {
+            validator.validateUploadedSize(head.contentLength());
+        } catch (RuntimeException e) {
+            // Reject oversized uploads — yank the bytes and mark failed.
+            bestEffortDelete(doc.getS3Key());
+            doc.setUploadStatus(Document.STATUS_FAILED);
+            documentRepository.save(doc);
+            throw e;
         }
+
+        doc.setFileSize(head.contentLength());
+        if (doc.getContentType() == null) doc.setContentType(head.contentType());
 
         applyLifecycleTags(doc);
 
@@ -157,21 +176,24 @@ public class S3DocumentService {
         return toDTO(doc);
     }
 
-    /**
-     * Issue a short-lived GET URL for the browser to download the file directly from S3.
-     */
     public PresignedDownloadResponse createPresignedDownload(String docUuid) {
-        Document doc = documentRepository.findByDocUuid(docUuid)
-                .orElseThrow(() -> new IllegalArgumentException("Document not found: " + docUuid));
-
+        Document doc = loadByUuidStrict(docUuid);
+        if (doc.isDeleted()) {
+            throw new IllegalStateException("Document has been deleted");
+        }
         if (!Document.STATUS_UPLOADED.equals(doc.getUploadStatus())) {
             throw new IllegalStateException("Document is not in uploaded state: " + doc.getUploadStatus());
         }
 
+        // Use the original filename for the download — that's what the user expects.
+        String downloadName = doc.getOriginalFilename() != null
+                ? doc.getOriginalFilename()
+                : doc.getSafeFilename();
+
         GetObjectRequest getRequest = GetObjectRequest.builder()
                 .bucket(bucket)
                 .key(doc.getS3Key())
-                .responseContentDisposition("attachment; filename=\"" + doc.getFileName() + "\"")
+                .responseContentDisposition("attachment; filename=\"" + downloadName + "\"")
                 .build();
 
         GetObjectPresignRequest presignRequest = GetObjectPresignRequest.builder()
@@ -181,39 +203,60 @@ public class S3DocumentService {
 
         PresignedGetObjectRequest presigned = s3Presigner.presignGetObject(presignRequest);
         return new PresignedDownloadResponse(docUuid, presigned.url().toString(),
-                doc.getFileName(), presignedTtlSeconds);
+                downloadName, presignedTtlSeconds);
     }
 
+    /** List non-deleted documents for an application. */
     public List<DocumentDTO> listForApplication(Long applicationId) {
-        List<Document> docs = documentRepository.findByApplicationIdAndUploadStatusNot(
-                applicationId, Document.STATUS_DELETED);
+        List<Document> docs = documentRepository.findByApplicationIdAndDeletedAtIsNull(applicationId);
         List<DocumentDTO> out = new ArrayList<>(docs.size());
         for (Document d : docs) out.add(toDTO(d));
         return out;
     }
 
+    /** Dropbox-style rename. Updates display_name only; original filename and s3 key are immutable. */
+    @Transactional
+    public DocumentDTO rename(String docUuid, String newDisplayName) {
+        if (newDisplayName == null || newDisplayName.isBlank()) {
+            throw new IllegalArgumentException("displayName must not be empty");
+        }
+        Document doc = loadByUuidStrict(docUuid);
+        if (doc.isDeleted()) throw new IllegalStateException("Document has been deleted");
+        doc.setDisplayName(newDisplayName.trim());
+        documentRepository.save(doc);
+        return toDTO(doc);
+    }
+
     /**
-     * Soft-delete: mark row as deleted and remove the S3 object best-effort.
-     * Object Lock will preserve compliance retention; we don't try to bypass it.
+     * Soft delete: set deleted_at, best-effort delete the S3 object.
+     * Object Lock / governance retention may refuse the S3 delete — that's fine,
+     * the row is still hidden from listings.
      */
     @Transactional
     public void softDelete(String docUuid) {
-        Document doc = documentRepository.findByDocUuid(docUuid)
-                .orElseThrow(() -> new IllegalArgumentException("Document not found: " + docUuid));
+        Document doc = loadByUuidStrict(docUuid);
+        if (doc.isDeleted()) return;
 
+        bestEffortDelete(doc.getS3Key());
+        doc.setDeletedAt(LocalDateTime.now());
+        documentRepository.save(doc);
+    }
+
+    // --- internals ---
+
+    private Document loadByUuidStrict(String docUuid) {
+        return documentRepository.findByDocUuid(docUuid)
+                .orElseThrow(() -> new IllegalArgumentException("Document not found: " + docUuid));
+    }
+
+    private void bestEffortDelete(String key) {
         try {
             s3Client.deleteObject(DeleteObjectRequest.builder()
-                    .bucket(bucket)
-                    .key(doc.getS3Key())
-                    .build());
+                    .bucket(bucket).key(key).build());
         } catch (AwsServiceException e) {
-            // Object Lock or governance retention can refuse deletes — that's fine, keep the row marked deleted.
-            log.info("S3 delete refused for {} ({}); marking row deleted regardless.",
-                    doc.getS3Key(), e.awsErrorDetails().errorCode());
+            log.info("S3 delete refused for {} ({}); proceeding regardless.",
+                    key, e.awsErrorDetails().errorCode());
         }
-
-        doc.setUploadStatus(Document.STATUS_DELETED);
-        documentRepository.save(doc);
     }
 
     private void applyLifecycleTags(Document doc) {
@@ -240,6 +283,11 @@ public class S3DocumentService {
         return Tag.builder().key(k).value(v).build();
     }
 
+    private static String normalizePartyRole(String input) {
+        String s = (input == null ? "borrower" : input).toLowerCase(Locale.ROOT).trim();
+        return ALLOWED_PARTY_ROLES.contains(s) ? s : "borrower";
+    }
+
     private static String sanitizeSegment(String input) {
         String s = input.trim().toLowerCase(Locale.ROOT);
         s = s.replaceAll("[^a-z0-9_-]+", "-");
@@ -247,14 +295,38 @@ public class S3DocumentService {
         return s.isEmpty() ? "other" : s;
     }
 
+    /**
+     * Sanitize a user-supplied filename for use in an S3 key.
+     * Preserves the extension; sanitizes the base; caps total length at 200.
+     * Cannot collide with another object's key because docUuid prefixes the filename.
+     */
     private static String sanitizeFilename(String input) {
         String s = (input == null || input.isBlank()) ? "file" : input.trim();
         s = s.replace("\\", "/");
         int slash = s.lastIndexOf('/');
         if (slash >= 0) s = s.substring(slash + 1);
-        s = s.replaceAll("[^A-Za-z0-9._-]+", "_");
-        if (s.length() > 200) s = s.substring(0, 200);
-        return s.isEmpty() ? "file" : s;
+
+        String base, ext;
+        int dot = s.lastIndexOf('.');
+        if (dot > 0 && dot < s.length() - 1) {
+            base = s.substring(0, dot);
+            ext = s.substring(dot + 1);
+        } else {
+            base = s;
+            ext = "";
+        }
+
+        base = base.replaceAll("[^A-Za-z0-9._-]+", "_");
+        ext = ext.replaceAll("[^A-Za-z0-9]+", "");
+
+        if (base.isEmpty()) base = "file";
+
+        // Cap base so total length stays manageable (200 chars including extension).
+        int extLen = ext.isEmpty() ? 0 : ext.length() + 1;
+        int maxBase = Math.max(1, 200 - extLen);
+        if (base.length() > maxBase) base = base.substring(0, maxBase);
+
+        return ext.isEmpty() ? base : base + "." + ext;
     }
 
     private DocumentDTO toDTO(Document d) {
@@ -263,16 +335,19 @@ public class S3DocumentService {
         dto.setApplicationId(d.getApplication().getId());
         dto.setDocUuid(d.getDocUuid());
         dto.setDocumentType(d.getDocumentType());
-        dto.setFileName(d.getFileName());
+        dto.setOriginalFilename(d.getOriginalFilename());
         dto.setSafeFilename(d.getSafeFilename());
+        dto.setDisplayName(d.getDisplayName() != null ? d.getDisplayName() : d.getOriginalFilename());
         dto.setContentType(d.getContentType());
         dto.setFileSize(d.getFileSize());
         dto.setUploadStatus(d.getUploadStatus());
         dto.setPartyRole(d.getPartyRole());
-        dto.setAddedByRole(d.getAddedByRole());
+        dto.setUploadedByRole(d.getUploadedByRole());
+        dto.setUploadedByUserId(d.getUploadedByUserId());
         dto.setVisibleToBorrower(d.getVisibleToBorrower());
         dto.setVisibleToAgent(d.getVisibleToAgent());
-        dto.setUploadedAt(d.getUploadedAt());
+        dto.setCreatedAt(d.getCreatedAt());
+        dto.setUpdatedAt(d.getUpdatedAt());
         return dto;
     }
 }

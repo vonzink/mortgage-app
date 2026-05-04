@@ -147,6 +147,7 @@ hs_err_pid*
 # Eclipse
 .metadata
 bin/
+!infra/bin/
 tmp/
 *.tmp
 *.bak

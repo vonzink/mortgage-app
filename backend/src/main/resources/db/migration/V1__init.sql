@@ -1,24 +1,22 @@
--- Mortgage Application Database Schema (H2 Compatible)
+-- Mortgage Application Database Schema (H2-flavored; works in PostgreSQL mode too)
+-- Baselines the existing schema.sql plus the assets table that the Asset entity expects.
 
--- Main application table
 CREATE TABLE loan_applications (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
     application_number VARCHAR(50) UNIQUE NOT NULL,
-    loan_purpose VARCHAR(50), -- Purchase, Refinance, CashOut
-    loan_type VARCHAR(50), -- FHA, Conventional, VA, USDA
+    loan_purpose VARCHAR(50),
+    loan_type VARCHAR(50),
     loan_amount DECIMAL(12,2),
     property_value DECIMAL(12,2),
-    status VARCHAR(30) DEFAULT 'DRAFT', -- DRAFT, SUBMITTED, PROCESSING, APPROVED, DENIED
+    status VARCHAR(30) DEFAULT 'DRAFT',
     created_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    ghl_contact_id VARCHAR(100) -- Go High Level contact ID
+    ghl_contact_id VARCHAR(100)
 );
 
--- Create indexes separately for H2
 CREATE INDEX idx_application_number ON loan_applications(application_number);
 CREATE INDEX idx_status ON loan_applications(status);
 
--- Property information
 CREATE TABLE properties (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
     application_id BIGINT NOT NULL,
@@ -27,27 +25,26 @@ CREATE TABLE properties (
     state VARCHAR(2),
     zip_code VARCHAR(10),
     county VARCHAR(100),
-    property_type VARCHAR(50), -- PrimaryResidence, SecondHome, Investment
+    property_type VARCHAR(50),
     property_value DECIMAL(12,2),
-    construction_type VARCHAR(50), -- SiteBuilt, Manufactured
+    construction_type VARCHAR(50),
     year_built INT,
     units_count INT DEFAULT 1,
     FOREIGN KEY (application_id) REFERENCES loan_applications(id) ON DELETE CASCADE
 );
 
--- Borrowers
 CREATE TABLE borrowers (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
     application_id BIGINT NOT NULL,
     sequence_number INT,
     first_name VARCHAR(100),
     last_name VARCHAR(100),
-    ssn VARCHAR(255), -- Encrypted
+    ssn VARCHAR(255),
     birth_date DATE,
     marital_status VARCHAR(30),
     email VARCHAR(100),
     phone VARCHAR(20),
-    citizenship_type VARCHAR(50), -- USCitizen, PermanentResident, NonPermanentResident
+    citizenship_type VARCHAR(50),
     dependents_count INT DEFAULT 0,
     current_address_line VARCHAR(255),
     current_city VARCHAR(100),
@@ -56,10 +53,8 @@ CREATE TABLE borrowers (
     FOREIGN KEY (application_id) REFERENCES loan_applications(id) ON DELETE CASCADE
 );
 
--- Create index for borrowers
 CREATE INDEX idx_borrower_application ON borrowers(application_id);
 
--- Employment records
 CREATE TABLE employment (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
     borrower_id BIGINT NOT NULL,
@@ -74,33 +69,30 @@ CREATE TABLE employment (
     start_date DATE,
     end_date DATE,
     monthly_income DECIMAL(10,2),
-    employment_status VARCHAR(30), -- Present, Prior, Current, Previous
+    employment_status VARCHAR(30),
     is_present BOOLEAN DEFAULT FALSE,
     self_employed BOOLEAN DEFAULT FALSE,
     FOREIGN KEY (borrower_id) REFERENCES borrowers(id) ON DELETE CASCADE
 );
 
--- Create index for employment
 CREATE INDEX idx_employment_borrower ON employment(borrower_id);
 
--- Income sources (non-employment)
 CREATE TABLE income_sources (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
     borrower_id BIGINT NOT NULL,
-    income_type VARCHAR(50), -- SocialSecurity, Pension, Disability, Other
+    income_type VARCHAR(50),
     monthly_amount DECIMAL(10,2),
     description VARCHAR(255),
     FOREIGN KEY (borrower_id) REFERENCES borrowers(id) ON DELETE CASCADE
 );
 
--- Liabilities
 CREATE TABLE liabilities (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
     application_id BIGINT NOT NULL,
     borrower_id BIGINT,
     account_number VARCHAR(100),
     creditor_name VARCHAR(255),
-    liability_type VARCHAR(50), -- MortgageLoan, Revolving, Installment, Other
+    liability_type VARCHAR(50),
     monthly_payment DECIMAL(10,2),
     unpaid_balance DECIMAL(12,2),
     payoff_status BOOLEAN DEFAULT FALSE,
@@ -109,10 +101,8 @@ CREATE TABLE liabilities (
     FOREIGN KEY (borrower_id) REFERENCES borrowers(id) ON DELETE SET NULL
 );
 
--- Create index for liabilities
 CREATE INDEX idx_liability_application ON liabilities(application_id);
 
--- REO Properties (Real Estate Owned)
 CREATE TABLE reo_properties (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
     borrower_id BIGINT NOT NULL,
@@ -121,7 +111,7 @@ CREATE TABLE reo_properties (
     city VARCHAR(100) NOT NULL,
     state VARCHAR(2) NOT NULL,
     zip_code VARCHAR(10) NOT NULL,
-    property_type VARCHAR(50) NOT NULL, -- PrimaryResidence, SecondHome, Investment
+    property_type VARCHAR(50) NOT NULL,
     property_value DECIMAL(15,2) NOT NULL,
     monthly_rental_income DECIMAL(15,2),
     monthly_payment DECIMAL(15,2),
@@ -131,10 +121,8 @@ CREATE TABLE reo_properties (
     FOREIGN KEY (borrower_id) REFERENCES borrowers(id) ON DELETE CASCADE
 );
 
--- Create index for REO properties
 CREATE INDEX idx_reo_borrower ON reo_properties(borrower_id);
 
--- Borrower addresses/residency
 CREATE TABLE residences (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
     borrower_id BIGINT NOT NULL,
@@ -142,14 +130,13 @@ CREATE TABLE residences (
     city VARCHAR(100),
     state VARCHAR(2),
     zip_code VARCHAR(10),
-    residency_type VARCHAR(30), -- Current, Prior
-    residency_basis VARCHAR(30), -- Own, Rent, LivingRentFree
+    residency_type VARCHAR(30),
+    residency_basis VARCHAR(30),
     duration_months INT,
     monthly_rent DECIMAL(10,2),
     FOREIGN KEY (borrower_id) REFERENCES borrowers(id) ON DELETE CASCADE
 );
 
--- Declarations (yes/no questions)
 CREATE TABLE declarations (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
     borrower_id BIGINT NOT NULL,
@@ -179,7 +166,21 @@ CREATE TABLE declarations (
     FOREIGN KEY (borrower_id) REFERENCES borrowers(id) ON DELETE CASCADE
 );
 
--- Documents table
+CREATE TABLE assets (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    borrower_id BIGINT NOT NULL,
+    asset_type VARCHAR(50) NOT NULL,
+    bank_name VARCHAR(100),
+    account_number VARCHAR(50),
+    asset_value DECIMAL(15,2) NOT NULL,
+    used_for_downpayment BOOLEAN NOT NULL DEFAULT FALSE,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (borrower_id) REFERENCES borrowers(id) ON DELETE CASCADE
+);
+
+CREATE INDEX idx_asset_borrower ON assets(borrower_id);
+
 CREATE TABLE documents (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
     application_id BIGINT NOT NULL,
@@ -191,7 +192,6 @@ CREATE TABLE documents (
     FOREIGN KEY (application_id) REFERENCES loan_applications(id)
 );
 
--- Go High Level integration logs
 CREATE TABLE ghl_integration_logs (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
     application_id BIGINT NOT NULL,

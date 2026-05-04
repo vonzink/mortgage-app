@@ -49,6 +49,7 @@ public class DocumentController {
     private final LoanApplicationRepository loanApplicationRepository;
     private final S3DocumentService s3;
     private final CurrentUserService currentUserService;
+    private final com.yourcompany.mortgage.repository.FolderRepository folderRepository;
 
     // ─────────────────────────────────── Step 1: presigned upload ────────────────────
 
@@ -71,6 +72,8 @@ public class DocumentController {
         // when the model splits, switch on la.getLoanNumber() != null.
         String key = s3.buildApplicationKey(la.getId(), partyRole, docType, docUuid, safeName);
 
+        Long folderId = resolveFolderId(loanId, req.folderId());
+
         Document doc = Document.builder()
                 .application(la)
                 .documentType(docType)
@@ -85,6 +88,7 @@ public class DocumentController {
                 .uploadedByUserId(currentUserService.currentUser().map(User::getId).orElse(null))
                 .visibleToBorrower(true)
                 .visibleToAgent("agent".equals(partyRole))
+                .folderId(folderId)
                 .build();
         doc = documentRepository.save(doc);
 
@@ -137,8 +141,21 @@ public class DocumentController {
 
     @GetMapping
     @PreAuthorize("@loanAccessGuard.canAccess(#loanId)")
-    public ResponseEntity<?> list(@PathVariable Long loanId) {
+    public ResponseEntity<?> list(
+            @PathVariable Long loanId,
+            @RequestParam(value = "folderId", required = false) Long folderId,
+            @RequestParam(value = "unfiled", required = false, defaultValue = "false") boolean unfiled
+    ) {
         List<Document> docs = documentRepository.findUploadedByApplicationId(loanId);
+
+        // Folder filter: a specific folder, OR unfiled (folderId IS NULL), OR everything.
+        if (unfiled) {
+            docs = docs.stream().filter(d -> d.getFolderId() == null).toList();
+        } else if (folderId != null) {
+            docs = docs.stream()
+                    .filter(d -> folderId.equals(d.getFolderId()))
+                    .toList();
+        }
 
         // Filter for non-LO callers based on the visibility flags
         boolean internal = currentUserService.currentUser()
@@ -156,6 +173,22 @@ public class DocumentController {
 
         List<Map<String, Object>> items = docs.stream().map(d -> toView(d, /*withDownloadUrl*/ false)).toList();
         return ResponseEntity.ok(Map.of("count", items.size(), "documents", items));
+    }
+
+    /**
+     * Validates that the requested folder belongs to this loan and isn't deleted.
+     * Returns null if the caller didn't supply a folderId (legacy borrower uploads).
+     */
+    private Long resolveFolderId(Long loanId, Long requestedFolderId) {
+        if (requestedFolderId == null) return null;
+        com.yourcompany.mortgage.model.Folder f = folderRepository.findActiveById(requestedFolderId)
+                .orElseThrow(() -> new com.yourcompany.mortgage.exception.ResourceNotFoundException(
+                        "Folder " + requestedFolderId + " not found"));
+        if (!f.getApplicationId().equals(loanId)) {
+            throw new com.yourcompany.mortgage.exception.BusinessValidationException(
+                    "Folder belongs to a different loan");
+        }
+        return f.getId();
     }
 
     // ─────────────────────────────────── Step 4: download URL ────────────────────────
@@ -191,6 +224,7 @@ public class DocumentController {
         v.put("partyRole", d.getPartyRole());
         v.put("uploadStatus", d.getUploadStatus());
         v.put("uploadedAt", d.getUploadedAt());
+        v.put("folderId", d.getFolderId());
         return v;
     }
 
@@ -199,6 +233,9 @@ public class DocumentController {
             @NotBlank String fileName,
             @NotBlank String documentType,
             @NotBlank String partyRole,
-            String contentType
+            String contentType,
+            /** Optional. When supplied, the document is filed in this folder of the loan's
+             *  workspace tree. The folder must belong to the same loan. Null = unfiled / root. */
+            Long folderId
     ) {}
 }

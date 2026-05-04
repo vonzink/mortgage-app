@@ -91,6 +91,13 @@ public class Document {
     @Column(name = "uploaded_at")
     private LocalDateTime uploadedAt;
 
+    /**
+     * Folder this document lives in within the loan's workspace tree.
+     * Null = at the workspace root (legacy borrower uploads pre-Phase 1, or LO chose root).
+     */
+    @Column(name = "folder_id")
+    private Long folderId;
+
     @PrePersist
     protected void onCreate() {
         if (uploadedAt == null) uploadedAt = LocalDateTime.now();

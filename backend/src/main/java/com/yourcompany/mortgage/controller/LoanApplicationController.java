@@ -4,7 +4,7 @@ import com.yourcompany.mortgage.dto.AIReviewResult;
 import com.yourcompany.mortgage.dto.LoanApplicationDTO;
 import com.yourcompany.mortgage.model.LoanApplication;
 import com.yourcompany.mortgage.service.LoanApplicationService;
-import com.yourcompany.mortgage.integration.OpenAIService;
+import com.yourcompany.mortgage.integration.AiReviewService;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -22,7 +22,7 @@ public class LoanApplicationController {
     private LoanApplicationService loanApplicationService;
 
     @Autowired
-    private OpenAIService openAIService;
+    private AiReviewService aiReviewService;
     
     @PostMapping
     public ResponseEntity<LoanApplication> createApplication(@Valid @RequestBody LoanApplicationDTO applicationDTO) {
@@ -36,14 +36,14 @@ public class LoanApplicationController {
         if (applicationOpt.isEmpty()) {
             return new ResponseEntity<>(HttpStatus.NOT_FOUND);
         }
-        AIReviewResult result = openAIService.evaluateApplication(applicationOpt.get());
+        AIReviewResult result = aiReviewService.evaluateApplication(applicationOpt.get());
         return new ResponseEntity<>(result, HttpStatus.OK);
     }
 
     // Preview AI review without saving an application
     @PostMapping("/ai-review-preview")
     public ResponseEntity<AIReviewResult> previewApplicationWithAI(@Valid @RequestBody LoanApplicationDTO applicationDTO) {
-        AIReviewResult result = openAIService.evaluateApplicationDTO(applicationDTO);
+        AIReviewResult result = aiReviewService.evaluateApplicationDTO(applicationDTO);
         return new ResponseEntity<>(result, HttpStatus.OK);
     }
     

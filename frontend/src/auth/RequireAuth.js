@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { useAuth } from 'react-oidc-context';
 
 /**
@@ -13,7 +13,20 @@ import { useAuth } from 'react-oidc-context';
 export default function RequireAuth({ children }) {
   const auth = useAuth();
 
-  // While react-oidc-context is bootstrapping (page just loaded, has refresh token, etc.)
+  // Side-effect: trigger Cognito redirect AFTER render commits, never during.
+  // `activeNavigator` is set while a redirect is in-flight; we guard on it so
+  // we don't fire signinRedirect repeatedly across re-renders.
+  useEffect(() => {
+    if (auth.isLoading) return;
+    if (auth.isAuthenticated) return;
+    if (auth.error) return;
+    if (auth.activeNavigator) return;
+
+    auth.signinRedirect({
+      state: { returnTo: window.location.pathname + window.location.search },
+    });
+  }, [auth.isLoading, auth.isAuthenticated, auth.error, auth.activeNavigator, auth]);
+
   if (auth.isLoading) {
     return (
       <div style={{ padding: '2rem', textAlign: 'center' }}>
@@ -22,7 +35,6 @@ export default function RequireAuth({ children }) {
     );
   }
 
-  // OIDC error path (token expired, network failure during silent renew, etc.)
   if (auth.error) {
     return (
       <div style={{ padding: '2rem' }}>
@@ -34,11 +46,6 @@ export default function RequireAuth({ children }) {
   }
 
   if (!auth.isAuthenticated) {
-    // Trigger the Cognito hosted UI redirect. Returns once redirect happens.
-    auth.signinRedirect({
-      // After successful sign-in, return to the page they were trying to reach.
-      state: { returnTo: window.location.pathname + window.location.search },
-    });
     return (
       <div style={{ padding: '2rem', textAlign: 'center' }}>
         Redirecting to sign-in…

@@ -37,13 +37,32 @@ const workspaceService = {
     return data;
   },
 
-  /** Documents in a specific folder (or unfiled). */
-  getDocumentsInFolder: async (loanId, { folderId, unfiled }) => {
+  /**
+   * Documents for a folder view.
+   *   { atRoot: true }     — docs at the loan's root folder OR unfiled (legacy null)
+   *   { folderId: N }      — only that folder
+   *   { unfiled: true }    — only docs with folder_id IS NULL
+   */
+  getDocumentsInFolder: async (loanId, { folderId, unfiled, atRoot }) => {
     const params = {};
-    if (unfiled) params.unfiled = 'true';
+    if (atRoot) params.atRoot = 'true';
+    else if (unfiled) params.unfiled = 'true';
     else if (folderId != null) params.folderId = folderId;
     const { data } = await apiClient.get(`/loan-applications/${loanId}/documents`, { params });
     return Array.isArray(data) ? data : (data.documents || []);
+  },
+
+  /**
+   * Bulk move. Returns { requested, moved, toFolderId }. {@code toFolderId === null}
+   * unfiles the documents (sets folder_id to NULL). The backend rejects the whole
+   * batch if any docUuid belongs to a different loan.
+   */
+  moveDocuments: async (loanId, docUuids, toFolderId) => {
+    const { data } = await apiClient.post(`/loan-applications/${loanId}/documents/move`, {
+      docUuids,
+      toFolderId,
+    });
+    return data;
   },
 };
 

@@ -1,16 +1,17 @@
 import React, { useState } from 'react';
 import { FaFolder, FaFolderOpen, FaChevronDown, FaChevronRight } from 'react-icons/fa';
+import { INTERNAL_DRAG_MIME } from './FileTable';
 
 /**
- * Recursive folder tree. Phase 1: expand/collapse + click-to-select. No drag-drop yet.
+ * Recursive folder tree. Phase 2: each node is a drop target for files dragged
+ * out of FileTable. The drop reads the internal doc-uuid payload and calls onDropFiles.
  *
  * Props:
- *   root:         { id, displayName, children: [...] }
- *   selectedId:   currently focused folder id
- *   onSelect:     (folderId) => void
- *   defaultExpanded: Set of folder IDs to render expanded on first render
+ *   root, selectedId, onSelect, defaultExpanded — same as Phase 1
+ *   onDropFiles: (folderId, docUuids) => void — invoked when one or more files
+ *                are dropped on a folder node.
  */
-export default function FolderTree({ root, selectedId, onSelect, defaultExpanded = new Set() }) {
+export default function FolderTree({ root, selectedId, onSelect, defaultExpanded = new Set(), onDropFiles }) {
   if (!root) return <div className="ws-tree-empty">No folders yet.</div>;
   return (
     <div className="ws-tree" role="tree">
@@ -20,21 +21,55 @@ export default function FolderTree({ root, selectedId, onSelect, defaultExpanded
         selectedId={selectedId}
         onSelect={onSelect}
         defaultExpanded={defaultExpanded}
+        onDropFiles={onDropFiles}
       />
     </div>
   );
 }
 
-function FolderNode({ node, depth, selectedId, onSelect, defaultExpanded }) {
+function FolderNode({ node, depth, selectedId, onSelect, defaultExpanded, onDropFiles }) {
   const [expanded, setExpanded] = useState(depth === 0 || defaultExpanded.has(node.id));
+  const [dragHover, setDragHover] = useState(false);
   const hasChildren = node.children && node.children.length > 0;
   const isSelected = node.id === selectedId;
+
+  // Drop target plumbing. We accept only our own internal drag payload — OS file
+  // drops onto folder nodes are NOT used as upload targets in Phase 2 (the upload
+  // dropzone is in the file pane). Doing so here would conflict with desktop
+  // drag-OUT, since browsers fire dragenter on intermediate elements.
+  const onDragEnter = (e) => {
+    if (!hasInternalDrag(e)) return;
+    e.preventDefault();
+    setDragHover(true);
+  };
+  const onDragOver = (e) => {
+    if (!hasInternalDrag(e)) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+  };
+  const onDragLeave = () => setDragHover(false);
+  const onDrop = (e) => {
+    if (!hasInternalDrag(e)) return;
+    e.preventDefault();
+    setDragHover(false);
+    try {
+      const payload = JSON.parse(e.dataTransfer.getData(INTERNAL_DRAG_MIME) || '{}');
+      const docUuids = Array.isArray(payload.docUuids) ? payload.docUuids : [];
+      if (docUuids.length > 0) onDropFiles?.(node.id, docUuids);
+    } catch {
+      // Ignore malformed payloads
+    }
+  };
 
   return (
     <div role="treeitem" aria-expanded={expanded}>
       <div
-        className={`ws-tree-row${isSelected ? ' ws-tree-row--selected' : ''}`}
+        className={`ws-tree-row${isSelected ? ' ws-tree-row--selected' : ''}${dragHover ? ' ws-tree-row--drophover' : ''}`}
         style={{ paddingLeft: depth * 16 + 4 }}
+        onDragEnter={onDragEnter}
+        onDragOver={onDragOver}
+        onDragLeave={onDragLeave}
+        onDrop={onDrop}
       >
         <button
           type="button"
@@ -64,10 +99,16 @@ function FolderNode({ node, depth, selectedId, onSelect, defaultExpanded }) {
               selectedId={selectedId}
               onSelect={onSelect}
               defaultExpanded={defaultExpanded}
+              onDropFiles={onDropFiles}
             />
           ))}
         </div>
       )}
     </div>
   );
+}
+
+function hasInternalDrag(e) {
+  // dataTransfer.types is a DOMStringList in some browsers, array in others.
+  return Array.from(e.dataTransfer?.types || []).includes(INTERNAL_DRAG_MIME);
 }

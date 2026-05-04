@@ -61,6 +61,14 @@
 .ws-tree-row--selected { background: #e6efe7; }
 .ws-tree-row--selected .ws-tree-name { font-weight: 600; }
 
+/* Drag-hover: a folder is the prospective drop target for files being dragged. */
+.ws-tree-row--drophover {
+  background: #d1e7d2;
+  outline: 2px solid #2c5f2d;
+  outline-offset: -2px;
+}
+.ws-tree-row--drophover .ws-tree-name { font-weight: 600; }
+
 .ws-tree-toggle {
   background: none;
   border: none;
@@ -148,6 +156,26 @@
   border-bottom: 1px solid #f3f4f6;
 }
 .ws-file-table tr:hover td { background: #fafbfc; }
+.ws-file-table tr.ws-row--selected td { background: #eef6ef; }
+.ws-file-table tr.ws-row--selected:hover td { background: #e3eee3; }
+.ws-file-table tr[draggable="true"] { cursor: grab; }
+.ws-file-table tr[draggable="true"]:active { cursor: grabbing; }
+
+/* Compact checkbox column */
+.ws-col-check { width: 32px; padding: 0.5rem 0.25rem 0.5rem 0.75rem; }
+.ws-col-check input { cursor: pointer; }
+
+/* Toolbar selection count chip */
+.ws-selection-count {
+  display: inline-flex;
+  align-items: center;
+  background: #e6efe7;
+  color: #2c5f2d;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  font-weight: 500;
+}
 
 .ws-file-icon { color: #6b7280; margin-right: 6px; }
 .ws-file-name { font-weight: 500; }

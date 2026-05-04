@@ -143,10 +143,11 @@ const mortgageService = {
    * Step 1: ask the backend for a presigned PUT URL.
    * Returns: { documentId, docUuid, s3Key, bucket, uploadUrl, contentType, expiresInSeconds }
    */
-  getDocumentUploadUrl: async (loanId, { fileName, documentType, partyRole, contentType }) => {
+  getDocumentUploadUrl: async (loanId, { fileName, documentType, partyRole, contentType, folderId }) => {
     const { data } = await apiClient.post(`/loan-applications/${loanId}/documents/upload-url`, {
       fileName, documentType, partyRole,
       contentType: contentType || 'application/octet-stream',
+      folderId: folderId ?? null,
     });
     return data;
   },
@@ -186,12 +187,13 @@ const mortgageService = {
   },
 
   /** Convenience: full upload sequence. Returns the saved document record. */
-  uploadDocument: async (loanId, { file, documentType, partyRole = 'borrower' }) => {
+  uploadDocument: async (loanId, { file, documentType, partyRole = 'borrower', folderId = null }) => {
     const slot = await mortgageService.getDocumentUploadUrl(loanId, {
       fileName: file.name,
       documentType,
       partyRole,
       contentType: file.type,
+      folderId,
     });
     await mortgageService.uploadFileToS3(slot.uploadUrl, file);
     return mortgageService.confirmDocumentUpload(loanId, slot.docUuid);

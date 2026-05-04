@@ -144,12 +144,25 @@ public class DocumentController {
     public ResponseEntity<?> list(
             @PathVariable Long loanId,
             @RequestParam(value = "folderId", required = false) Long folderId,
-            @RequestParam(value = "unfiled", required = false, defaultValue = "false") boolean unfiled
+            @RequestParam(value = "unfiled", required = false, defaultValue = "false") boolean unfiled,
+            @RequestParam(value = "atRoot", required = false, defaultValue = "false") boolean atRoot
     ) {
         List<Document> docs = documentRepository.findUploadedByApplicationId(loanId);
 
-        // Folder filter: a specific folder, OR unfiled (folderId IS NULL), OR everything.
-        if (unfiled) {
+        // Folder filter:
+        //   atRoot=true       → docs filed at the loan's root folder OR unfiled (legacy null)
+        //   unfiled=true      → only docs with folder_id IS NULL
+        //   folderId=N        → only docs with that folder_id
+        //   (none)            → everything (used for cross-folder views and search later)
+        if (atRoot) {
+            Long rootId = folderRepository.findRootByApplicationId(loanId)
+                    .map(com.yourcompany.mortgage.model.Folder::getId)
+                    .orElse(null);
+            docs = docs.stream()
+                    .filter(d -> d.getFolderId() == null
+                            || (rootId != null && rootId.equals(d.getFolderId())))
+                    .toList();
+        } else if (unfiled) {
             docs = docs.stream().filter(d -> d.getFolderId() == null).toList();
         } else if (folderId != null) {
             docs = docs.stream()
@@ -210,6 +223,61 @@ public class DocumentController {
         String url = s3.presignDownload(doc.getFilePath(), doc.getFileName());
         return ResponseEntity.ok(Map.of("downloadUrl", url, "expiresInSeconds", 900));
     }
+
+    // ─────────────────────────────────── Move (drag-drop / bulk) ────────────────────
+
+    /**
+     * Move one or more documents into a folder. Used by the workspace's drag-drop
+     * (single doc) and the future bulk-action bar (multiple docs).
+     *
+     * <p>{@code toFolderId == null} means "unfile" — sets folder_id back to NULL.
+     * The frontend uses this implicitly when a drop target is the loan root and
+     * the LO wants legacy borrower-uploads to remain at root.
+     *
+     * <p>Per-doc validation: each doc must belong to {@code loanId}. The whole
+     * request is rejected on the first mismatch — partial moves would leave the
+     * UI in an ambiguous state.
+     */
+    @PostMapping("/move")
+    @PreAuthorize("@loanAccessGuard.canAccess(#loanId)")
+    public ResponseEntity<?> moveDocuments(
+            @PathVariable Long loanId,
+            @RequestBody MoveDocumentsRequest req
+    ) {
+        if (req == null || req.docUuids() == null || req.docUuids().isEmpty()) {
+            return ResponseEntity.badRequest().body(Map.of("error", "docUuids required"));
+        }
+
+        Long target = (req.toFolderId() == null) ? null
+                : resolveFolderId(loanId, req.toFolderId());
+
+        int moved = 0;
+        for (String uuid : req.docUuids()) {
+            Document doc = documentRepository.findByDocUuid(uuid)
+                    .orElseThrow(() -> new ResourceNotFoundException("Document " + uuid + " not found"));
+            if (!doc.getApplication().getId().equals(loanId)) {
+                throw new com.yourcompany.mortgage.exception.BusinessValidationException(
+                        "Document " + uuid + " belongs to a different loan");
+            }
+            // No-op if it's already there — saves a write and lets the UI fire
+            // optimistic moves without worrying about idempotency.
+            Long current = doc.getFolderId();
+            if ((current == null && target == null) || (current != null && current.equals(target))) {
+                continue;
+            }
+            doc.setFolderId(target);
+            documentRepository.save(doc);
+            moved++;
+        }
+
+        return ResponseEntity.ok(Map.of(
+                "requested", req.docUuids().size(),
+                "moved", moved,
+                "toFolderId", target
+        ));
+    }
+
+    public record MoveDocumentsRequest(List<String> docUuids, Long toFolderId) {}
 
     // ─────────────────────────────────── helpers ─────────────────────────────────────
 

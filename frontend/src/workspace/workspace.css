@@ -1,0 +1,232 @@
+/* Phase 1 workspace styling. Stays in line with the dark-green app theme. */
+
+.ws-root {
+  display: flex;
+  flex-direction: column;
+  background: #fff;
+  border-radius: 8px;
+  border: 1px solid var(--border-color, #e5e7eb);
+  overflow: hidden;
+  min-height: 600px;
+}
+
+.ws-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid var(--border-color, #e5e7eb);
+  background: #fafafa;
+}
+
+.ws-body {
+  display: flex;
+  min-height: 540px;
+}
+
+.ws-sidebar {
+  width: 280px;
+  border-right: 1px solid var(--border-color, #e5e7eb);
+  padding: 0.5rem 0;
+  overflow-y: auto;
+  background: #fdfdfd;
+}
+
+.ws-main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  padding: 0.75rem 1rem;
+  overflow: auto;
+}
+
+/* ── Tree ──────────────────────────────────────────────── */
+.ws-tree { font-size: 0.9rem; }
+
+.ws-tree-empty {
+  padding: 1rem;
+  color: var(--text-muted, #6b7280);
+  font-size: 0.85rem;
+}
+
+.ws-tree-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  border-radius: 4px;
+  cursor: default;
+}
+.ws-tree-row:hover { background: #f3f4f6; }
+.ws-tree-row--selected { background: #e6efe7; }
+.ws-tree-row--selected .ws-tree-name { font-weight: 600; }
+
+.ws-tree-toggle {
+  background: none;
+  border: none;
+  padding: 0;
+  margin: 0;
+  cursor: pointer;
+  color: var(--text-muted, #6b7280);
+  font-size: 0.7rem;
+  width: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.ws-tree-label {
+  background: none;
+  border: none;
+  padding: 0;
+  margin: 0;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: inherit;
+  text-align: left;
+  flex: 1;
+  font: inherit;
+  overflow: hidden;
+}
+
+.ws-tree-name {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ws-tree-label svg { color: #2c5f2d; flex-shrink: 0; }
+
+/* ── Breadcrumbs ───────────────────────────────────────── */
+.ws-crumbs {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.85rem;
+  color: var(--text-muted, #6b7280);
+  margin-bottom: 0.75rem;
+  flex-wrap: wrap;
+}
+.ws-crumb {
+  background: none;
+  border: none;
+  padding: 2px 4px;
+  border-radius: 3px;
+  cursor: pointer;
+  color: inherit;
+  font: inherit;
+}
+.ws-crumb:hover { background: #f3f4f6; color: #111827; }
+.ws-crumb--current {
+  font-weight: 600;
+  color: #111827;
+  cursor: default;
+}
+.ws-crumb-sep { font-size: 0.6rem; color: #9ca3af; }
+
+/* ── File table ────────────────────────────────────────── */
+.ws-file-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+.ws-file-table th {
+  text-align: left;
+  padding: 0.5rem;
+  background: #f9fafb;
+  border-bottom: 1px solid var(--border-color, #e5e7eb);
+  font-weight: 600;
+  color: var(--text-muted, #6b7280);
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.ws-file-table td {
+  padding: 0.6rem 0.5rem;
+  border-bottom: 1px solid #f3f4f6;
+}
+.ws-file-table tr:hover td { background: #fafbfc; }
+
+.ws-file-icon { color: #6b7280; margin-right: 6px; }
+.ws-file-name { font-weight: 500; }
+
+.ws-file-empty {
+  padding: 2rem;
+  text-align: center;
+  color: var(--text-muted, #6b7280);
+}
+
+.ws-file-actions {
+  display: flex;
+  gap: 4px;
+  justify-content: flex-end;
+}
+.btn-icon {
+  background: none;
+  border: 1px solid transparent;
+  padding: 4px 8px;
+  border-radius: 4px;
+  cursor: pointer;
+  color: #6b7280;
+}
+.btn-icon:hover { background: #f3f4f6; color: #111827; border-color: #e5e7eb; }
+.btn-icon--danger:hover { color: #b91c1c; }
+
+.ws-tag {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: #e6efe7;
+  color: #2c5f2d;
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+/* ── Modal ─────────────────────────────────────────────── */
+.ws-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+.ws-modal {
+  background: #fff;
+  border-radius: 8px;
+  width: 420px;
+  max-width: 90vw;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.25);
+}
+.ws-modal-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem 1.25rem;
+  border-bottom: 1px solid var(--border-color, #e5e7eb);
+}
+.ws-modal-head h3 { margin: 0; font-size: 1rem; }
+.ws-modal-body {
+  padding: 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+.ws-modal-body input {
+  width: 100%;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--border-color, #d1d5db);
+  border-radius: 4px;
+  font-size: 0.95rem;
+}
+.ws-modal-body input:focus { outline: 2px solid #2c5f2d; outline-offset: -1px; border-color: transparent; }
+.ws-modal-error { color: #b91c1c; font-size: 0.85rem; margin: 0; }
+.ws-modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}

@@ -2,7 +2,9 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { useDropzone } from 'react-dropzone';
-import { FaUpload, FaFile, FaDownload, FaTrash, FaCheckCircle, FaTimes, FaFileAlt, FaExclamationTriangle, FaInfoCircle } from 'react-icons/fa';
+import { FaUpload, FaFile, FaDownload, FaTrash, FaCheckCircle, FaTimes, FaFileAlt, FaExclamationTriangle, FaInfoCircle, FaFolder } from 'react-icons/fa';
+
+import WorkspaceTab from '../workspace/WorkspaceTab';
 import mortgageService from '../services/mortgageService';
 
 const DOCUMENT_TYPES = [
@@ -503,6 +505,23 @@ const ApplicationDetails = () => {
           )}
         </div>
         </div>
+
+      {/* Document Workspace (LO view; Phase 1 — folder tree + per-folder file list) */}
+      <div className="card" style={{ marginTop: '2rem' }}>
+        <h2 style={{ marginBottom: '1rem' }}>
+          <FaFolder /> Document Workspace
+          <span style={{
+            marginLeft: '0.75rem',
+            fontSize: '0.7rem',
+            background: '#fef3c7',
+            color: '#92400e',
+            padding: '2px 8px',
+            borderRadius: '999px',
+            verticalAlign: 'middle',
+          }}>BETA</span>
+        </h2>
+        <WorkspaceTab loanId={Number(id)} />
+      </div>
 
       {/* Back Button */}
       <div style={{ marginTop: '2rem', textAlign: 'center' }}>

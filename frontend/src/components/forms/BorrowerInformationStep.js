@@ -146,6 +146,8 @@ const BorrowerInformationStep = ({
             <PersonalInfoField
               register={register}
               errors={errors}
+              setValue={setValue}
+              watch={watch}
               prefix={`borrowers.0`}
               required={true}
             />

@@ -233,3 +233,55 @@ textarea[readonly] {
   background: var(--bg-secondary);
   cursor: default;
 }
+
+/* Number stepper — used for dependents (− N +). Bounded buttons share the
+ * same height as the central input so the row reads as one control. */
+.num-stepper {
+  display: inline-flex;
+  align-items: stretch;
+  border: 1px solid var(--border-color, #d1d5db);
+  border-radius: 6px;
+  overflow: hidden;
+  background: #fff;
+  width: fit-content;
+}
+.num-stepper-btn {
+  background: #f9fafb;
+  border: none;
+  padding: 0 14px;
+  cursor: pointer;
+  color: #111827;
+  font-size: 0.95rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 100ms ease;
+}
+.num-stepper-btn:hover:not(:disabled) {
+  background: #e5e7eb;
+}
+.num-stepper-btn:focus-visible {
+  outline: 2px solid var(--primary-color, #2c5f2d);
+  outline-offset: -2px;
+}
+.num-stepper-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+.num-stepper-input {
+  width: 56px;
+  text-align: center;
+  border: none;
+  border-left: 1px solid var(--border-color, #d1d5db);
+  border-right: 1px solid var(--border-color, #d1d5db);
+  padding: 8px 4px;
+  font-size: 1rem;
+  background: #fff;
+  /* Hide the native number-input spinners — buttons are the affordance */
+  -moz-appearance: textfield;
+}
+.num-stepper-input::-webkit-outer-spin-button,
+.num-stepper-input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}

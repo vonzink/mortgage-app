@@ -72,8 +72,12 @@ nano deploy/.env
 cd frontend
 npm install --legacy-peer-deps
 REACT_APP_API_URL=https://app.msfgco.com/api \
+REACT_APP_COGNITO_AUTHORITY=https://cognito-idp.us-west-1.amazonaws.com/us-west-1_S6iE2uego \
 REACT_APP_COGNITO_REDIRECT_URI=https://app.msfgco.com/auth/callback \
 REACT_APP_COGNITO_POST_LOGOUT_REDIRECT_URI=https://app.msfgco.com/ \
+REACT_APP_COGNITO_USER_POOL_ID=us-west-1_S6iE2uego \
+REACT_APP_COGNITO_CLIENT_ID=34rg0vqoobfv8hhvg8kunkd738 \
+REACT_APP_COGNITO_DOMAIN=https://us-west-1s6ie2uego.auth.us-west-1.amazoncognito.com \
 npm run build
 cd ..
 
@@ -107,8 +111,12 @@ git pull
 # frontend (same env vars as initial deploy — CRA bakes them in at build time)
 cd frontend && \
   REACT_APP_API_URL=https://app.msfgco.com/api \
+  REACT_APP_COGNITO_AUTHORITY=https://cognito-idp.us-west-1.amazonaws.com/us-west-1_S6iE2uego \
   REACT_APP_COGNITO_REDIRECT_URI=https://app.msfgco.com/auth/callback \
   REACT_APP_COGNITO_POST_LOGOUT_REDIRECT_URI=https://app.msfgco.com/ \
+  REACT_APP_COGNITO_USER_POOL_ID=us-west-1_S6iE2uego \
+  REACT_APP_COGNITO_CLIENT_ID=34rg0vqoobfv8hhvg8kunkd738 \
+  REACT_APP_COGNITO_DOMAIN=https://us-west-1s6ie2uego.auth.us-west-1.amazoncognito.com \
   npm run build && cd ..
 # backend container
 docker compose up -d --build
@@ -128,6 +136,70 @@ docker compose logs -f backend                # tail backend logs
 docker compose ps                              # container state + healthcheck status
 sudo tail -f /var/log/nginx/app.msfgco.com.access.log
 ```
+
+## Rotating secrets
+
+Anything in `deploy/.env` is read fresh by the container only on
+`docker compose up -d` — `restart` reuses the old environment. Always use
+`up -d` after editing `.env`.
+
+### Database password (`DB_PASSWORD`)
+
+```bash
+# 1. Connect to RDS as the master user
+psql -h msfg-webhook-postgres-public.cghqooasg1vk.us-east-1.rds.amazonaws.com \
+     -U postgres -d postgres
+
+# At the postgres=> prompt:
+#   ALTER USER mortgage_app WITH PASSWORD 'NewPassword2026';
+#   \q
+
+# 2. Update deploy/.env on the server
+nano ~/apps/mortgage-app/deploy/.env
+# Change DB_PASSWORD=… to the new value, save (Ctrl+O, Enter, Ctrl+X)
+
+# 3. Recreate the container (NOT restart — that reuses old env)
+cd ~/apps/mortgage-app
+docker compose up -d
+
+# 4. Verify
+docker compose logs --tail=40 backend
+# Look for: "Started MortgageApplication in N seconds"
+```
+
+If the container won't boot after the swap and the logs say
+`password authentication failed for user "mortgage_app"`, the value in
+`.env` doesn't match what's on RDS. Use the same psql command from
+step 1 to test the new password directly:
+
+```bash
+PGPASSWORD='NewPassword2026' psql \
+  -h msfg-webhook-postgres-public.cghqooasg1vk.us-east-1.rds.amazonaws.com \
+  -U mortgage_app -d mortgage_app -c '\conninfo'
+```
+
+If `psql` succeeds but the container fails, the `.env` value has a hidden
+character (trailing whitespace, smart quote). Re-edit and re-do step 3.
+
+### Encryption key (`APP_ENCRYPTION_KEY`)
+
+Currently unused (no column-level crypto wired up yet), but if you rotate
+it, anything that was encrypted with the old key becomes unrecoverable.
+Don't rotate unless you know nothing in the database was encrypted with
+the current key.
+
+```bash
+openssl rand -base64 32  # generate the new key
+# Paste into deploy/.env, then:
+docker compose up -d
+```
+
+### AWS credentials
+
+Don't put AWS keys in `.env`. The EC2 instance role (`msfg-dashboard-ec2-role`)
+already has an inline policy granting access to the prod S3 bucket. The
+container reads role credentials automatically via the EC2 metadata
+service — no rotation needed on the app side.
 
 ## Rollback
 

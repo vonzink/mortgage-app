@@ -1,0 +1,36 @@
+# Production deploy on the MSFG EC2 box (Ubuntu, multi-tenant — runs alongside
+# the existing Node msfg-backend, n8n, RustDesk, etc.). Single service: the
+# Spring Boot backend. Postgres lives in RDS, S3 docs are in their own bucket,
+# Cognito is hosted-UI — none of that runs in a container.
+#
+# Bring up:        docker compose up -d --build
+# Tail logs:       docker compose logs -f backend
+# Roll the image:  docker compose pull backend && docker compose up -d backend
+# Tear down:       docker compose down
+#
+# Secrets come from deploy/.env on the server (NEVER commit this file).
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    image: mortgage-app-backend:latest
+    container_name: mortgage-app-backend
+    restart: unless-stopped
+    env_file:
+      - deploy/.env
+    # Bind to localhost only — the host's nginx terminates TLS and proxies
+    # https://app.msfgco.com/api → 127.0.0.1:8081 over the loopback.
+    ports:
+      - "127.0.0.1:8081:8081"
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8081/api/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 40s
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "5"

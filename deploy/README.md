@@ -7,11 +7,17 @@ frontend is a static bundle served by the host's existing nginx.
 
 ## One-time setup
 
-### 1. Cognito callback URL
+### 1. Cognito callback URLs
 
-Add `https://app.msfgco.com/` to the Cognito user pool's **Allowed callback URLs**
-and **Allowed sign-out URLs** (User Pool `us-west-1_S6iE2uego` → App client →
-Hosted UI). Without this, sign-in redirects fail with `redirect_mismatch`.
+User Pool `us-west-1_S6iE2uego` → **App integration** tab → click the app
+client → **Hosted UI** section → **Edit**. Add both:
+
+- **Allowed callback URLs**: `https://app.msfgco.com/auth/callback`
+- **Allowed sign-out URLs**: `https://app.msfgco.com/`
+
+Without these, sign-in fails with `redirect_mismatch` after the OAuth
+round-trip. Leave the existing `http://localhost:3000/...` entries —
+those keep dev working.
 
 ### 2. RDS Postgres
 
@@ -61,9 +67,14 @@ chmod 600 deploy/.env
 nano deploy/.env
 
 # build the frontend bundle for nginx
+# CRA bakes REACT_APP_* values into the bundle at build time, so these have to
+# be exported BEFORE `npm run build` — they don't read deploy/.env.
 cd frontend
 npm install --legacy-peer-deps
-REACT_APP_API_URL=https://app.msfgco.com/api npm run build
+REACT_APP_API_URL=https://app.msfgco.com/api \
+REACT_APP_COGNITO_REDIRECT_URI=https://app.msfgco.com/auth/callback \
+REACT_APP_COGNITO_POST_LOGOUT_REDIRECT_URI=https://app.msfgco.com/ \
+npm run build
 cd ..
 
 # build + boot the backend container
@@ -93,8 +104,12 @@ After pushing changes to `main`:
 ```bash
 cd ~/apps/mortgage-app
 git pull
-# frontend
-cd frontend && REACT_APP_API_URL=https://app.msfgco.com/api npm run build && cd ..
+# frontend (same env vars as initial deploy — CRA bakes them in at build time)
+cd frontend && \
+  REACT_APP_API_URL=https://app.msfgco.com/api \
+  REACT_APP_COGNITO_REDIRECT_URI=https://app.msfgco.com/auth/callback \
+  REACT_APP_COGNITO_POST_LOGOUT_REDIRECT_URI=https://app.msfgco.com/ \
+  npm run build && cd ..
 # backend container
 docker compose up -d --build
 ```

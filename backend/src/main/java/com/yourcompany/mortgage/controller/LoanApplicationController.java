@@ -54,6 +54,7 @@ public class LoanApplicationController {
     private final CurrentUserService currentUserService;
 
     @PostMapping
+    @PreAuthorize("hasAnyRole('LO','Processor','Admin','Manager')")
     public ResponseEntity<LoanApplication> createApplication(@Valid @RequestBody LoanApplicationDTO applicationDTO) {
         log.info("Creating loan application");
         LoanApplication application = loanApplicationService.createApplication(applicationDTO);
@@ -70,7 +71,7 @@ public class LoanApplicationController {
      * they're auto-assigned as the loan officer.
      */
     @PostMapping(value = "/from-mismo", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    @PreAuthorize("hasAnyRole('LO', 'Processor', 'Admin', 'Manager', 'Borrower')")
+    @PreAuthorize("hasAnyRole('LO','Processor','Admin','Manager')")
     public ResponseEntity<?> createFromMismo(@RequestParam("file") MultipartFile file) {
         if (file == null || file.isEmpty()) {
             return ResponseEntity.badRequest().body(Map.of("error", "file_required"));
@@ -123,7 +124,12 @@ public class LoanApplicationController {
         }
     }
 
+    /**
+     * Internal-only firehose. Borrowers/agents must use {@code GET /me/loans}, which is
+     * filtered to loans they participate in.
+     */
     @GetMapping
+    @PreAuthorize("@loanAccessGuard.isInternal()")
     public ResponseEntity<List<LoanApplication>> getAllApplications() {
         List<LoanApplication> applications = loanApplicationService.getAllApplications();
         return new ResponseEntity<>(applications, HttpStatus.OK);
@@ -158,7 +164,7 @@ public class LoanApplicationController {
      * the DB and writes an audit row.
      */
     @PostMapping(value = "/{id}/import/mismo", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    @PreAuthorize("@loanAccessGuard.canAccess(#id)")
+    @PreAuthorize("@loanAccessGuard.isInternal() and @loanAccessGuard.canAccess(#id)")
     public ResponseEntity<?> importMismo(@PathVariable Long id,
                                          @RequestParam("file") MultipartFile file,
                                          @RequestParam(value = "force", required = false, defaultValue = "false") boolean force) {
@@ -244,20 +250,29 @@ public class LoanApplicationController {
                 .orElseGet(() -> ResponseEntity.notFound().build());
     }
 
+    /**
+     * Lookup by application number. Internal staff only — borrowers/agents would bypass
+     * the per-loan ownership check by guessing application numbers, since the guard keys
+     * on numeric loan id.
+     */
     @GetMapping("/number/{applicationNumber}")
+    @PreAuthorize("@loanAccessGuard.isInternal()")
     public ResponseEntity<LoanApplication> getApplicationByNumber(@PathVariable String applicationNumber) {
         Optional<LoanApplication> application = loanApplicationService.getApplicationByNumber(applicationNumber);
         return application.map(app -> new ResponseEntity<>(app, HttpStatus.OK))
                 .orElse(new ResponseEntity<>(HttpStatus.NOT_FOUND));
     }
 
+    /** Internal-only — borrower/agent equivalents come from {@code GET /me/loans}. */
     @GetMapping("/status/{status}")
+    @PreAuthorize("@loanAccessGuard.isInternal()")
     public ResponseEntity<List<LoanApplication>> getApplicationsByStatus(@PathVariable String status) {
         List<LoanApplication> applications = loanApplicationService.getApplicationsByStatus(status);
         return new ResponseEntity<>(applications, HttpStatus.OK);
     }
 
     @PutMapping("/{id}")
+    @PreAuthorize("@loanAccessGuard.isInternal() and @loanAccessGuard.canAccess(#id)")
     public ResponseEntity<LoanApplication> updateApplication(@PathVariable Long id, @Valid @RequestBody LoanApplicationDTO applicationDTO) {
         try {
             LoanApplication application = loanApplicationService.updateApplication(id, applicationDTO);
@@ -269,6 +284,7 @@ public class LoanApplicationController {
     }
 
     @PatchMapping("/{id}/status")
+    @PreAuthorize("@loanAccessGuard.isInternal() and @loanAccessGuard.canAccess(#id)")
     public ResponseEntity<?> updateApplicationStatus(@PathVariable Long id, @RequestParam String status) {
         try {
             LoanApplication application = loanApplicationService.updateApplicationStatus(id, status);
@@ -283,7 +299,7 @@ public class LoanApplicationController {
     }
 
     @DeleteMapping("/{id}")
-    @PreAuthorize("@loanAccessGuard.canAccess(#id)")
+    @PreAuthorize("hasAnyRole('LO','Admin','Manager') and @loanAccessGuard.canAccess(#id)")
     public ResponseEntity<Void> deleteApplication(@PathVariable Long id) {
         try {
             loanApplicationService.deleteApplication(id);

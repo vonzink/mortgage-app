@@ -7,9 +7,8 @@ import com.yourcompany.mortgage.model.Borrower;
 import com.yourcompany.mortgage.model.Employment;
 import com.yourcompany.mortgage.repository.BorrowerRepository;
 import com.yourcompany.mortgage.repository.EmploymentRepository;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -19,26 +18,23 @@ import java.util.stream.Collectors;
 
 @Service
 @Transactional
+@RequiredArgsConstructor
+@Slf4j
 public class EmploymentService {
 
-    private static final Logger logger = LoggerFactory.getLogger(EmploymentService.class);
-
-    @Autowired
-    private EmploymentRepository employmentRepository;
-
-    @Autowired
-    private BorrowerRepository borrowerRepository;
+    private final EmploymentRepository employmentRepository;
+    private final BorrowerRepository borrowerRepository;
 
     @Transactional(readOnly = true)
     public List<EmploymentDTO> getEmploymentsByBorrower(Long borrowerId) {
-        logger.info("Getting employments for borrower ID: {}", borrowerId);
+        log.info("Getting employments for borrower ID: {}", borrowerId);
         List<Employment> employments = employmentRepository.findByBorrowerIdOrderBySequenceNumber(borrowerId);
         return employments.stream().map(this::convertToDTO).collect(Collectors.toList());
     }
 
     @Transactional(readOnly = true)
     public Employment getEmploymentEntityById(Long employmentId) {
-        logger.info("Getting employment entity by ID: {}", employmentId);
+        log.info("Getting employment entity by ID: {}", employmentId);
         return employmentRepository.findById(employmentId)
                 .orElseThrow(() -> new ResourceNotFoundException("Employment not found with ID: " + employmentId));
     }
@@ -49,7 +45,7 @@ public class EmploymentService {
     }
 
     public EmploymentDTO createEmployment(Long borrowerId, EmploymentDTO employmentDTO) {
-        logger.info("Creating employment for borrower ID: {}", borrowerId);
+        log.info("Creating employment for borrower ID: {}", borrowerId);
 
         Borrower borrower = borrowerRepository.findById(borrowerId)
                 .orElseThrow(() -> new ResourceNotFoundException("Borrower not found with ID: " + borrowerId));
@@ -61,13 +57,13 @@ public class EmploymentService {
         employment.setBorrower(borrower);
 
         Employment savedEmployment = employmentRepository.save(employment);
-        logger.info("Created employment with ID: {}", savedEmployment.getId());
+        log.info("Created employment with ID: {}", savedEmployment.getId());
 
         return convertToDTO(savedEmployment);
     }
 
     public EmploymentDTO updateEmployment(Long employmentId, EmploymentDTO employmentDTO) {
-        logger.info("Updating employment with ID: {}", employmentId);
+        log.info("Updating employment with ID: {}", employmentId);
 
         Employment existingEmployment = employmentRepository.findById(employmentId)
                 .orElseThrow(() -> new ResourceNotFoundException("Employment not found with ID: " + employmentId));
@@ -78,31 +74,31 @@ public class EmploymentService {
         updateEmploymentFields(existingEmployment, employmentDTO);
 
         Employment savedEmployment = employmentRepository.save(existingEmployment);
-        logger.info("Updated employment with ID: {}", savedEmployment.getId());
+        log.info("Updated employment with ID: {}", savedEmployment.getId());
 
         return convertToDTO(savedEmployment);
     }
 
     public void deleteEmployment(Long employmentId) {
-        logger.info("Deleting employment with ID: {}", employmentId);
+        log.info("Deleting employment with ID: {}", employmentId);
 
         Employment employment = employmentRepository.findById(employmentId)
                 .orElseThrow(() -> new ResourceNotFoundException("Employment not found with ID: " + employmentId));
 
         employmentRepository.delete(employment);
-        logger.info("Deleted employment with ID: {}", employmentId);
+        log.info("Deleted employment with ID: {}", employmentId);
     }
 
     @Transactional(readOnly = true)
     public List<EmploymentDTO> getCurrentEmployments(Long borrowerId) {
-        logger.info("Getting current employments for borrower ID: {}", borrowerId);
+        log.info("Getting current employments for borrower ID: {}", borrowerId);
         List<Employment> employments = employmentRepository.findCurrentEmploymentByBorrowerId(borrowerId);
         return employments.stream().map(this::convertToDTO).collect(Collectors.toList());
     }
 
     @Transactional(readOnly = true)
     public BigDecimal getTotalMonthlyIncome(Long borrowerId) {
-        logger.info("Calculating total monthly income for borrower ID: {}", borrowerId);
+        log.info("Calculating total monthly income for borrower ID: {}", borrowerId);
         List<Employment> currentEmployments = employmentRepository.findCurrentEmploymentByBorrowerId(borrowerId);
         return currentEmployments.stream()
                 .map(Employment::getMonthlyIncome)

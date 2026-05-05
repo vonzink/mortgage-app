@@ -8,11 +8,10 @@ import com.yourcompany.mortgage.repository.BorrowerRepository;
 import com.yourcompany.mortgage.exception.ResourceNotFoundException;
 import com.yourcompany.mortgage.exception.BusinessValidationException;
 
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.math.BigDecimal;
 import java.util.List;
@@ -20,18 +19,15 @@ import java.util.stream.Collectors;
 
 @Service
 @Transactional
+@RequiredArgsConstructor
+@Slf4j
 public class ResidenceService {
-    
-    private static final Logger logger = LoggerFactory.getLogger(ResidenceService.class);
-    
-    @Autowired
-    private ResidenceRepository residenceRepository;
-    
-    @Autowired
-    private BorrowerRepository borrowerRepository;
+
+    private final ResidenceRepository residenceRepository;
+    private final BorrowerRepository borrowerRepository;
     
     public List<ResidenceDTO> getResidencesByBorrower(Long borrowerId) {
-        logger.info("Getting residences for borrower ID: {}", borrowerId);
+        log.info("Getting residences for borrower ID: {}", borrowerId);
         
         List<Residence> residences = residenceRepository.findByBorrowerId(borrowerId);
         
@@ -41,7 +37,7 @@ public class ResidenceService {
     }
     
     public ResidenceDTO getResidenceById(Long residenceId) {
-        logger.info("Getting residence by ID: {}", residenceId);
+        log.info("Getting residence by ID: {}", residenceId);
         
         Residence residence = residenceRepository.findById(residenceId)
                 .orElseThrow(() -> new ResourceNotFoundException("Residence not found with ID: " + residenceId));
@@ -50,7 +46,7 @@ public class ResidenceService {
     }
     
     public ResidenceDTO createResidence(Long borrowerId, ResidenceDTO residenceDTO) {
-        logger.info("Creating residence for borrower ID: {}", borrowerId);
+        log.info("Creating residence for borrower ID: {}", borrowerId);
         
         Borrower borrower = borrowerRepository.findById(borrowerId)
                 .orElseThrow(() -> new ResourceNotFoundException("Borrower not found with ID: " + borrowerId));
@@ -61,13 +57,13 @@ public class ResidenceService {
         residence.setBorrower(borrower);
         
         Residence savedResidence = residenceRepository.save(residence);
-        logger.info("Created residence with ID: {}", savedResidence.getId());
+        log.info("Created residence with ID: {}", savedResidence.getId());
         
         return convertToDTO(savedResidence);
     }
     
     public ResidenceDTO updateResidence(Long residenceId, ResidenceDTO residenceDTO) {
-        logger.info("Updating residence with ID: {}", residenceId);
+        log.info("Updating residence with ID: {}", residenceId);
         
         Residence existingResidence = residenceRepository.findById(residenceId)
                 .orElseThrow(() -> new ResourceNotFoundException("Residence not found with ID: " + residenceId));
@@ -77,23 +73,23 @@ public class ResidenceService {
         updateResidenceFields(existingResidence, residenceDTO);
         
         Residence savedResidence = residenceRepository.save(existingResidence);
-        logger.info("Updated residence with ID: {}", savedResidence.getId());
+        log.info("Updated residence with ID: {}", savedResidence.getId());
         
         return convertToDTO(savedResidence);
     }
     
     public void deleteResidence(Long residenceId) {
-        logger.info("Deleting residence with ID: {}", residenceId);
+        log.info("Deleting residence with ID: {}", residenceId);
         
         Residence residence = residenceRepository.findById(residenceId)
                 .orElseThrow(() -> new ResourceNotFoundException("Residence not found with ID: " + residenceId));
         
         residenceRepository.delete(residence);
-        logger.info("Deleted residence with ID: {}", residenceId);
+        log.info("Deleted residence with ID: {}", residenceId);
     }
     
     public ResidenceDTO getCurrentResidence(Long borrowerId) {
-        logger.info("Getting current residence for borrower ID: {}", borrowerId);
+        log.info("Getting current residence for borrower ID: {}", borrowerId);
         
         List<Residence> currentResidences = residenceRepository.findByBorrowerIdAndResidencyType(borrowerId, "Current");
         
@@ -102,14 +98,14 @@ public class ResidenceService {
         }
         
         if (currentResidences.size() > 1) {
-            logger.warn("Multiple current residences found for borrower ID: {}", borrowerId);
+            log.warn("Multiple current residences found for borrower ID: {}", borrowerId);
         }
         
         return convertToDTO(currentResidences.get(0));
     }
     
     public List<ResidenceDTO> getPriorResidences(Long borrowerId) {
-        logger.info("Getting prior residences for borrower ID: {}", borrowerId);
+        log.info("Getting prior residences for borrower ID: {}", borrowerId);
         
         List<Residence> priorResidences = residenceRepository.findByBorrowerIdAndResidencyType(borrowerId, "Prior");
         
@@ -119,7 +115,7 @@ public class ResidenceService {
     }
     
     public BigDecimal getTotalHousingCost(Long borrowerId) {
-        logger.info("Calculating total housing cost for borrower ID: {}", borrowerId);
+        log.info("Calculating total housing cost for borrower ID: {}", borrowerId);
         
         List<Residence> residences = residenceRepository.findByBorrowerId(borrowerId);
         
@@ -131,7 +127,7 @@ public class ResidenceService {
     }
     
     public int getTotalResidenceHistory(Long borrowerId) {
-        logger.info("Calculating total residence history for borrower ID: {}", borrowerId);
+        log.info("Calculating total residence history for borrower ID: {}", borrowerId);
         
         List<Residence> residences = residenceRepository.findByBorrowerId(borrowerId);
         
@@ -150,7 +146,7 @@ public class ResidenceService {
         } else if ("Own".equals(residenceDTO.getResidencyBasis()) || "LivingRentFree".equals(residenceDTO.getResidencyBasis())) {
             // For owned properties or living rent-free, rent should be null or zero
             if (residenceDTO.getMonthlyRent() != null && residenceDTO.getMonthlyRent().compareTo(BigDecimal.ZERO) > 0) {
-                logger.warn("Monthly rent provided for non-rental property, setting to zero");
+                log.warn("Monthly rent provided for non-rental property, setting to zero");
                 residenceDTO.setMonthlyRent(BigDecimal.ZERO);
             }
         }

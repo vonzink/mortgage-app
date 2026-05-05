@@ -8,11 +8,10 @@ import com.yourcompany.mortgage.repository.BorrowerRepository;
 import com.yourcompany.mortgage.exception.ResourceNotFoundException;
 import com.yourcompany.mortgage.exception.BusinessValidationException;
 
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.math.BigDecimal;
 import java.util.List;
@@ -20,18 +19,15 @@ import java.util.stream.Collectors;
 
 @Service
 @Transactional
+@RequiredArgsConstructor
+@Slf4j
 public class IncomeSourceService {
-    
-    private static final Logger logger = LoggerFactory.getLogger(IncomeSourceService.class);
-    
-    @Autowired
-    private IncomeSourceRepository incomeSourceRepository;
-    
-    @Autowired
-    private BorrowerRepository borrowerRepository;
+
+    private final IncomeSourceRepository incomeSourceRepository;
+    private final BorrowerRepository borrowerRepository;
     
     public List<IncomeSourceDTO> getIncomeSourcesByBorrower(Long borrowerId) {
-        logger.info("Getting income sources for borrower ID: {}", borrowerId);
+        log.info("Getting income sources for borrower ID: {}", borrowerId);
         
         List<IncomeSource> incomeSources = incomeSourceRepository.findByBorrowerId(borrowerId);
         
@@ -41,7 +37,7 @@ public class IncomeSourceService {
     }
     
     public IncomeSourceDTO getIncomeSourceById(Long incomeSourceId) {
-        logger.info("Getting income source by ID: {}", incomeSourceId);
+        log.info("Getting income source by ID: {}", incomeSourceId);
         
         IncomeSource incomeSource = incomeSourceRepository.findById(incomeSourceId)
                 .orElseThrow(() -> new ResourceNotFoundException("Income source not found with ID: " + incomeSourceId));
@@ -50,7 +46,7 @@ public class IncomeSourceService {
     }
     
     public IncomeSourceDTO createIncomeSource(Long borrowerId, IncomeSourceDTO incomeSourceDTO) {
-        logger.info("Creating income source for borrower ID: {}", borrowerId);
+        log.info("Creating income source for borrower ID: {}", borrowerId);
         
         Borrower borrower = borrowerRepository.findById(borrowerId)
                 .orElseThrow(() -> new ResourceNotFoundException("Borrower not found with ID: " + borrowerId));
@@ -61,13 +57,13 @@ public class IncomeSourceService {
         incomeSource.setBorrower(borrower);
         
         IncomeSource savedIncomeSource = incomeSourceRepository.save(incomeSource);
-        logger.info("Created income source with ID: {}", savedIncomeSource.getId());
+        log.info("Created income source with ID: {}", savedIncomeSource.getId());
         
         return convertToDTO(savedIncomeSource);
     }
     
     public IncomeSourceDTO updateIncomeSource(Long incomeSourceId, IncomeSourceDTO incomeSourceDTO) {
-        logger.info("Updating income source with ID: {}", incomeSourceId);
+        log.info("Updating income source with ID: {}", incomeSourceId);
         
         IncomeSource existingIncomeSource = incomeSourceRepository.findById(incomeSourceId)
                 .orElseThrow(() -> new ResourceNotFoundException("Income source not found with ID: " + incomeSourceId));
@@ -77,23 +73,23 @@ public class IncomeSourceService {
         updateIncomeSourceFields(existingIncomeSource, incomeSourceDTO);
         
         IncomeSource savedIncomeSource = incomeSourceRepository.save(existingIncomeSource);
-        logger.info("Updated income source with ID: {}", savedIncomeSource.getId());
+        log.info("Updated income source with ID: {}", savedIncomeSource.getId());
         
         return convertToDTO(savedIncomeSource);
     }
     
     public void deleteIncomeSource(Long incomeSourceId) {
-        logger.info("Deleting income source with ID: {}", incomeSourceId);
+        log.info("Deleting income source with ID: {}", incomeSourceId);
         
         IncomeSource incomeSource = incomeSourceRepository.findById(incomeSourceId)
                 .orElseThrow(() -> new ResourceNotFoundException("Income source not found with ID: " + incomeSourceId));
         
         incomeSourceRepository.delete(incomeSource);
-        logger.info("Deleted income source with ID: {}", incomeSourceId);
+        log.info("Deleted income source with ID: {}", incomeSourceId);
     }
     
     public BigDecimal getTotalAdditionalMonthlyIncome(Long borrowerId) {
-        logger.info("Calculating total additional monthly income for borrower ID: {}", borrowerId);
+        log.info("Calculating total additional monthly income for borrower ID: {}", borrowerId);
         
         List<IncomeSource> incomeSources = incomeSourceRepository.findByBorrowerId(borrowerId);
         
@@ -107,7 +103,7 @@ public class IncomeSourceService {
     }
     
     public List<IncomeSourceDTO> getGovernmentBenefits(Long borrowerId) {
-        logger.info("Getting government benefits for borrower ID: {}", borrowerId);
+        log.info("Getting government benefits for borrower ID: {}", borrowerId);
         
         return getIncomeSourcesByBorrower(borrowerId).stream()
                 .filter(dto -> dto.getIsGovernmentBenefit())
@@ -115,7 +111,7 @@ public class IncomeSourceService {
     }
     
     public List<IncomeSourceDTO> getInvestmentIncome(Long borrowerId) {
-        logger.info("Getting investment income for borrower ID: {}", borrowerId);
+        log.info("Getting investment income for borrower ID: {}", borrowerId);
         
         return getIncomeSourcesByBorrower(borrowerId).stream()
                 .filter(dto -> dto.getIsInvestmentIncome())

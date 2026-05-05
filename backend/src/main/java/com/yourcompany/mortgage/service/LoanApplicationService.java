@@ -6,7 +6,7 @@ import com.yourcompany.mortgage.repository.*;
 import com.yourcompany.mortgage.exception.ResourceNotFoundException;
 import com.yourcompany.mortgage.model.LoanStatus;
 import com.yourcompany.mortgage.model.LoanStatusHistory;
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -16,32 +16,17 @@ import java.util.stream.Collectors;
 
 @Service
 @Transactional
+@RequiredArgsConstructor
 public class LoanApplicationService {
-    
-    @Autowired
-    private LoanApplicationRepository loanApplicationRepository;
-    
-    @Autowired
-    private BorrowerRepository borrowerRepository;
-    
-    @Autowired
-    private PropertyRepository propertyRepository;
-    
-    @Autowired
-    private EmploymentRepository employmentRepository;
-    
-    @Autowired
-    private LiabilityRepository liabilityRepository;
-    
-    
-    @Autowired
-    private IncomeSourceRepository incomeSourceRepository;
-    
-    @Autowired
-    private ResidenceRepository residenceRepository;
 
-    @Autowired
-    private LoanStatusHistoryRepository loanStatusHistoryRepository;
+    private final LoanApplicationRepository loanApplicationRepository;
+    private final BorrowerRepository borrowerRepository;
+    private final PropertyRepository propertyRepository;
+    private final EmploymentRepository employmentRepository;
+    private final LiabilityRepository liabilityRepository;
+    private final IncomeSourceRepository incomeSourceRepository;
+    private final ResidenceRepository residenceRepository;
+    private final LoanStatusHistoryRepository loanStatusHistoryRepository;
 
     public LoanApplication createApplication(LoanApplicationDTO applicationDTO) {
         // Create main application

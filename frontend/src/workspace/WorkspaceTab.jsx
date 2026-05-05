@@ -273,6 +273,28 @@ export default function WorkspaceTab({ loanId }) {
   }, [folders]);
 
   const atRoot = selectedFolderId === rootId;
+  const atDeleteFolder = selectedFolder?.isDeleteFolder === true;
+
+  /**
+   * Permanent delete — only reachable from inside the Delete folder. Confirms with
+   * a strong "type-the-name" style prompt so accidental clicks don't take a doc.
+   * Backend re-checks folder placement and rejects if the doc was moved out.
+   */
+  const handlePermanentDelete = useCallback(async (doc) => {
+    const confirmed = window.confirm(
+      `Permanently delete "${doc.fileName}"?\n\n` +
+      `This removes the file from S3 and the database. It cannot be undone.`,
+    );
+    if (!confirmed) return;
+    try {
+      await workspaceService.permanentlyDeleteDocument(loanId, doc.docUuid);
+      toast.success(`Deleted ${doc.fileName}`);
+      await loadDocs();
+    } catch (e) {
+      const msg = e?.response?.data?.message || e?.message || 'Delete failed';
+      toast.error(msg);
+    }
+  }, [loanId, loadDocs]);
 
   return (
     <div className="ws-root">
@@ -322,6 +344,15 @@ export default function WorkspaceTab({ loanId }) {
 
         <main className="ws-main">
           <Breadcrumbs path={breadcrumb} onNavigate={setSelectedFolderId} />
+
+          {atDeleteFolder && (
+            <div className="ws-delete-warning">
+              <strong>Delete folder.</strong> Files dragged here can be permanently
+              removed using the trash button. <em>This is the only way to delete documents
+              and the action cannot be undone.</em>
+            </div>
+          )}
+
           <FileTable
             documents={documents}
             loading={loadingDocs}
@@ -330,7 +361,8 @@ export default function WorkspaceTab({ loanId }) {
             onPrefetchDownload={prefetchDownloadUrl}
             getDownloadUrl={getCachedDownloadUrl}
             onDownload={handleDownload}
-            onRename={handleEditDoc}
+            onRename={atDeleteFolder ? null : handleEditDoc}
+            onDelete={atDeleteFolder ? handlePermanentDelete : null}
             showFolder={atRoot}
             folderNameFor={folderNameFor}
           />

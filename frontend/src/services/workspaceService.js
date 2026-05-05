@@ -92,6 +92,15 @@ const workspaceService = {
     await apiClient.delete(`/loan-applications/${loanId}/folders/${folderId}`);
   },
 
+  /**
+   * Hard-delete a document. Only works when the document is currently in the loan's
+   * Delete folder — backend rejects the call otherwise. Removes the S3 object and
+   * the database row. Irreversible.
+   */
+  permanentlyDeleteDocument: async (loanId, docUuid) => {
+    await apiClient.delete(`/loan-applications/${loanId}/documents/${docUuid}/permanent`);
+  },
+
   /** Returns every uploaded document on the loan, regardless of folder. */
   getAllDocuments: async (loanId) => {
     const { data } = await apiClient.get(`/loan-applications/${loanId}/documents`);

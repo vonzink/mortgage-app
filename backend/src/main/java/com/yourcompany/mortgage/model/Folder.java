@@ -55,6 +55,10 @@ public class Folder {
     @Column(name = "is_old_loan_archive", nullable = false)
     private Boolean isOldLoanArchive;
 
+    /** Each loan has exactly one Delete folder; documents moved into it can be hard-deleted. */
+    @Column(name = "is_delete_folder", nullable = false)
+    private Boolean isDeleteFolder;
+
     @Column(name = "created_by_user_id")
     private Long createdByUserId;
 
@@ -75,6 +79,7 @@ public class Folder {
         if (updatedAt == null) updatedAt = now;
         if (isSystem == null) isSystem = false;
         if (isOldLoanArchive == null) isOldLoanArchive = false;
+        if (isDeleteFolder == null) isDeleteFolder = false;
         if (nameNormalized == null && displayName != null) nameNormalized = normalize(displayName);
     }
 

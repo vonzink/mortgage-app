@@ -51,6 +51,7 @@ public class DocumentController {
     private final CurrentUserService currentUserService;
     private final com.yourcompany.mortgage.repository.FolderRepository folderRepository;
     private final com.yourcompany.mortgage.security.LoanAccessGuard loanAccessGuard;
+    private final com.yourcompany.mortgage.service.FolderService folderService;
 
     // ─────────────────────────────────── Step 1: presigned upload ────────────────────
 
@@ -362,6 +363,60 @@ public class DocumentController {
     }
 
     public record MoveDocumentsRequest(List<String> docUuids, Long toFolderId) {}
+
+    // ─────────────────────────────────── Permanent delete ──────────────────────────
+
+    /**
+     * Hard-delete a document. The only path to remove a document from a loan: drag it
+     * into the loan's Delete folder, then call this endpoint from inside that folder.
+     * Rejects with 400 if the document isn't in the Delete folder. Removes the S3
+     * object and the {@code documents} row.
+     *
+     * <p>Auditing: a row of MISMO/document audit logging would be nice eventually
+     * but the user's spec is "permanent" so we don't keep a tombstone today.
+     */
+    @DeleteMapping("/{docUuid}/permanent")
+    @PreAuthorize("hasAnyRole('LO','Processor','Admin','Manager') and @loanAccessGuard.canAccess(#loanId)")
+    public ResponseEntity<?> permanentDelete(
+            @PathVariable Long loanId,
+            @PathVariable String docUuid
+    ) {
+        Document doc = documentRepository.findByDocUuid(docUuid)
+                .orElseThrow(() -> new ResourceNotFoundException("Document " + docUuid + " not found"));
+        if (!doc.getApplication().getId().equals(loanId)) {
+            return ResponseEntity.badRequest().body(Map.of("error", "doc/loan mismatch"));
+        }
+
+        Long deleteFolderId = folderService.findDeleteFolder(loanId)
+                .map(com.yourcompany.mortgage.model.Folder::getId)
+                .orElse(null);
+        if (deleteFolderId == null) {
+            return ResponseEntity.status(409).body(Map.of(
+                    "error", "delete_folder_missing",
+                    "message", "This loan has no Delete folder yet. Open the workspace once to seed it."));
+        }
+        if (!deleteFolderId.equals(doc.getFolderId())) {
+            return ResponseEntity.badRequest().body(Map.of(
+                    "error", "not_in_delete_folder",
+                    "message", "Move the document into the Delete folder before permanently removing it."));
+        }
+
+        // Best-effort S3 delete first; if it fails (object-locked, network), we
+        // surface the error and leave the DB row intact so the LO can retry.
+        try {
+            if (doc.getFilePath() != null && !doc.getFilePath().isBlank()) {
+                s3.deleteObject(doc.getFilePath());
+            }
+        } catch (Exception e) {
+            log.warn("Permanent delete failed at S3 for {}: {}", doc.getFilePath(), e.getMessage());
+            return ResponseEntity.status(502).body(Map.of(
+                    "error", "s3_delete_failed",
+                    "message", e.getMessage()));
+        }
+
+        documentRepository.delete(doc);
+        return ResponseEntity.ok(Map.of("ok", true, "docUuid", docUuid));
+    }
 
     // ─────────────────────────────────── helpers ─────────────────────────────────────
 

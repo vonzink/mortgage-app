@@ -175,6 +175,17 @@ public class S3DocumentService {
         }
     }
 
+    /**
+     * Hard-delete an object. Used by the workspace's permanent-delete flow (LO drags a
+     * file into the Delete folder, then confirms removal). Object Lock on the bucket
+     * still gates this — locked objects throw and the controller surfaces a clear error.
+     */
+    public void deleteObject(String key) {
+        s3Client.deleteObject(software.amazon.awssdk.services.s3.model.DeleteObjectRequest.builder()
+                .bucket(bucket).key(key).build());
+        log.info("Deleted s3://{}/{}", bucket, key);
+    }
+
     public String getBucket() {
         return bucket;
     }

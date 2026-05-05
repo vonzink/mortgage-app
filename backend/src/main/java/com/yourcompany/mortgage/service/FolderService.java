@@ -53,10 +53,12 @@ public class FolderService {
             "13 Post Closing",
             "14 Invoices",
             "15 Correspondence",
-            "16 Old Loan Files"
+            "16 Old Loan Files",
+            "17 Delete"
     );
 
     private static final String OLD_LOAN_FILES_NAME = "16 Old Loan Files";
+    private static final String DELETE_FOLDER_NAME = "17 Delete";
 
     // ─── Read ────────────────────────────────────────────────────────────────────
 
@@ -104,11 +106,19 @@ public class FolderService {
                         .sortKey(name.length() >= 2 ? name.substring(0, 2) : null) // "01", "02", … "15"
                         .isSystem(true)
                         .isOldLoanArchive(OLD_LOAN_FILES_NAME.equals(name))
+                        .isDeleteFolder(DELETE_FOLDER_NAME.equals(name))
                         .build();
                 folderRepository.save(f);
             }
         }
         return root;
+    }
+
+    /** The loan's Delete folder, or empty if seed hasn't run yet. */
+    public Optional<Folder> findDeleteFolder(Long applicationId) {
+        return folderRepository.findLiveByApplicationId(applicationId).stream()
+                .filter(f -> Boolean.TRUE.equals(f.getIsDeleteFolder()))
+                .findFirst();
     }
 
     private Folder createRoot(LoanApplication app) {
@@ -120,6 +130,7 @@ public class FolderService {
                 .nameNormalized(Folder.normalize(rootName))
                 .isSystem(true)
                 .isOldLoanArchive(false)
+                .isDeleteFolder(false)
                 .build();
         return folderRepository.save(root);
     }
@@ -186,6 +197,7 @@ public class FolderService {
                 .nameNormalized(normalized)
                 .isSystem(false)
                 .isOldLoanArchive(false)
+                .isDeleteFolder(false)
                 .createdByUserId(createdByUserId)
                 .build();
         return folderRepository.save(f);

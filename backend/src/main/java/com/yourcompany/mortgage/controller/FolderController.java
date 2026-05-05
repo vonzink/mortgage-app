@@ -116,6 +116,7 @@ public class FolderController {
         m.put("sortKey", f.getSortKey());
         m.put("isSystem", f.getIsSystem());
         m.put("isOldLoanArchive", f.getIsOldLoanArchive());
+        m.put("isDeleteFolder", f.getIsDeleteFolder());
         m.put("createdByUserId", f.getCreatedByUserId());
         m.put("createdAt", f.getCreatedAt());
         m.put("updatedAt", f.getUpdatedAt());

@@ -69,6 +69,29 @@
 }
 .ws-tree-row--drophover .ws-tree-name { font-weight: 600; }
 
+/* Delete folder — system bin where files are dragged before being permanently
+ * removed. Red accents make the destructive nature obvious in the tree. */
+.ws-tree-row--delete .ws-tree-label svg { color: #b91c1c; }
+.ws-tree-row--delete .ws-tree-name { color: #b91c1c; font-weight: 600; }
+.ws-tree-row--delete.ws-tree-row--drophover {
+  background: #fee2e2;
+  outline-color: #b91c1c;
+}
+
+/* Banner shown above the file list when the LO is viewing the Delete folder.
+ * Explains the irreversible nature of the trash button shown in each row. */
+.ws-delete-warning {
+  background: #fee2e2;
+  border: 1px solid #fca5a5;
+  border-radius: 6px;
+  padding: 10px 14px;
+  margin: 0 0 12px;
+  color: #7f1d1d;
+  font-size: 0.875rem;
+}
+.ws-delete-warning strong { color: #991b1b; }
+.ws-delete-warning em { font-style: normal; font-weight: 600; }
+
 .ws-tree-toggle {
   background: none;
   border: none;

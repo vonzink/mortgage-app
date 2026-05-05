@@ -6,6 +6,7 @@ import {
   formatCurrency,
   formatCurrencyInput,
   parseCurrencyInput,
+  formatDate,
   isValidEmail,
   isValidPhone,
   isValidSSN,
@@ -103,6 +104,31 @@ describe('currency formatting', () => {
 
   test('round-trip: format then parse preserves the value', () => {
     expect(parseCurrencyInput(formatCurrencyInput('123456.78'))).toBe(123456.78);
+  });
+});
+
+describe('formatDate', () => {
+  test('returns empty string for null / blank / unparseable input', () => {
+    expect(formatDate(null)).toBe('');
+    expect(formatDate(undefined)).toBe('');
+    expect(formatDate('')).toBe('');
+    expect(formatDate('not a date')).toBe('');
+  });
+
+  test('YYYY-MM-DD strings render in long US form regardless of host timezone', () => {
+    // The bug we're guarding: new Date('1985-06-15') is UTC midnight, which renders
+    // as June 14 in any UTC-N zone. We construct from parts so the wall-clock day
+    // is preserved no matter where the user is.
+    expect(formatDate('1985-06-15')).toBe('June 15, 1985');
+    expect(formatDate('2026-01-01')).toBe('January 1, 2026');
+    expect(formatDate('2026-12-31')).toBe('December 31, 2026');
+  });
+
+  test('full ISO timestamps still parse (host timezone applies, by design)', () => {
+    // Timestamps with an explicit offset render in the host timezone — May 5 UTC noon
+    // is May 5 in Honolulu and May 6 in Auckland, both correct. We only assert it
+    // produces *some* valid long-form date, not a specific day.
+    expect(formatDate('2026-05-05T12:00:00Z')).toMatch(/^[A-Z][a-z]+ \d{1,2}, 2026$/);
   });
 });
 

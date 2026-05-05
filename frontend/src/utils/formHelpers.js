@@ -125,18 +125,40 @@ export const parseCurrencyInput = (formattedValue) => {
 };
 
 /**
- * Format date for display
- * @param {string} dateString - Date string to format
- * @returns {string} Formatted date string
+ * Format a date for display in the long US form (e.g. "June 15, 1985").
+ *
+ * Plain {@code YYYY-MM-DD} strings — what HTML {@code <input type="date">} returns and
+ * what we send to the backend for fields like {@code dateOfBirth} — are intentionally
+ * parsed by *parts* rather than via {@code new Date(str)}, because the latter treats
+ * the string as UTC midnight and shifts a day in any negative-UTC timezone (US users
+ * see "1985-06-15" rendered as "June 14, 1985"). For full ISO timestamps with a time
+ * component (e.g. {@code 2026-05-05T09:10:00Z}) we fall through to the standard parser
+ * since those carry their own offset.
+ *
+ * @param {string} dateString
+ * @returns {string} Long-form US date, or '' for null / blank / unparseable input.
  */
 export const formatDate = (dateString) => {
   if (!dateString) return '';
-  
+
+  // YYYY-MM-DD (10 chars, no time portion) → parts-based, timezone-safe construction.
+  const ymdMatch = /^(\d{4})-(\d{2})-(\d{2})$/.exec(dateString);
+  if (ymdMatch) {
+    const [, y, m, d] = ymdMatch;
+    const local = new Date(Number(y), Number(m) - 1, Number(d));
+    return local.toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+    });
+  }
+
   const date = new Date(dateString);
+  if (Number.isNaN(date.getTime())) return '';
   return date.toLocaleDateString('en-US', {
     year: 'numeric',
     month: 'long',
-    day: 'numeric'
+    day: 'numeric',
   });
 };
 

@@ -40,6 +40,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -110,10 +111,16 @@ public class MismoImporter {
             LocalDateTime fileCreated = readCreatedDatetime(doc);
             List<FieldChange> changes = new ArrayList<>();
 
+            // Index xlink:label → element + the RELATIONSHIPS arcs once. Lets us
+            // route DEAL-level ASSETs to the right borrower and pull income off
+            // the CURRENT_INCOME_ITEM that's linked to a given EMPLOYER.
+            LinkContext links = LinkContext.from(doc);
+
             applyLoanIdentifiers(doc, la, changes);
             applyLoanFields(doc, la, changes);
             applyProperty(doc, la, changes);
-            applyBorrowers(doc, la, changes);
+            applyBorrowers(doc, la, links, changes);
+            applyAssets(doc, la, links, changes);   // after borrowers — needs them to exist
             applyLiabilities(doc, la, changes);
 
             // Persist parent + cascading child changes
@@ -267,7 +274,7 @@ public class MismoImporter {
      * For each borrower, whole-list-replace the child collections (residences, employment,
      * income, assets, REO) so LP's authoritative data wins.
      */
-    private void applyBorrowers(Document doc, LoanApplication la, List<FieldChange> changes)
+    private void applyBorrowers(Document doc, LoanApplication la, LinkContext links, List<FieldChange> changes)
             throws XPathExpressionException {
         // Only walk PARTYs that are actually Borrowers (skip PropertyOwner, LegalEntity for the LO,
         // title companies, agents, etc.). MISMO marks the role with PartyRoleType=Borrower.
@@ -336,17 +343,18 @@ public class MismoImporter {
             String ssn = pluckTaxId(party, "SocialSecurityNumber");
             if (ssn != null) stringSet(b::getSsn, b::setSsn, ssn, prefix + "ssn", changes);
 
-            // Email + phone (first match per type)
+            // Email + phone. Phones in MISMO are role-tagged (Mobile/Home/Work);
+            // prefer Mobile, then Home, then Work, then any.
             String email = pluck(party, ".//*[local-name()='ContactPointEmailValue']");
             if (email != null) stringSet(b::getEmail, b::setEmail, email, prefix + "email", changes);
-            String phone = normalizePhone(pluck(party, ".//*[local-name()='ContactPointTelephoneValue']"));
+            String phone = normalizePhone(pluckPreferredPhone(party));
             if (phone != null) stringSet(b::getPhone, b::setPhone, phone, prefix + "phone", changes);
 
             // ── Whole-list replace of child collections ─────────────────────────────
             replaceResidences(party, b, prefix, changes);
-            replaceEmployment(party, b, prefix, changes);
+            replaceEmployment(party, b, links, prefix, changes);
             replaceIncomeSources(party, b, prefix, changes);
-            replaceAssets(party, b, prefix, changes);
+            // Assets handled at DEAL level — see applyAssets, called from importInto.
             replaceReoProperties(party, b, prefix, changes);
             replaceDeclaration(party, b, prefix, changes);
 
@@ -391,7 +399,7 @@ public class MismoImporter {
         }
     }
 
-    private void replaceEmployment(Element party, Borrower b, String prefix, List<FieldChange> changes)
+    private void replaceEmployment(Element party, Borrower b, LinkContext links, String prefix, List<FieldChange> changes)
             throws XPathExpressionException {
         NodeList nodes = (NodeList) xp().evaluate(
                 ".//*[local-name()='EMPLOYER']", party, XPathConstants.NODESET);
@@ -426,7 +434,24 @@ public class MismoImporter {
             try { emp.setStartDate(start == null ? null : LocalDate.parse(start)); } catch (Exception ignored) { }
             String end = pluck(e, ".//*[local-name()='EmploymentEndDate']");
             try { emp.setEndDate(end == null ? null : LocalDate.parse(end)); } catch (Exception ignored) { }
-            emp.setMonthlyIncome(parseDecimal(pluck(e, ".//*[local-name()='EmploymentMonthlyIncomeAmount']")));
+            // Monthly income: inline first, then fall back to a CURRENT_INCOME_ITEM linked
+            // to this EMPLOYER via xlink. LP exports current employer income in the linked
+            // CURRENT_INCOME_ITEM rather than inline on EMPLOYMENT.
+            BigDecimal monthly = parseDecimal(pluck(e, ".//*[local-name()='EmploymentMonthlyIncomeAmount']"));
+            if (monthly == null && links != null) {
+                String employerLabel = e.getAttributeNS(LinkContext.XLINK_NS, "label");
+                if (!employerLabel.isEmpty()) {
+                    String incomeLabel = links.arcsByTo.get(employerLabel);
+                    if (incomeLabel != null) {
+                        Element incomeItem = links.elementsByLabel.get(incomeLabel);
+                        if (incomeItem != null) {
+                            monthly = parseDecimal(pluck(incomeItem,
+                                    ".//*[local-name()='CurrentIncomeMonthlyTotalAmount']"));
+                        }
+                    }
+                }
+            }
+            emp.setMonthlyIncome(monthly);
             String status = pluck(e, ".//*[local-name()='EmploymentStatusType']");
             emp.setEmploymentStatus(status);
             emp.setIsPresent(status != null && (status.equalsIgnoreCase("Current") || status.equalsIgnoreCase("Present")));
@@ -466,6 +491,118 @@ public class MismoImporter {
         }
     }
 
+    /**
+     * Walk DEAL/ASSETS/ASSET (the canonical MISMO 3.4 location) and route each asset to
+     * its owning borrower. Routing strategy:
+     *   1. xlink:label of the ASSET → arcsByFrom → label of the linked ROLE → walk up
+     *      to that ROLE's parent PARTY → match by SequenceNumber to a borrower we've
+     *      already created.
+     *   2. Single-borrower fallback: when only one borrower exists on the loan, every
+     *      asset maps to that borrower (LP often omits the relationship arc in this case).
+     *   3. Multi-borrower with no resolvable arc → log a warning and skip.
+     *
+     * Wholesale-replace: each borrower's asset list is cleared on the first asset that
+     * lands for them, so re-importing the same MISMO is idempotent.
+     */
+    private void applyAssets(Document doc, LoanApplication la, LinkContext links,
+                             List<FieldChange> changes) throws XPathExpressionException {
+        NodeList nodes = (NodeList) xp().evaluate(
+                "//*[local-name()='ASSETS']/*[local-name()='ASSET']", doc, XPathConstants.NODESET);
+        if (nodes.getLength() == 0) return;
+
+        List<Borrower> borrowers = la.getBorrowers();
+        if (borrowers == null || borrowers.isEmpty()) return;
+
+        Map<Long, List<Asset>> bucket = new HashMap<>();
+        for (Borrower b : borrowers) bucket.put(b.getId() == null ? -1L : b.getId(), new ArrayList<>());
+
+        int kept = 0;
+        for (int i = 0; i < nodes.getLength(); i++) {
+            Element a = (Element) nodes.item(i);
+            String type = pluck(a, ".//*[local-name()='AssetType']");
+            BigDecimal value = parseDecimal(pluck(a, ".//*[local-name()='AssetCashOrMarketValueAmount']"));
+            if (type == null && value == null) continue;
+
+            Borrower owner = resolveAssetOwner(a, links, borrowers);
+            if (owner == null) {
+                log.warn("MISMO ASSET could not be routed to a borrower; skipping. label={}",
+                        a.getAttributeNS(LinkContext.XLINK_NS, "label"));
+                continue;
+            }
+
+            Asset asset = new Asset();
+            asset.setBorrower(owner);
+            asset.setAssetType(type);
+            asset.setAccountNumber(pluck(a, ".//*[local-name()='AssetAccountIdentifier']"));
+            asset.setBankName(pluck(a, ".//*[local-name()='FullName']"));
+            asset.setAssetValue(value);
+            String used = pluck(a, ".//*[local-name()='AssetEntryUsedForDownPaymentIndicator']");
+            asset.setUsedForDownpayment(used != null && Boolean.parseBoolean(used));
+
+            bucket.get(owner.getId() == null ? -1L : owner.getId()).add(asset);
+            kept++;
+        }
+
+        // Replace strategy: only borrowers who got new assets have their list reset.
+        // Borrowers with no assets in this MISMO keep what was there (common when only
+        // primary borrower has bank statements on file).
+        for (Borrower b : borrowers) {
+            List<Asset> incoming = bucket.get(b.getId() == null ? -1L : b.getId());
+            if (incoming.isEmpty()) continue;
+            if (b.getAssets() == null) b.setAssets(new ArrayList<>());
+            b.getAssets().clear();
+            b.getAssets().addAll(incoming);
+        }
+
+        if (kept > 0) {
+            changes.add(new FieldChange("assets", "<replaced>", kept + " row(s)"));
+        }
+    }
+
+    /** Returns the borrower that owns an asset, or null if unresolvable. */
+    private Borrower resolveAssetOwner(Element asset, LinkContext links, List<Borrower> borrowers) {
+        // xlink-based routing
+        String assetLabel = asset.getAttributeNS(LinkContext.XLINK_NS, "label");
+        if (!assetLabel.isEmpty()) {
+            String roleLabel = links.arcsByFrom.get(assetLabel);
+            if (roleLabel != null) {
+                Element role = links.elementsByLabel.get(roleLabel);
+                if (role != null) {
+                    org.w3c.dom.Node n = role;
+                    while (n != null && !"PARTY".equals(n.getLocalName())) n = n.getParentNode();
+                    if (n != null) {
+                        int seq = parseSeq((Element) n, 0);
+                        for (Borrower b : borrowers) {
+                            if (b.getSequenceNumber() != null && b.getSequenceNumber() == seq) return b;
+                        }
+                    }
+                }
+            }
+        }
+        // Single-borrower fallback
+        if (borrowers.size() == 1) return borrowers.get(0);
+        return null;
+    }
+
+    /** Phone preference: Mobile → Home → Work → first available, regardless of role. */
+    private String pluckPreferredPhone(Element party) throws XPathExpressionException {
+        String[] roles = { "Mobile", "Home", "Work" };
+        for (String role : roles) {
+            String x = ".//*[local-name()='CONTACT_POINT']" +
+                    "[.//*[local-name()='ContactPointRoleType' and text()='" + role + "']]" +
+                    "//*[local-name()='ContactPointTelephoneValue']";
+            String value = pluck(party, x);
+            if (value != null) return value;
+        }
+        return pluck(party, ".//*[local-name()='ContactPointTelephoneValue']");
+    }
+
+    /**
+     * @deprecated Replaced by {@link #applyAssets(Document, LoanApplication, LinkContext, List)}
+     * which walks DEAL-level ASSETs and routes via xlinks. Left in place for any future fallback
+     * code path that needs to read PARTY-nested assets from older or non-conformant files.
+     */
+    @SuppressWarnings("unused")
     private void replaceAssets(Element party, Borrower b, String prefix, List<FieldChange> changes)
             throws XPathExpressionException {
         NodeList nodes = (NodeList) xp().evaluate(
@@ -784,6 +921,54 @@ public class MismoImporter {
                     .toList());
         } catch (JsonProcessingException e) {
             return "[]";
+        }
+    }
+
+    /**
+     * Two-way index of the xlink machinery used by MISMO 3.4 to associate elements that
+     * don't live as parent/child in the document tree (e.g. DEAL-level ASSETs linked to
+     * a BORROWER, or CURRENT_INCOME_ITEMs linked to an EMPLOYER).
+     *
+     * <ul>
+     *   <li>{@code elementsByLabel} — every element that carries an {@code xlink:label}
+     *       attribute, indexed by that label.</li>
+     *   <li>{@code arcsByFrom} — for every {@code RELATIONSHIP} element, maps
+     *       {@code xlink:from} → {@code xlink:to}.</li>
+     *   <li>{@code arcsByTo} — the inverse (lets us answer "what was this employer
+     *       linked from").</li>
+     * </ul>
+     *
+     * Built once per import so each lookup is O(1) instead of repeated XPath scans.
+     */
+    static final class LinkContext {
+        static final String XLINK_NS = "http://www.w3.org/1999/xlink";
+
+        final Map<String, Element> elementsByLabel = new HashMap<>();
+        final Map<String, String> arcsByFrom = new HashMap<>();
+        final Map<String, String> arcsByTo = new HashMap<>();
+
+        static LinkContext from(Document doc) throws XPathExpressionException {
+            LinkContext ctx = new LinkContext();
+            // Index every element that carries an xlink:label
+            NodeList labeled = (NodeList) xp().evaluate(
+                    "//*[@*[local-name()='label']]", doc, XPathConstants.NODESET);
+            for (int i = 0; i < labeled.getLength(); i++) {
+                Element e = (Element) labeled.item(i);
+                String label = e.getAttributeNS(XLINK_NS, "label");
+                if (!label.isEmpty()) ctx.elementsByLabel.put(label, e);
+            }
+            // Index RELATIONSHIP arcs both ways
+            NodeList rels = (NodeList) xp().evaluate(
+                    "//*[local-name()='RELATIONSHIP']", doc, XPathConstants.NODESET);
+            for (int i = 0; i < rels.getLength(); i++) {
+                Element r = (Element) rels.item(i);
+                String from = r.getAttributeNS(XLINK_NS, "from");
+                String to = r.getAttributeNS(XLINK_NS, "to");
+                if (from.isEmpty() || to.isEmpty()) continue;
+                ctx.arcsByFrom.put(from, to);
+                ctx.arcsByTo.put(to, from);
+            }
+            return ctx;
         }
     }
 }

@@ -538,7 +538,7 @@ public class MismoImporter {
 
             Asset asset = new Asset();
             asset.setBorrower(owner);
-            asset.setAssetType(type);
+            asset.setAssetType(normalizeAssetType(type));
             asset.setAccountNumber(pluck(a, ".//*[local-name()='AssetAccountIdentifier']"));
             asset.setBankName(pluck(a, ".//*[local-name()='FullName']"));
             asset.setAssetValue(value);
@@ -1000,6 +1000,41 @@ public class MismoImporter {
             return digits.substring(0, 3) + "-" + digits.substring(3, 6) + "-" + digits.substring(6);
         }
         return trimmed;
+    }
+
+    /**
+     * Map MISMO {@code AssetType} values onto the short forms the {@code Asset} entity's
+     * {@code @Pattern} accepts. Unknown / blank values fall through to {@code "Other"}
+     * so a single unfamiliar type from a future MISMO version never blocks an import.
+     *
+     * <p>Allowed entity values are:
+     * Checking | Savings | MoneyMarket | CertificateOfDeposit | MutualFunds | Stocks |
+     * Bonds | Retirement401k | IRA | Pension | EarnestMoney | Other.
+     */
+    static String normalizeAssetType(String raw) {
+        if (raw == null || raw.isBlank()) return "Other";
+        String s = raw.trim();
+        switch (s) {
+            // exact matches first — entity values pass through
+            case "Checking": case "Savings": case "MoneyMarket":
+            case "CertificateOfDeposit": case "MutualFunds": case "Stocks":
+            case "Bonds": case "Retirement401k": case "IRA": case "Pension":
+            case "EarnestMoney": case "Other":
+                return s;
+            // MISMO 3.4 long forms → entity short forms
+            case "CheckingAccount":                         return "Checking";
+            case "SavingsAccount":                          return "Savings";
+            case "MoneyMarketFund":                         return "MoneyMarket";
+            case "MutualFund":                              return "MutualFunds";
+            case "Stock":                                   return "Stocks";
+            case "Bond":                                    return "Bonds";
+            case "RetirementFund":                          return "Retirement401k";
+            case "IndividualRetirementAccount":             return "IRA";
+            case "EarnestMoneyCashDeposit":
+            case "EarnestMoneyDeposit":                     return "EarnestMoney";
+            default:
+                return "Other";
+        }
     }
 
     /**

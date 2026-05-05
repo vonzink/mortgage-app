@@ -177,6 +177,118 @@
   font-weight: 500;
 }
 
+/* ── Download tray ─────────────────────────────────────── */
+/* Floating panel anchored to the bottom-right of the workspace card.
+ * Hidden empty state by default so it doesn't take up space; pops out the
+ * moment files are dropped in. Drag-over highlights it as a drop target.
+ */
+.ws-tray {
+  position: fixed;
+  right: 24px;
+  bottom: 24px;
+  width: 320px;
+  max-height: calc(100vh - 80px);
+  background: #fff;
+  border: 1px solid var(--border-color, #e5e7eb);
+  border-radius: 8px;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.18);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  z-index: 50;
+  /* Empty state: dim and small until something is dropped in. */
+  opacity: 0.5;
+  transform: scale(0.95);
+  transform-origin: bottom right;
+  transition: opacity 150ms ease, transform 150ms ease, border-color 100ms ease;
+}
+.ws-tray--open {
+  opacity: 1;
+  transform: scale(1);
+}
+.ws-tray--drophover {
+  opacity: 1;
+  transform: scale(1.02);
+  border-color: #2c5f2d;
+  box-shadow: 0 0 0 3px rgba(44, 95, 45, 0.18), 0 12px 32px rgba(0, 0, 0, 0.2);
+}
+
+.ws-tray-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.6rem 0.85rem;
+  background: #fafafa;
+  border-bottom: 1px solid var(--border-color, #e5e7eb);
+  font-size: 0.85rem;
+}
+.ws-tray-count {
+  margin-left: 0.5rem;
+  background: #2c5f2d;
+  color: #fff;
+  padding: 1px 8px;
+  border-radius: 999px;
+  font-size: 0.7rem;
+  font-weight: 600;
+}
+
+.ws-tray-empty {
+  padding: 1.5rem 1rem;
+  text-align: center;
+  color: var(--text-muted, #6b7280);
+  font-size: 0.8rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+.ws-tray-empty svg { font-size: 1.5rem; color: #9ca3af; }
+.ws-tray-empty small { color: #9ca3af; }
+
+.ws-tray-list {
+  list-style: none;
+  margin: 0;
+  padding: 0.25rem 0;
+  overflow-y: auto;
+  flex: 1;
+}
+.ws-tray-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0.4rem 0.85rem;
+  font-size: 0.85rem;
+  border-bottom: 1px solid #f3f4f6;
+}
+.ws-tray-item:last-child { border-bottom: none; }
+.ws-tray-item svg:first-child { color: #6b7280; flex-shrink: 0; }
+.ws-tray-filename {
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ws-tray-actions {
+  display: flex;
+  gap: 6px;
+  padding: 0.6rem 0.85rem;
+  border-top: 1px solid var(--border-color, #e5e7eb);
+  background: #fafafa;
+}
+.ws-tray-actions .btn {
+  flex: 1;
+  font-size: 0.85rem;
+  padding: 0.45rem 0.75rem;
+}
+.ws-tray-progress {
+  flex: 1;
+  text-align: center;
+  font-size: 0.85rem;
+  color: var(--text-muted, #6b7280);
+  padding: 0.5rem 0;
+}
+
 .ws-file-icon { color: #6b7280; margin-right: 6px; }
 .ws-file-name { font-weight: 500; }
 

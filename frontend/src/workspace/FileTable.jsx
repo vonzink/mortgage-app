@@ -72,20 +72,34 @@ export default function FileTable({
     onSelectionChange(next);
   };
 
-  // ── Drag start: package internal doc-uuids + best-effort DownloadURL ─────
+  // ── Drag start: package internal doc payload + best-effort DownloadURL ───
   const handleDragStart = useCallback((e, doc) => {
     // If the dragged row isn't in the selection, treat it as a single-file drag
     // (Dropbox/Drive behavior — drag of an unselected item ignores selection).
-    const dragging = selectedUuids.has(doc.docUuid)
+    const draggingUuids = selectedUuids.has(doc.docUuid)
       ? [...selectedUuids]
       : [doc.docUuid];
 
-    // Internal format used by FolderTree drop targets
-    e.dataTransfer.setData(INTERNAL_DRAG_MIME, JSON.stringify({ docUuids: dragging }));
+    // Hydrate to full doc objects so drop targets (FolderTree, DownloadTray)
+    // can render staged files without an extra round-trip.
+    const draggingDocs = documents.filter((d) => draggingUuids.includes(d.docUuid));
+
+    // Internal format. Includes both uuids (move-to-folder needs only those)
+    // and full doc summaries (the download tray needs name/size/type to render).
+    e.dataTransfer.setData(INTERNAL_DRAG_MIME, JSON.stringify({
+      docUuids: draggingUuids,
+      docs: draggingDocs.map((d) => ({
+        docUuid: d.docUuid,
+        fileName: d.fileName,
+        fileSize: d.fileSize,
+        contentType: d.contentType,
+        documentType: d.documentType,
+      })),
+    }));
 
     // External format for OS / cross-site drop. Only meaningful for a single file —
     // a multi-file desktop drag would need a server-zipped URL (Phase 3).
-    if (dragging.length === 1) {
+    if (draggingUuids.length === 1) {
       const url = getDownloadUrl?.(doc);
       if (url) {
         const mime = doc.contentType || 'application/octet-stream';

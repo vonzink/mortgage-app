@@ -9,6 +9,7 @@ import FolderTree from './FolderTree';
 import Breadcrumbs from './Breadcrumbs';
 import FileTable from './FileTable';
 import NewFolderModal from './NewFolderModal';
+import DownloadTray from './DownloadTray';
 import './workspace.css';
 
 /** How long to trust a cached presigned download URL — backend issues 15-min URLs;
@@ -37,6 +38,12 @@ export default function WorkspaceTab({ loanId }) {
   const [loadingDocs, setLoadingDocs] = useState(false);
   const [showNewFolder, setShowNewFolder] = useState(false);
   const [uploadingCount, setUploadingCount] = useState(0);
+
+  // Download tray — stages files dragged from FileTable for bulk save.
+  // Sidesteps the corporate Defender drag-out block: we never engage browser
+  // download events; instead we fetch as Blob and either write via the
+  // File System Access API or trigger normal user-initiated downloads.
+  const [stagedDocs, setStagedDocs] = useState([]);
 
   const fileInputRef = useRef(null);
   const downloadUrlCache = useRef(new Map()); // docUuid → { url, expiresAt }
@@ -149,6 +156,28 @@ export default function WorkspaceTab({ loanId }) {
       toast.error(`Download failed: ${err.message || err}`);
     }
   };
+
+  // ── Download tray plumbing ──────────────────────────────────────────────
+  const handleStageDocs = useCallback((incoming) => {
+    setStagedDocs((prev) => {
+      const seen = new Set(prev.map((d) => d.docUuid));
+      const additions = incoming.filter((d) => !seen.has(d.docUuid));
+      return [...prev, ...additions];
+    });
+  }, []);
+
+  const handleUnstageDoc = useCallback((docUuid) => {
+    setStagedDocs((prev) => prev.filter((d) => d.docUuid !== docUuid));
+  }, []);
+
+  const handleClearTray = useCallback(() => setStagedDocs([]), []);
+
+  // The tray asks for fresh URLs at save time — cached URLs from hover-prefetch
+  // would be ~14 minutes old by then in some cases; safer to re-issue.
+  const resolveDownloadUrl = useCallback(async (docUuid) => {
+    const { downloadUrl } = await mortgageService.getDocumentDownloadUrl(loanId, docUuid);
+    return downloadUrl;
+  }, [loanId]);
 
   // ── Rename ──────────────────────────────────────────────────────────────
   const handleRename = async (doc) => {
@@ -286,6 +315,14 @@ export default function WorkspaceTab({ loanId }) {
           />
         </main>
       </div>
+
+      <DownloadTray
+        stagedDocs={stagedDocs}
+        onAdd={handleStageDocs}
+        onRemove={handleUnstageDoc}
+        onClear={handleClearTray}
+        resolveDownloadUrl={resolveDownloadUrl}
+      />
 
       {showNewFolder && (
         <NewFolderModal

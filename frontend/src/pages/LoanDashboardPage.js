@@ -192,6 +192,7 @@ export default function LoanDashboardPage() {
               ['Note rate', formatRate(data.loanTerms.noteRatePercent)],
               ['Note amount', formatMoney(data.loanTerms.noteAmount)],
               ['Base loan amount', formatMoney(data.loanTerms.baseLoanAmount)],
+              ['Down payment', formatMoney(data.loanTerms.downPaymentAmount)],
               ['Amortization', data.loanTerms.amortizationType],
               ['Term', data.loanTerms.amortizationTermMonths
                 ? `${data.loanTerms.amortizationTermMonths} months` : null],
@@ -215,10 +216,13 @@ export default function LoanDashboardPage() {
                 [data.property.city, data.property.state, data.property.zipCode].filter(Boolean).join(', '),
                 data.property.county ? `${data.property.county} County` : null,
               ].filter(Boolean).join(' · ')],
-              ['Property type', data.property.propertyType],
+              ['Occupancy', prettyEnum(data.property.propertyUse)],
+              ['Project type', data.property.projectType],
+              ['Attachment', data.property.attachmentType],
               ['Construction', data.property.constructionType],
               ['Year built', data.property.yearBuilt],
               ['Units', data.property.unitsCount],
+              ['Purchase price', formatMoney(data.property.purchasePrice)],
               ['Estimated value', formatMoney(data.property.propertyValue)],
             ]} />
           ) : <EmptyHint>No property on file.</EmptyHint>}
@@ -231,6 +235,10 @@ export default function LoanDashboardPage() {
               ['Name', borrowerName || null],
               ['Email', data.primaryBorrower.email],
               ['Phone', data.primaryBorrower.phone],
+              ['Marital status', data.primaryBorrower.maritalStatus],
+              ['Citizenship', prettyEnum(data.primaryBorrower.citizenshipType)],
+              ['Will occupy', data.primaryBorrower.intentToOccupy === true ? 'Yes'
+                : data.primaryBorrower.intentToOccupy === false ? 'No' : null],
             ]} />
           ) : <EmptyHint>No borrower yet.</EmptyHint>}
         </DashCard>
@@ -463,6 +471,7 @@ function EditTermsModal({ initial, onClose, onSave }) {
     baseLoanAmount: initial.baseLoanAmount ?? '',
     noteAmount: initial.noteAmount ?? '',
     noteRatePercent: initial.noteRatePercent ?? '',
+    downPaymentAmount: initial.downPaymentAmount ?? '',
     amortizationType: initial.amortizationType ?? '',
     amortizationTermMonths: initial.amortizationTermMonths ?? '',
     lienPriorityType: initial.lienPriorityType ?? '',
@@ -499,6 +508,9 @@ function EditTermsModal({ initial, onClose, onSave }) {
         </Row>
         <Row label="Base loan amount">
           <input type="number" step="0.01" value={form.baseLoanAmount} onChange={set('baseLoanAmount')} />
+        </Row>
+        <Row label="Down payment">
+          <input type="number" step="0.01" value={form.downPaymentAmount} onChange={set('downPaymentAmount')} />
         </Row>
         <Row label="Amortization type">
           <select value={form.amortizationType} onChange={set('amortizationType')}>

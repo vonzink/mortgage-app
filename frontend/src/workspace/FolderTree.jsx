@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { FaFolder, FaFolderOpen, FaChevronDown, FaChevronRight } from 'react-icons/fa';
+import { FaFolder, FaFolderOpen, FaChevronDown, FaChevronRight, FaTrash } from 'react-icons/fa';
 import { INTERNAL_DRAG_MIME } from './FileTable';
 
 /**
@@ -11,7 +11,7 @@ import { INTERNAL_DRAG_MIME } from './FileTable';
  *   onDropFiles: (folderId, docUuids) => void — invoked when one or more files
  *                are dropped on a folder node.
  */
-export default function FolderTree({ root, selectedId, onSelect, defaultExpanded = new Set(), onDropFiles }) {
+export default function FolderTree({ root, selectedId, onSelect, defaultExpanded = new Set(), onDropFiles, onDeleteFolder }) {
   if (!root) return <div className="ws-tree-empty">No folders yet.</div>;
   return (
     <div className="ws-tree" role="tree">
@@ -22,12 +22,14 @@ export default function FolderTree({ root, selectedId, onSelect, defaultExpanded
         onSelect={onSelect}
         defaultExpanded={defaultExpanded}
         onDropFiles={onDropFiles}
+        onDeleteFolder={onDeleteFolder}
+        isRoot
       />
     </div>
   );
 }
 
-function FolderNode({ node, depth, selectedId, onSelect, defaultExpanded, onDropFiles }) {
+function FolderNode({ node, depth, selectedId, onSelect, defaultExpanded, onDropFiles, onDeleteFolder, isRoot = false }) {
   const [expanded, setExpanded] = useState(depth === 0 || defaultExpanded.has(node.id));
   const [dragHover, setDragHover] = useState(false);
   const hasChildren = node.children && node.children.length > 0;
@@ -88,6 +90,20 @@ function FolderNode({ node, depth, selectedId, onSelect, defaultExpanded, onDrop
           {expanded && hasChildren ? <FaFolderOpen /> : <FaFolder />}
           <span className="ws-tree-name">{node.displayName}</span>
         </button>
+        {/* Delete button — only shown for user-created subfolders. The root folder
+         *  and any folder seeded by FolderService.DEFAULT_SUBFOLDERS (isSystem=true)
+         *  cannot be deleted; the backend rejects it too as a safety net. */}
+        {!isRoot && !node.isSystem && onDeleteFolder && (
+          <button
+            type="button"
+            className="ws-tree-delete btn-icon btn-icon--danger"
+            title="Delete folder"
+            aria-label={`Delete ${node.displayName}`}
+            onClick={(e) => { e.stopPropagation(); onDeleteFolder(node); }}
+          >
+            <FaTrash />
+          </button>
+        )}
       </div>
       {expanded && hasChildren && (
         <div role="group">
@@ -100,6 +116,7 @@ function FolderNode({ node, depth, selectedId, onSelect, defaultExpanded, onDrop
               onSelect={onSelect}
               defaultExpanded={defaultExpanded}
               onDropFiles={onDropFiles}
+              onDeleteFolder={onDeleteFolder}
             />
           ))}
         </div>

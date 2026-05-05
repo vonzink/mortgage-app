@@ -37,6 +37,11 @@ export default function FileTable({
   onDownload,
   onRename,
   onDelete,
+  /** When true, the table includes a "Folder" column. Used for the root view
+   *  where files come from any folder so the LO needs to see where each lives. */
+  showFolder = false,
+  /** (folderId) => string — resolves a folder id to its display name. Required when showFolder. */
+  folderNameFor,
 }) {
   // ── Selection helpers ────────────────────────────────────────────────────
   const toggleAll = useCallback(() => {
@@ -136,6 +141,7 @@ export default function FileTable({
           </th>
           <th>Name</th>
           <th>Tag</th>
+          {showFolder && <th>Folder</th>}
           <th>Size</th>
           <th>Uploaded</th>
           <th aria-label="Actions" />
@@ -166,6 +172,13 @@ export default function FileTable({
                 <span className="ws-file-name" title={doc.fileName}>{doc.fileName}</span>
               </td>
               <td><span className="ws-tag">{doc.documentType || 'Other'}</span></td>
+              {showFolder && (
+                <td>
+                  <span className="ws-folder-chip">
+                    {(folderNameFor && folderNameFor(doc.folderId)) || '— root —'}
+                  </span>
+                </td>
+              )}
               <td>{formatSize(doc.fileSize)}</td>
               <td>{formatDate(doc.uploadedAt)}</td>
               <td className="ws-file-actions">

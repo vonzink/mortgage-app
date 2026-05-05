@@ -31,6 +31,9 @@ export default function DownloadTray({
   onRemove,
   onClear,
   resolveDownloadUrl,
+  /** When true, render inline in normal flow (below the file list) instead of
+   *  the floating bottom-right panel. */
+  inline = false,
 }) {
   const [isDragOver, setIsDragOver] = useState(false);
   const [savingProgress, setSavingProgress] = useState(null); // { current, total } | null
@@ -147,7 +150,7 @@ export default function DownloadTray({
 
   return (
     <aside
-      className={`ws-tray${hasItems ? ' ws-tray--open' : ''}${isDragOver ? ' ws-tray--drophover' : ''}`}
+      className={`ws-tray${hasItems ? ' ws-tray--open' : ''}${isDragOver ? ' ws-tray--drophover' : ''}${inline ? ' ws-tray--inline' : ''}`}
       onDragEnter={onDragEnter}
       onDragOver={onDragOver}
       onDragLeave={onDragLeave}

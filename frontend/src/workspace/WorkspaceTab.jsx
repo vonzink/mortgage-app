@@ -10,6 +10,7 @@ import Breadcrumbs from './Breadcrumbs';
 import FileTable from './FileTable';
 import NewFolderModal from './NewFolderModal';
 import DownloadTray from './DownloadTray';
+import EditDocumentModal from './EditDocumentModal';
 import './workspace.css';
 
 /** How long to trust a cached presigned download URL — backend issues 15-min URLs;
@@ -44,6 +45,9 @@ export default function WorkspaceTab({ loanId }) {
   // download events; instead we fetch as Blob and either write via the
   // File System Access API or trigger normal user-initiated downloads.
   const [stagedDocs, setStagedDocs] = useState([]);
+
+  // Combined edit modal state — replaces the older window.prompt rename.
+  const [editingDoc, setEditingDoc] = useState(null);
 
   const fileInputRef = useRef(null);
   const downloadUrlCache = useRef(new Map()); // docUuid → { url, expiresAt }
@@ -179,20 +183,43 @@ export default function WorkspaceTab({ loanId }) {
     return downloadUrl;
   }, [loanId]);
 
-  // ── Rename ──────────────────────────────────────────────────────────────
-  const handleRename = async (doc) => {
-    const current = doc.fileName || '';
-    // Phase 2: simple browser prompt. Phase 3 swaps in an inline-edit cell.
-    const next = window.prompt('Rename document:', current);
-    if (next == null) return;                  // user hit Cancel
-    const trimmed = next.trim();
-    if (!trimmed || trimmed === current) return;
+  // ── Edit (rename + retag + move) ────────────────────────────────────────
+  const handleEditDoc = (doc) => setEditingDoc(doc);
+
+  // The modal supplies a patch with only the changed keys. Folder changes go
+  // through moveDocuments (so null=unfile semantics work), and fileName/
+  // documentType go through PATCH. Done in one transaction-ish flow so the LO
+  // sees a single toast.
+  const handleSaveDocEdit = async (patch) => {
+    if (!editingDoc) return;
+    const { folderId, ...metaPatch } = patch;
+    if (Object.keys(metaPatch).length > 0) {
+      await workspaceService.patchDocument(loanId, editingDoc.docUuid, metaPatch);
+    }
+    if (Object.prototype.hasOwnProperty.call(patch, 'folderId')) {
+      await workspaceService.moveDocuments(loanId, [editingDoc.docUuid], folderId);
+    }
+    toast.success('Saved');
+    setEditingDoc(null);
+    await loadDocs();
+  };
+
+  // ── Folder delete ───────────────────────────────────────────────────────
+  const handleDeleteFolder = async (folder) => {
+    if (!folder || folder.id === rootId) return;
+    if (folder.isSystem) {
+      toast.warning('Default folders cannot be deleted.');
+      return;
+    }
+    if (!window.confirm(`Delete folder "${folder.displayName}"? Files inside will be unfiled.`)) return;
     try {
-      await workspaceService.renameDocument(loanId, doc.docUuid, trimmed);
-      toast.success('Renamed');
+      await workspaceService.deleteFolder(loanId, folder.id);
+      toast.success('Folder deleted');
+      if (selectedFolderId === folder.id) setSelectedFolderId(rootId);
+      await loadTree();
       await loadDocs();
     } catch (err) {
-      toast.error(`Rename failed: ${err.response?.data?.message || err.message || err}`);
+      toast.error(`Delete failed: ${err.response?.data?.message || err.message || err}`);
     }
   };
 
@@ -237,6 +264,16 @@ export default function WorkspaceTab({ loanId }) {
     await loadDocs();
   };
 
+  // Map folder id → display name. Used by the file table when at root so the LO
+  // can see which subfolder each doc is filed in.
+  const folderNameFor = useCallback((id) => {
+    if (id == null) return null;
+    const f = folders.find((x) => x.id === id);
+    return f ? f.displayName : null;
+  }, [folders]);
+
+  const atRoot = selectedFolderId === rootId;
+
   return (
     <div className="ws-root">
       <div className="ws-toolbar">
@@ -265,25 +302,6 @@ export default function WorkspaceTab({ loanId }) {
         )}
 
         <div style={{ flex: 1 }} />
-
-        <button
-          type="button"
-          className="btn btn-primary"
-          onClick={handleUploadClick}
-          disabled={!selectedFolder || uploadingCount > 0}
-          title={selectedFolderId === rootId
-            ? 'Files uploaded here will sit at root — pick a subfolder to file them automatically'
-            : `Upload into ${selectedFolder?.displayName || 'this folder'}`}
-        >
-          <FaUpload /> {uploadingCount > 0 ? `Uploading ${uploadingCount}…` : 'Upload'}
-        </button>
-        <input
-          ref={fileInputRef}
-          type="file"
-          multiple
-          style={{ display: 'none' }}
-          onChange={handleFilesPicked}
-        />
       </div>
 
       <div className="ws-body">
@@ -297,6 +315,7 @@ export default function WorkspaceTab({ loanId }) {
               onSelect={setSelectedFolderId}
               defaultExpanded={defaultExpanded}
               onDropFiles={handleDropFiles}
+              onDeleteFolder={handleDeleteFolder}
             />
           )}
         </aside>
@@ -311,24 +330,66 @@ export default function WorkspaceTab({ loanId }) {
             onPrefetchDownload={prefetchDownloadUrl}
             getDownloadUrl={getCachedDownloadUrl}
             onDownload={handleDownload}
-            onRename={handleRename}
+            onRename={handleEditDoc}
+            showFolder={atRoot}
+            folderNameFor={folderNameFor}
           />
+
+          {/* Upload button sits at the END of the file list — once clicked and the
+              upload completes, the table refreshes and the new docs appear among
+              the files (auto-routed by tag if uploaded from the loan root). */}
+          <div className="ws-upload-row">
+            <button
+              type="button"
+              className="btn btn-primary"
+              onClick={handleUploadClick}
+              disabled={!selectedFolder || uploadingCount > 0}
+              title={atRoot
+                ? 'Files uploaded from root auto-route into folders by tag'
+                : `Upload into ${selectedFolder?.displayName || 'this folder'}`}
+            >
+              <FaUpload /> {uploadingCount > 0 ? `Uploading ${uploadingCount}…` : 'Upload'}
+            </button>
+            <input
+              ref={fileInputRef}
+              type="file"
+              multiple
+              style={{ display: 'none' }}
+              onChange={handleFilesPicked}
+            />
+          </div>
+
+          {/* Download tray relocated inline below the file list — easier to spot
+              than the floating bottom-right panel. Only shows when something has
+              been staged into it via drag. */}
+          {stagedDocs.length > 0 && (
+            <DownloadTray
+              stagedDocs={stagedDocs}
+              onAdd={handleStageDocs}
+              onRemove={handleUnstageDoc}
+              onClear={handleClearTray}
+              resolveDownloadUrl={resolveDownloadUrl}
+              inline
+            />
+          )}
         </main>
       </div>
-
-      <DownloadTray
-        stagedDocs={stagedDocs}
-        onAdd={handleStageDocs}
-        onRemove={handleUnstageDoc}
-        onClear={handleClearTray}
-        resolveDownloadUrl={resolveDownloadUrl}
-      />
 
       {showNewFolder && (
         <NewFolderModal
           parentName={selectedFolder?.displayName || 'this folder'}
           onClose={() => setShowNewFolder(false)}
           onCreate={handleCreateFolder}
+        />
+      )}
+
+      {editingDoc && (
+        <EditDocumentModal
+          doc={editingDoc}
+          folders={folders}
+          rootId={rootId}
+          onClose={() => setEditingDoc(null)}
+          onSave={handleSaveDocEdit}
         />
       )}
     </div>

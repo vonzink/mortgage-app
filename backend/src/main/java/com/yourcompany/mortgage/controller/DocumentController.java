@@ -296,11 +296,19 @@ public class DocumentController {
         if (req != null && req.folderId() != null) {
             doc.setFolderId(resolveFolderId(loanId, req.folderId()));
         }
+        if (req != null && req.documentType() != null) {
+            String dt = req.documentType().trim();
+            if (dt.isEmpty()) {
+                throw new com.yourcompany.mortgage.exception.BusinessValidationException(
+                        "documentType must not be empty");
+            }
+            doc.setDocumentType(dt);
+        }
         Document saved = documentRepository.save(doc);
         return ResponseEntity.ok(toView(saved, /*withDownloadUrl*/ false));
     }
 
-    public record PatchDocumentRequest(String fileName, Long folderId) {}
+    public record PatchDocumentRequest(String fileName, Long folderId, String documentType) {}
 
     // ─────────────────────────────────── Move (drag-drop / bulk) ────────────────────
 

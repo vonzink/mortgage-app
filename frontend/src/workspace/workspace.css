@@ -324,6 +324,50 @@
   font-weight: 500;
 }
 
+/* Folder column — shown when at the loan root so the LO can see where each doc lives */
+.ws-folder-chip {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 4px;
+  background: #f3f4f6;
+  color: #374151;
+  font-size: 0.75rem;
+}
+
+/* Inline upload button row — sits at the end of the file list */
+.ws-upload-row {
+  display: flex;
+  justify-content: flex-end;
+  padding: 0.75rem 0 0.25rem;
+  border-top: 1px solid #f3f4f6;
+  margin-top: 0.5rem;
+}
+
+/* Inline variant of the download tray — overrides the floating styles when
+ * embedded below the file list. */
+.ws-tray--inline {
+  position: static;
+  width: auto;
+  max-height: none;
+  margin-top: 1rem;
+  box-shadow: none;
+  opacity: 1;
+  transform: none;
+  transition: none;
+}
+
+/* Folder row delete button — appears on hover, suppressed for system folders. */
+.ws-tree-row .ws-tree-delete {
+  opacity: 0;
+  margin-left: auto;
+  padding: 2px 6px;
+  font-size: 0.75rem;
+  transition: opacity 100ms ease;
+}
+.ws-tree-row:hover .ws-tree-delete {
+  opacity: 1;
+}
+
 /* ── Modal ─────────────────────────────────────────────── */
 .ws-modal-backdrop {
   position: fixed;

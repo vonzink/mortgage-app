@@ -74,6 +74,24 @@ const workspaceService = {
     return data;
   },
 
+  /**
+   * Patch any subset of document fields. Backend accepts fileName, folderId,
+   * documentType. folderId=null on the wire = "no change" (use moveDocuments to
+   * unfile); only set keys you actually want changed.
+   */
+  patchDocument: async (loanId, docUuid, patch) => {
+    const { data } = await apiClient.patch(
+      `/loan-applications/${loanId}/documents/${docUuid}`,
+      patch,
+    );
+    return data;
+  },
+
+  /** Soft-delete a user-created folder. System (default) folders are rejected by the backend. */
+  deleteFolder: async (loanId, folderId) => {
+    await apiClient.delete(`/loan-applications/${loanId}/folders/${folderId}`);
+  },
+
   /** Returns every uploaded document on the loan, regardless of folder. */
   getAllDocuments: async (loanId) => {
     const { data } = await apiClient.get(`/loan-applications/${loanId}/documents`);

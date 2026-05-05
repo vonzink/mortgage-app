@@ -49,7 +49,7 @@ const PersonalInfoField = ({
             className={getError('firstName') ? 'error' : ''}
           />
           {getError('firstName') && (
-            <span className="error-message">{getError('firstName').message}</span>
+            <span className="error-message" role="alert">{getError('firstName').message}</span>
           )}
         </div>
 
@@ -67,7 +67,7 @@ const PersonalInfoField = ({
             className={getError('lastName') ? 'error' : ''}
           />
           {getError('lastName') && (
-            <span className="error-message">{getError('lastName').message}</span>
+            <span className="error-message" role="alert">{getError('lastName').message}</span>
           )}
         </div>
 
@@ -104,7 +104,7 @@ const PersonalInfoField = ({
             className={getError('ssn') ? 'error' : ''}
           />
           {getError('ssn') && (
-            <span className="error-message">{getError('ssn').message}</span>
+            <span className="error-message" role="alert">{getError('ssn').message}</span>
           )}
         </div>
 
@@ -119,7 +119,7 @@ const PersonalInfoField = ({
             className={getError('dateOfBirth') ? 'error' : ''}
           />
           {getError('dateOfBirth') && (
-            <span className="error-message">{getError('dateOfBirth').message}</span>
+            <span className="error-message" role="alert">{getError('dateOfBirth').message}</span>
           )}
         </div>
 
@@ -140,7 +140,7 @@ const PersonalInfoField = ({
             <option value="Separated">Separated</option>
           </select>
           {getError('maritalStatus') && (
-            <span className="error-message">{getError('maritalStatus').message}</span>
+            <span className="error-message" role="alert">{getError('maritalStatus').message}</span>
           )}
         </div>
       </div>
@@ -179,7 +179,7 @@ const PersonalInfoField = ({
             className={getError('email') ? 'error' : ''}
           />
           {getError('email') && (
-            <span className="error-message">{getError('email').message}</span>
+            <span className="error-message" role="alert">{getError('email').message}</span>
           )}
         </div>
 
@@ -203,7 +203,7 @@ const PersonalInfoField = ({
             className={getError('phone') ? 'error' : ''}
           />
           {getError('phone') && (
-            <span className="error-message">{getError('phone').message}</span>
+            <span className="error-message" role="alert">{getError('phone').message}</span>
           )}
         </div>
       </div>

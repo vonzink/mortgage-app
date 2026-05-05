@@ -41,7 +41,7 @@ import mortgageService from '../../services/mortgageService';
 
 // Utils
 import { createDefaultBorrower } from '../../utils/fieldArrayHelpers';
-import { summarizeErrors } from '../../utils/formErrorHelpers';
+import { focusFirstInvalidField } from '../../utils/formErrorHelpers';
 import { useDraftAutosave, clearDraft } from '../../hooks/useDraftAutosave';
 
 const ApplicationForm = () => {
@@ -241,24 +241,10 @@ const ApplicationForm = () => {
       nextStep();
       return;
     }
-    // Surface specific missing/invalid fields instead of a generic message.
-    const summary = summarizeErrors(errors);
-    if (!summary) {
-      toast.error('Please fix the errors before proceeding to the next step.');
-      return;
-    }
-    const heading = summary.count === 1
-      ? 'Please complete this field before continuing:'
-      : `Please complete these ${summary.count} fields before continuing:`;
-    toast.error(
-      <div>
-        <div style={{ fontWeight: 600, marginBottom: '0.4rem' }}>{heading}</div>
-        <ul style={{ margin: 0, paddingLeft: '1.2rem' }}>
-          {summary.lines.map((line, i) => <li key={i}>{line}</li>)}
-        </ul>
-      </div>,
-      { autoClose: 8000 }
-    );
+    // Validation failed → don't toast (the inline error spans + role="alert" do
+    // the announcing). Instead, scroll the first invalid field into view and
+    // focus it so the user lands exactly where they need to fix something.
+    focusFirstInvalidField(errors);
   };
 
   const handlePrevStep = () => {

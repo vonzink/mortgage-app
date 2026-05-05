@@ -121,3 +121,42 @@ export function summarizeErrors(errors, max = 6) {
   }
   return { count: list.length, lines: head };
 }
+
+/**
+ * On a failed Next-step validation, scroll the first invalid field into view and
+ * focus it so the user lands exactly where they need to fix something. Looks the
+ * field up by `name` (RHF's registered name = the same dotted path we collect),
+ * with a fall-back to `id`. Caller is expected to have triggered RHF validation
+ * already so `errors` is populated.
+ */
+export function focusFirstInvalidField(errors) {
+  if (typeof document === 'undefined') return;
+  const list = collectErrors(errors);
+  if (list.length === 0) return;
+  const firstPath = list[0].path;
+
+  // Try [name="..."] first — RHF registers inputs by the dotted path.
+  let el = document.querySelector(`[name="${cssEscape(firstPath)}"]`);
+  // Fallback: an id attribute matching the path (some custom fields use it).
+  if (!el) el = document.getElementById(firstPath);
+  if (!el) return;
+
+  // Center the field so the user sees its label + the error below it.
+  if (typeof el.scrollIntoView === 'function') {
+    el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }
+  if (typeof el.focus === 'function') {
+    // Defer focus until after the smooth scroll has had a chance to start —
+    // immediate .focus() jumps the page and fights the scroll animation.
+    setTimeout(() => el.focus({ preventScroll: true }), 50);
+  }
+}
+
+/**
+ * CSS.escape isn't available in jsdom and older browsers; fall back to a
+ * regex-based escape that's safe for the dotted/index paths we generate.
+ */
+function cssEscape(s) {
+  if (typeof CSS !== 'undefined' && typeof CSS.escape === 'function') return CSS.escape(s);
+  return String(s).replace(/[!"#$%&'()*+,./:;<=>?@[\\\]^`{|}~]/g, '\\$&');
+}

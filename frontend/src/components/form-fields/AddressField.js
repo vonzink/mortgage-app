@@ -32,7 +32,7 @@ const AddressField = ({
             className={getError('addressLine') ? 'error' : ''}
           />
           {getError('addressLine') && (
-            <span className="error-message">{getError('addressLine').message}</span>
+            <span className="error-message" role="alert">{getError('addressLine').message}</span>
           )}
         </div>
       </div>
@@ -52,7 +52,7 @@ const AddressField = ({
             className={getError('city') ? 'error' : ''}
           />
           {getError('city') && (
-            <span className="error-message">{getError('city').message}</span>
+            <span className="error-message" role="alert">{getError('city').message}</span>
           )}
         </div>
 
@@ -120,7 +120,7 @@ const AddressField = ({
             <option value="WY">Wyoming</option>
           </select>
           {getError('state') && (
-            <span className="error-message">{getError('state').message}</span>
+            <span className="error-message" role="alert">{getError('state').message}</span>
           )}
         </div>
 
@@ -142,7 +142,7 @@ const AddressField = ({
             className={getError('zipCode') ? 'error' : ''}
           />
           {getError('zipCode') && (
-            <span className="error-message">{getError('zipCode').message}</span>
+            <span className="error-message" role="alert">{getError('zipCode').message}</span>
           )}
         </div>
       </div>

@@ -217,7 +217,7 @@ const EmploymentStep = ({
                       className={errors.borrowers?.[borrowerIndex]?.employmentHistory?.[empIndex]?.employerName ? 'error' : ''}
                     />
                     {errors.borrowers?.[borrowerIndex]?.employmentHistory?.[empIndex]?.employerName && (
-                      <span className="error-message">
+                      <span className="error-message" role="alert">
                         {errors.borrowers[borrowerIndex].employmentHistory[empIndex].employerName.message}
                       </span>
                     )}
@@ -235,7 +235,7 @@ const EmploymentStep = ({
                       className={errors.borrowers?.[borrowerIndex]?.employmentHistory?.[empIndex]?.position ? 'error' : ''}
                     />
                     {errors.borrowers?.[borrowerIndex]?.employmentHistory?.[empIndex]?.position && (
-                      <span className="error-message">
+                      <span className="error-message" role="alert">
                         {errors.borrowers[borrowerIndex].employmentHistory[empIndex].position.message}
                       </span>
                     )}
@@ -254,7 +254,7 @@ const EmploymentStep = ({
                       className={errors.borrowers?.[borrowerIndex]?.employmentHistory?.[empIndex]?.startDate ? 'error' : ''}
                     />
                     {errors.borrowers?.[borrowerIndex]?.employmentHistory?.[empIndex]?.startDate && (
-                      <span className="error-message">
+                      <span className="error-message" role="alert">
                         {errors.borrowers[borrowerIndex].employmentHistory[empIndex].startDate.message}
                       </span>
                     )}
@@ -274,7 +274,7 @@ const EmploymentStep = ({
                       <option value="Prior">Prior</option>
                     </select>
                     {errors.borrowers?.[borrowerIndex]?.employmentHistory?.[empIndex]?.employmentStatus && (
-                      <span className="error-message">
+                      <span className="error-message" role="alert">
                         {errors.borrowers[borrowerIndex].employmentHistory[empIndex].employmentStatus.message}
                       </span>
                     )}
@@ -292,7 +292,7 @@ const EmploymentStep = ({
                         className={errors.borrowers?.[borrowerIndex]?.employmentHistory?.[empIndex]?.endDate ? 'error' : ''}
                       />
                       {errors.borrowers?.[borrowerIndex]?.employmentHistory?.[empIndex]?.endDate && (
-                        <span className="error-message">
+                        <span className="error-message" role="alert">
                           {errors.borrowers[borrowerIndex].employmentHistory[empIndex].endDate.message}
                         </span>
                       )}
@@ -314,7 +314,7 @@ const EmploymentStep = ({
                       className={errors.borrowers?.[borrowerIndex]?.employmentHistory?.[empIndex]?.monthlyIncome ? 'error' : ''}
                     />
                     {errors.borrowers?.[borrowerIndex]?.employmentHistory?.[empIndex]?.monthlyIncome && (
-                      <span className="error-message">
+                      <span className="error-message" role="alert">
                         {errors.borrowers[borrowerIndex].employmentHistory[empIndex].monthlyIncome.message}
                       </span>
                     )}
@@ -350,7 +350,7 @@ const EmploymentStep = ({
                         <option value="Other">Other</option>
                       </select>
                       {errors.borrowers?.[borrowerIndex]?.employmentHistory?.[empIndex]?.businessType && (
-                        <span className="error-message">
+                        <span className="error-message" role="alert">
                           {errors.borrowers[borrowerIndex].employmentHistory[empIndex].businessType.message}
                         </span>
                       )}

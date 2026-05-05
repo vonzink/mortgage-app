@@ -201,7 +201,7 @@ const ReviewSubmitStep = ({ register, errors, getValues, onSubmit, isSubmitting,
                 </span>
               </label>
               {errors.termsAccepted && (
-                <span className="error-message">{errors.termsAccepted.message}</span>
+                <span className="error-message" role="alert">{errors.termsAccepted.message}</span>
               )}
             </div>
 
@@ -217,7 +217,7 @@ const ReviewSubmitStep = ({ register, errors, getValues, onSubmit, isSubmitting,
                 </span>
               </label>
               {errors.privacyAccepted && (
-                <span className="error-message">{errors.privacyAccepted.message}</span>
+                <span className="error-message" role="alert">{errors.privacyAccepted.message}</span>
               )}
             </div>
           </div>

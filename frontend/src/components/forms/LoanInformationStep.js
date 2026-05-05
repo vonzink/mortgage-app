@@ -107,7 +107,7 @@ const LoanInformationStep = ({ register, errors, watch, setValue, getValues }) =
             <option value="CashOut">Cash Out</option>
           </select>
           {errors.loanPurpose && (
-            <span className="error-message">{errors.loanPurpose.message}</span>
+            <span className="error-message" role="alert">{errors.loanPurpose.message}</span>
           )}
         </div>
 
@@ -125,7 +125,7 @@ const LoanInformationStep = ({ register, errors, watch, setValue, getValues }) =
             <option value="USDA">USDA</option>
           </select>
           {errors.loanType && (
-            <span className="error-message">{errors.loanType.message}</span>
+            <span className="error-message" role="alert">{errors.loanType.message}</span>
           )}
         </div>
       </div>
@@ -144,7 +144,7 @@ const LoanInformationStep = ({ register, errors, watch, setValue, getValues }) =
             className={errors.propertyValue ? 'error' : ''}
           />
           {errors.propertyValue && (
-            <span className="error-message">{errors.propertyValue.message}</span>
+            <span className="error-message" role="alert">{errors.propertyValue.message}</span>
           )}
         </div>
 
@@ -190,7 +190,7 @@ const LoanInformationStep = ({ register, errors, watch, setValue, getValues }) =
                 : null}
             </small>
             {errors.downPayment && (
-              <span className="error-message">{errors.downPayment.message}</span>
+              <span className="error-message" role="alert">{errors.downPayment.message}</span>
             )}
           </div>
         )}
@@ -213,7 +213,7 @@ const LoanInformationStep = ({ register, errors, watch, setValue, getValues }) =
             className={errors.loanAmount ? 'error' : ''}
           />
           {errors.loanAmount && (
-            <span className="error-message">{errors.loanAmount.message}</span>
+            <span className="error-message" role="alert">{errors.loanAmount.message}</span>
           )}
         </div>
 
@@ -233,7 +233,7 @@ const LoanInformationStep = ({ register, errors, watch, setValue, getValues }) =
               <option value="Other">Other</option>
             </select>
             {errors.downPaymentSource && (
-              <span className="error-message">{errors.downPaymentSource.message}</span>
+              <span className="error-message" role="alert">{errors.downPaymentSource.message}</span>
             )}
           </div>
         )}
@@ -253,7 +253,7 @@ const LoanInformationStep = ({ register, errors, watch, setValue, getValues }) =
             <option value="Investment">Investment Property</option>
           </select>
           {errors.propertyUse && (
-            <span className="error-message">{errors.propertyUse.message}</span>
+            <span className="error-message" role="alert">{errors.propertyUse.message}</span>
           )}
         </div>
 
@@ -273,7 +273,7 @@ const LoanInformationStep = ({ register, errors, watch, setValue, getValues }) =
             <option value="Other">Other</option>
           </select>
           {errors.propertyType && (
-            <span className="error-message">{errors.propertyType.message}</span>
+            <span className="error-message" role="alert">{errors.propertyType.message}</span>
           )}
         </div>
       </div>
@@ -292,7 +292,7 @@ const LoanInformationStep = ({ register, errors, watch, setValue, getValues }) =
             <option value="Investment">Investment Property</option>
           </select>
           {errors.occupancy && (
-            <span className="error-message">{errors.occupancy.message}</span>
+            <span className="error-message" role="alert">{errors.occupancy.message}</span>
           )}
         </div>
       </div>

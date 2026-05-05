@@ -21,10 +21,14 @@ public class IncomeSource {
     @NotNull(message = "Borrower is required")
     private Borrower borrower;
     
+    /**
+     * Free-text income category. Form dropdown values:
+     * SocialSecurity | Pension | Disability | Unemployment | ChildSupport | Alimony |
+     * Investment | Rental | Other. MISMO imports pass-through whatever LP sends; the
+     * form is the right place to enforce input shape.
+     */
     @Column(name = "income_type", nullable = false)
     @NotBlank(message = "Income type is required")
-    @Pattern(regexp = "SocialSecurity|Pension|Disability|Unemployment|ChildSupport|Alimony|Investment|Rental|Other", 
-             message = "Invalid income type")
     private String incomeType;
     
     @Column(name = "monthly_amount", nullable = false, precision = 15, scale = 2)

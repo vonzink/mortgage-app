@@ -34,9 +34,13 @@ public class Liability {
     @Size(max = 100, message = "Creditor name must not exceed 100 characters")
     private String creditorName;
 
+    /**
+     * Free-text liability category. Form dropdown values:
+     * MortgageLoan | Revolving | Installment | StudentLoan | AutoLoan | CreditCard | Other.
+     * Credit-pull imports (LP) pass through whatever the bureaus return; the form
+     * enforces shape on user-entered debts.
+     */
     @Column(name = "liability_type")
-    @Pattern(regexp = "MortgageLoan|Revolving|Installment|StudentLoan|AutoLoan|CreditCard|Other",
-             message = "Invalid liability type")
     private String liabilityType;
 
     @Column(name = "monthly_payment", precision = 15, scale = 2)

@@ -41,9 +41,12 @@ public class REOProperty {
     @Pattern(regexp = "\\d{5}(-\\d{4})?", message = "ZIP code must be in format 12345 or 12345-6789")
     private String zipCode;
 
+    /**
+     * Free-text property usage of an existing REO. Form dropdown values:
+     * PrimaryResidence | SecondHome | Investment.
+     * No DB-level enum check.
+     */
     @Column(name = "property_type")
-    @Pattern(regexp = "PrimaryResidence|SecondHome|Investment",
-             message = "Property type must be PrimaryResidence, SecondHome, or Investment")
     private String propertyType;
 
     @Column(name = "property_value", precision = 15, scale = 2)

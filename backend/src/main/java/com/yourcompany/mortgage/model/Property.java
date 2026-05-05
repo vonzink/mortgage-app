@@ -45,9 +45,12 @@ public class Property {
      * have a property selected yet, and LP exports don't always include this field.
      * The borrower form's required-field UX enforces it at submit time.
      */
+    /**
+     * Free-text property usage. Form dropdown values:
+     * PrimaryResidence | SecondHome | Investment.
+     * MISMO 3.4 also emits these. No DB-level enum check.
+     */
     @Column(name = "property_type")
-    @Pattern(regexp = "PrimaryResidence|SecondHome|Investment",
-             message = "Property type must be PrimaryResidence, SecondHome, or Investment")
     private String propertyType;
 
     /** Same — optional in drafts. */
@@ -56,9 +59,12 @@ public class Property {
     @DecimalMax(value = "99999999.99", message = "Property value cannot exceed $99,999,999.99")
     private BigDecimal propertyValue;
     
+    /**
+     * Free-text construction method. Form dropdown values:
+     * SiteBuilt | Manufactured. MISMO 3.4 also emits Modular, OnFrameModular,
+     * MobileHome, etc. — these flow through to the LO without rejection.
+     */
     @Column(name = "construction_type")
-    @Pattern(regexp = "SiteBuilt|Manufactured", 
-             message = "Construction type must be SiteBuilt or Manufactured")
     private String constructionType;
     
     @Column(name = "year_built")

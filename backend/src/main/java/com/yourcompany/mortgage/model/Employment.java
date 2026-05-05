@@ -70,8 +70,13 @@ public class Employment {
     @Column(name = "monthly_income", precision = 15, scale = 2)
     private BigDecimal monthlyIncome;
 
+    /**
+     * Free-text employment status. Form dropdown values:
+     * Present | Prior | Current | Previous.
+     * No DB-level enum check — MISMO imports may pass-through unfamiliar values
+     * (Future, Furloughed, etc.) which the LO can review on the dashboard.
+     */
     @Column(name = "employment_status")
-    @Pattern(regexp = "Present|Prior|Current|Previous", message = "Employment status must be Present/Prior/Current/Previous")
     private String employmentStatus;
 
     @Column(name = "is_present")

@@ -20,9 +20,14 @@ public class Asset {
     @NotNull(message = "Borrower is required")
     private Borrower borrower;
     
+    /**
+     * Free-text asset category. Form dropdown values:
+     * Checking | Savings | MoneyMarket | CertificateOfDeposit | MutualFunds | Stocks |
+     * Bonds | Retirement401k | IRA | Pension | EarnestMoney | Other.
+     * MISMO imports normalize via MismoImporter.normalizeAssetType. No DB-level taxonomy
+     * check — input shape is enforced at the form layer, not on save.
+     */
     @Column(name = "asset_type")
-    @Pattern(regexp = "Checking|Savings|MoneyMarket|CertificateOfDeposit|MutualFunds|Stocks|Bonds|Retirement401k|IRA|Pension|EarnestMoney|Other",
-             message = "Invalid asset type")
     private String assetType;
 
     @Column(name = "bank_name")

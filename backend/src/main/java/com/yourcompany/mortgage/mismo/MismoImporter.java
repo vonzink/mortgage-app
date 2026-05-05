@@ -4,6 +4,8 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.yourcompany.mortgage.model.Asset;
 import com.yourcompany.mortgage.model.Borrower;
+import com.yourcompany.mortgage.model.ClosingFee;
+import com.yourcompany.mortgage.model.ClosingInformation;
 import com.yourcompany.mortgage.model.Declaration;
 import com.yourcompany.mortgage.model.Employment;
 import com.yourcompany.mortgage.model.IncomeSource;
@@ -81,6 +83,8 @@ public class MismoImporter {
     private final com.yourcompany.mortgage.repository.LoanTermsRepository loanTermsRepository;
     private final com.yourcompany.mortgage.repository.HousingExpenseRepository housingExpenseRepository;
     private final com.yourcompany.mortgage.repository.PurchaseCreditRepository purchaseCreditRepository;
+    private final com.yourcompany.mortgage.repository.ClosingInformationRepository closingInformationRepository;
+    private final com.yourcompany.mortgage.repository.ClosingFeeRepository closingFeeRepository;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     /** Result of a single import. {@link #fileCreatedDatetime} is exposed so the caller can
@@ -134,6 +138,8 @@ public class MismoImporter {
             applyLoanTerms(doc, la, changes);       // populates the dashboard's "this loan" row
             applyHousingExpenses(doc, la, changes); // dashboard PITIA breakdown
             applyPurchaseCredits(doc, la, changes); // earnest money, seller credit, etc.
+            applyClosingInformation(doc, la, changes); // closing date, MI, hazard insurance flags
+            applyClosingFees(doc, la, changes);     // FEE_INFORMATION/FEES — closing-stage MISMO only
 
             // Persist parent + cascading child changes
             LoanApplication saved = loanApplicationRepository.save(la);
@@ -902,6 +908,145 @@ public class MismoImporter {
         }
         if (kept > 0) {
             changes.add(new FieldChange("purchaseCredits", "<replaced>", kept + " row(s)"));
+        }
+    }
+
+    /**
+     * Closing-stage MISMO 3.4 carries CLOSING_INFORMATION + MI_DATA + HAZARD_INSURANCE
+     * blocks under the LOAN. Application-stage URLA-FNM doesn't, so this method silently
+     * does nothing on those files. Singleton row per loan: upsert into {@code closing_information}.
+     *
+     * <p>Fields populated when present:
+     * <ul>
+     *   <li>{@code closingDate} ← {@code LoanEstimatedClosingDate}</li>
+     *   <li>{@code hazardInsuranceEscrowed} ← {@code HazardInsuranceEscrowedIndicator}</li>
+     *   <li>{@code miType} ← {@code MISourceType} (FHA / Conventional / VA / etc.)</li>
+     *   <li>{@code miUpfrontAmount} ← {@code MIPremiumFinancedAmount} (or 0 when MI not financed)</li>
+     * </ul>
+     */
+    private void applyClosingInformation(org.w3c.dom.Document doc, LoanApplication la, List<FieldChange> changes)
+            throws XPathExpressionException {
+        if (la.getId() == null) return;
+
+        String closingDateRaw   = pluck(doc, "//*[local-name()='CLOSING_INFORMATION_DETAIL']/*[local-name()='LoanEstimatedClosingDate']");
+        String hazardEscrowedRaw = pluck(doc, "//*[local-name()='HAZARD_INSURANCE']/*[local-name()='HazardInsuranceEscrowedIndicator']");
+        String miSourceType      = pluck(doc, "//*[local-name()='MI_DATA_DETAIL']/*[local-name()='MISourceType']");
+        String miFinancedRaw     = pluck(doc, "//*[local-name()='MI_DATA_DETAIL']/*[local-name()='MIPremiumFinancedAmount']");
+
+        // If none of the closing-stage fields are present, this is a URLA-only file — bail.
+        if (closingDateRaw == null && hazardEscrowedRaw == null && miSourceType == null && miFinancedRaw == null) {
+            return;
+        }
+
+        // @MapsId on ClosingInformation derives loanApplicationId from application.id at
+        // flush time, but Hibernate refuses to cascade through a detached association.
+        // Fetch a managed proxy via getReferenceById so the assigned PK + the FK both
+        // resolve cleanly without re-persisting the parent.
+        LoanApplication managed = loanApplicationRepository.findById(la.getId()).orElseThrow();
+        ClosingInformation ci = closingInformationRepository.findByLoanApplicationId(la.getId())
+                .orElseGet(() -> {
+                    ClosingInformation fresh = new ClosingInformation();
+                    fresh.setApplication(managed);
+                    return fresh;
+                });
+
+        if (closingDateRaw != null) {
+            try {
+                LocalDate parsed = LocalDate.parse(closingDateRaw);
+                if (!Objects.equals(ci.getClosingDate(), parsed)) {
+                    changes.add(new FieldChange("closing.closingDate",
+                            ci.getClosingDate() == null ? null : ci.getClosingDate().toString(),
+                            parsed.toString()));
+                    ci.setClosingDate(parsed);
+                }
+            } catch (Exception ignore) { /* malformed → leave alone */ }
+        }
+        if (hazardEscrowedRaw != null) {
+            Boolean parsed = parseBool(hazardEscrowedRaw);
+            if (parsed != null && !Objects.equals(ci.getHazardInsuranceEscrowed(), parsed)) {
+                changes.add(new FieldChange("closing.hazardInsuranceEscrowed",
+                        String.valueOf(ci.getHazardInsuranceEscrowed()), parsed.toString()));
+                ci.setHazardInsuranceEscrowed(parsed);
+            }
+        }
+        if (miSourceType != null && !Objects.equals(ci.getMiType(), miSourceType)) {
+            changes.add(new FieldChange("closing.miType", ci.getMiType(), miSourceType));
+            ci.setMiType(miSourceType);
+        }
+        if (miFinancedRaw != null) {
+            BigDecimal parsed = parseDecimal(miFinancedRaw);
+            if (parsed != null && !Objects.equals(ci.getMiUpfrontAmount(), parsed)) {
+                changes.add(new FieldChange("closing.miUpfrontAmount",
+                        ci.getMiUpfrontAmount() == null ? null : ci.getMiUpfrontAmount().toString(),
+                        parsed.toString()));
+                ci.setMiUpfrontAmount(parsed);
+            }
+        }
+
+        closingInformationRepository.save(ci);
+    }
+
+    /**
+     * Replace-all import of {@code <FEE>} entries from {@code FEE_INFORMATION/FEES}. Closing-stage
+     * MISMO carries 15-30 itemized fees (origination, MI upfront, appraisal, title endorsements,
+     * recording, transfer tax, etc.). Each row becomes one {@link ClosingFee}.
+     *
+     * <p>URLA-only files have no FEES — this is a no-op there.
+     *
+     * <p>Mapping per FEE:
+     * <ul>
+     *   <li>{@code feeType} ← {@code FeeType@DisplayLabelText} or {@code FeeType} text</li>
+     *   <li>{@code feeAmount} ← {@code FeeActualTotalAmount}</li>
+     *   <li>{@code paidTo} ← {@code FEE_PAID_TO/LEGAL_ENTITY/.../FullName}, falling back to {@code FeePaidToType}</li>
+     *   <li>{@code paidBy} ← first {@code FEE_PAYMENT/FeePaymentPaidByType}</li>
+     *   <li>{@code description} ← {@code FeeDescription}</li>
+     * </ul>
+     */
+    private void applyClosingFees(org.w3c.dom.Document doc, LoanApplication la, List<FieldChange> changes)
+            throws XPathExpressionException {
+        if (la.getId() == null) return;
+        NodeList nodes = (NodeList) MismoXml.xp().evaluate(
+                "//*[local-name()='FEE_INFORMATION']/*[local-name()='FEES']/*[local-name()='FEE']",
+                doc, XPathConstants.NODESET);
+        if (nodes.getLength() == 0) return;
+
+        closingFeeRepository.deleteByApplicationId(la.getId());
+        // Use a managed reference for the FK (see applyClosingInformation note).
+        LoanApplication managed = loanApplicationRepository.findById(la.getId()).orElseThrow();
+
+        int kept = 0;
+        for (int i = 0; i < nodes.getLength(); i++) {
+            Element fee = (Element) nodes.item(i);
+            String typeLabel = null;
+            Element typeEl = first(fee, ".//*[local-name()='FeeType']");
+            if (typeEl != null) {
+                String label = typeEl.getAttribute("DisplayLabelText");
+                typeLabel = (label != null && !label.isBlank()) ? label : typeEl.getTextContent().trim();
+            }
+            BigDecimal amount = parseDecimal(pluck(fee, ".//*[local-name()='FeeActualTotalAmount']"));
+            String paidTo = firstNonNull(
+                    pluck(fee, ".//*[local-name()='FEE_PAID_TO']//*[local-name()='LEGAL_ENTITY_DETAIL']/*[local-name()='FullName']"),
+                    pluck(fee, ".//*[local-name()='FeePaidToType']"));
+            String paidBy = pluck(fee, ".//*[local-name()='FEE_PAYMENT']/*[local-name()='FeePaymentPaidByType']");
+            String description = pluck(fee, ".//*[local-name()='FeeDescription']");
+
+            // Skip placeholder FEEs that LP sometimes emits with no type and no amount
+            if ((typeLabel == null || typeLabel.isBlank()) && amount == null) continue;
+
+            ClosingFee cf = ClosingFee.builder()
+                    .application(managed)
+                    .sequenceNumber(i + 1)
+                    .feeType(typeLabel != null ? typeLabel : "Other")
+                    .feeAmount(amount)
+                    .paidTo(paidTo)
+                    .paidBy(paidBy)
+                    .description(description)
+                    .build();
+            closingFeeRepository.save(cf);
+            kept++;
+        }
+        if (kept > 0) {
+            changes.add(new FieldChange("closingFees", "<replaced>", kept + " row(s)"));
         }
     }
 

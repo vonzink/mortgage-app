@@ -83,9 +83,10 @@ class SimpleModelTest {
     }
 
     @Test
-    void defaultStatus_ShouldBeDRAFT() {
-        // Then
-        assertThat(loanApplication.getStatus()).isEqualTo("DRAFT");
+    void defaultStatus_ShouldBeREGISTERED() {
+        // The status workflow was updated in V2 (LoanStatus enum); fresh applications
+        // start at REGISTERED, not the old DRAFT value.
+        assertThat(loanApplication.getStatus()).isEqualTo("REGISTERED");
     }
 
     @Test

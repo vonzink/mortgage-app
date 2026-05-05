@@ -61,6 +61,23 @@ describe('ProgressIndicator a11y states', () => {
     expect(future).toHaveAttribute('title', 'Complete the current step first');
   });
 
+  test('progressbar role + ETA reflect the remaining-step time sum', () => {
+    render(
+      <ProgressIndicator
+        steps={STEPS}
+        currentStep={2}
+        onStepClick={() => {}}
+        clickableSteps
+        visitedSteps={new Set([1, 2])}
+      />,
+    );
+    const bar = screen.getByRole('progressbar');
+    expect(bar).toHaveAttribute('aria-valuenow', '1');
+    expect(bar).toHaveAttribute('aria-valuemax', '4');
+    // Remaining: steps 2,3,4 → 4+2+3 = 9 minutes (per STEP_MINUTES)
+    expect(screen.getByText(/About 9 minutes remaining/)).toBeInTheDocument();
+  });
+
   test('aria-label includes "step N of M, current step" for the active item', () => {
     render(
       <ProgressIndicator

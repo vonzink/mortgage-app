@@ -14,6 +14,28 @@
 import React from 'react';
 import { FaCheck } from 'react-icons/fa';
 
+/**
+ * Coarse per-step time estimate used to render an "About N minutes remaining"
+ * label next to the progress bar. Pure heuristic — based on field counts and
+ * how often borrowers stall on each step. Tune via in-product analytics later.
+ * Keys are step.number (1-based).
+ */
+const STEP_MINUTES = {
+  1: 2,  // Loan Info
+  2: 4,  // Borrower
+  3: 2,  // Property
+  4: 3,  // Employment
+  5: 4,  // Finances
+  6: 2,  // Declarations
+  7: 1,  // Review & Submit
+};
+
+function formatRemaining(minutes) {
+  if (minutes <= 0) return 'Almost done';
+  if (minutes === 1) return 'About 1 minute remaining';
+  return `About ${minutes} minutes remaining`;
+}
+
 const ProgressIndicator = ({
   steps,
   currentStep,
@@ -74,7 +96,26 @@ const ProgressIndicator = ({
       </ol>
 
       <div className="progress-bar-container">
-        <div className="progress-bar">
+        <div className="progress-meta">
+          <span className="progress-meta-step">
+            Step {currentStep} of {steps.length} — {steps[currentStep - 1]?.title}
+          </span>
+          <span className="progress-meta-eta">
+            {formatRemaining(
+              steps
+                .filter((s) => s.number >= currentStep)
+                .reduce((acc, s) => acc + (STEP_MINUTES[s.number] ?? 2), 0)
+            )}
+          </span>
+        </div>
+        <div
+          className="progress-bar"
+          role="progressbar"
+          aria-valuemin={0}
+          aria-valuemax={steps.length}
+          aria-valuenow={currentStep - 1}
+          aria-valuetext={`${currentStep - 1} of ${steps.length} steps complete`}
+        >
           <div
             className="progress-fill"
             style={{ width: `${((currentStep - 1) / (steps.length - 1)) * 100}%` }}

@@ -2,10 +2,11 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { useDropzone } from 'react-dropzone';
-import { FaUpload, FaFile, FaDownload, FaTrash, FaCheckCircle, FaTimes, FaFileAlt, FaExclamationTriangle, FaInfoCircle, FaFolder } from 'react-icons/fa';
+import { FaUpload, FaFile, FaDownload, FaTrash, FaCheckCircle, FaTimes, FaFolder } from 'react-icons/fa';
 
 import WorkspaceTab from '../workspace/WorkspaceTab';
 import mortgageService from '../services/mortgageService';
+import { formatCurrency } from '../utils/formHelpers';
 
 const DOCUMENT_TYPES = [
   'Pay Stub',
@@ -32,9 +33,7 @@ const ApplicationDetails = () => {
   const [documents, setDocuments] = useState([]);
   const [uploading, setUploading] = useState(false);
   const [pendingFiles, setPendingFiles] = useState([]);
-  const [showUploadModal, setShowUploadModal] = useState(false);
   const [showUploadLog, setShowUploadLog] = useState(false);
-  const [selectedDocumentName, setSelectedDocumentName] = useState('');
 
   const fetchApplication = useCallback(async () => {
     try {
@@ -75,26 +74,14 @@ const ApplicationDetails = () => {
     return () => window.removeEventListener('mismo:imported', handler);
   }, [id, fetchApplication, fetchDocuments]);
 
-  // Document upload handlers
-  const handleOpenUploadModal = (documentName) => {
-    setSelectedDocumentName(documentName);
-    setShowUploadModal(true);
-  };
-
-  const handleCloseUploadModal = () => {
-    setShowUploadModal(false);
-    setSelectedDocumentName('');
-    setPendingFiles([]);
-  };
-
   const onDrop = useCallback((acceptedFiles) => {
     const newPendingFiles = acceptedFiles.map(file => ({
       file,
-      documentType: selectedDocumentName || 'Other',
+      documentType: 'Other',
       id: Math.random().toString(36).substr(2, 9)
     }));
     setPendingFiles(prev => [...prev, ...newPendingFiles]);
-  }, [selectedDocumentName]);
+  }, []);
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
@@ -146,7 +133,6 @@ const ApplicationDetails = () => {
       toast.success(`${successCount} document(s) uploaded successfully!`);
       setPendingFiles([]);
       await fetchDocuments();
-      handleCloseUploadModal();
     }
 
     if (errorCount > 0) {
@@ -189,13 +175,6 @@ const ApplicationDetails = () => {
     return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
   };
 
-  const formatCurrency = (amount) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD'
-    }).format(amount);
-  };
-
   const formatDate = (dateString) => {
     return new Date(dateString).toLocaleDateString('en-US', {
       year: 'numeric',
@@ -204,49 +183,6 @@ const ApplicationDetails = () => {
       hour: '2-digit',
       minute: '2-digit'
     });
-  };
-
-  const getDocStatusClass = (status) => {
-    switch (status) {
-      case 'Required':
-      case 'required':
-        return 'status-required';
-      case 'Conditional':
-      case 'conditional':
-        return 'status-conditional';
-      case 'Review':
-      case 'review':
-        return 'status-review';
-      case 'OK':
-      case 'ok':
-        return 'status-ok';
-      default:
-        return '';
-    }
-  };
-
-  const getDocStatusIcon = (status) => {
-    switch (status) {
-      case 'Required':
-      case 'required':
-        return <FaExclamationTriangle />;
-      case 'OK':
-      case 'ok':
-        return <FaCheckCircle />;
-      default:
-        return <FaInfoCircle />;
-    }
-  };
-
-  const getStatusClass = (status) => {
-    switch (status.toLowerCase()) {
-      case 'approved':
-        return 'status-approved';
-      case 'rejected':
-        return 'status-rejected';
-      default:
-        return 'status-pending';
-    }
   };
 
   if (loading) {
@@ -529,116 +465,6 @@ const ApplicationDetails = () => {
             Back to Applications
           </button>
       </div>
-
-      {/* Upload Modal */}
-      {showUploadModal && (
-        <div className="modal-overlay" onClick={handleCloseUploadModal} style={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          backgroundColor: 'rgba(0, 0, 0, 0.5)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          zIndex: 1000
-        }}>
-          <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{
-            backgroundColor: 'white',
-            padding: '2rem',
-            borderRadius: 'var(--border-radius)',
-            maxWidth: '600px',
-            width: '90%',
-            maxHeight: '80vh',
-            overflow: 'auto'
-          }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
-              <h2 style={{ margin: 0 }}>
-                <FaUpload /> Upload: {selectedDocumentName}
-              </h2>
-              <button onClick={handleCloseUploadModal} style={{
-                background: 'none',
-                border: 'none',
-                fontSize: '1.5rem',
-                cursor: 'pointer',
-                color: 'var(--text-secondary)'
-              }}>
-                <FaTimes />
-              </button>
-            </div>
-
-            {/* Dropzone */}
-            <div {...getRootProps()} className={`dropzone ${isDragActive ? 'active' : ''}`} style={{
-              border: '2px dashed var(--border-color)',
-              borderRadius: 'var(--border-radius)',
-              padding: '2rem',
-              textAlign: 'center',
-              cursor: 'pointer',
-              backgroundColor: isDragActive ? 'var(--bg-secondary)' : 'transparent'
-            }}>
-              <input {...getInputProps()} />
-              <FaUpload style={{ fontSize: '3rem', color: 'var(--primary-color)', marginBottom: '1rem' }} />
-              {isDragActive ? (
-                <p>Drop files here...</p>
-              ) : (
-                <>
-                  <p>Drag & drop files here, or click to select</p>
-                  <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
-                    Supports: PDF, Images, Word, Excel (Max 10MB)
-                  </p>
-                </>
-              )}
-            </div>
-
-            {/* Pending Files */}
-            {pendingFiles.length > 0 && (
-              <div style={{ marginTop: '1.5rem' }}>
-                <h3>Files to Upload</h3>
-                <div style={{ marginTop: '1rem' }}>
-                  {pendingFiles.map((pf) => (
-                    <div key={pf.id} style={{
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      alignItems: 'center',
-                      padding: '0.75rem',
-                      marginBottom: '0.5rem',
-                      border: '1px solid var(--border-color)',
-                      borderRadius: 'var(--border-radius)'
-                    }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                        <FaFile style={{ color: 'var(--primary-color)' }} />
-                        <span>{pf.file.name}</span>
-                      </div>
-                      <button
-                        onClick={() => handleRemovePendingFile(pf.id)}
-                        style={{
-                          background: 'none',
-                          border: 'none',
-                          color: 'var(--error-color)',
-                          cursor: 'pointer',
-                          fontSize: '1.2rem'
-                        }}
-                      >
-                        <FaTimes />
-                      </button>
-                    </div>
-                  ))}
-                </div>
-
-                <button
-                  onClick={handleUploadAll}
-                  disabled={uploading}
-                  className="btn btn-primary"
-                  style={{ width: '100%', marginTop: '1rem' }}
-                >
-                  {uploading ? 'Uploading...' : `Upload ${pendingFiles.length} File(s)`}
-                </button>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
     </div>
   );
 };

@@ -86,14 +86,13 @@ public class LoanApplicationController {
 
             LoanApplication la = loanApplicationService.createApplication(seed);
 
-            // Auto-assign to the calling LO when applicable
+            // Auto-assign to the calling LO. The @PreAuthorize on this endpoint already
+            // restricts entry to LO/Processor/Admin/Manager, so any caller who reaches
+            // here is internal staff and a valid assignee.
             User me = currentUserService.currentUser().orElse(null);
             if (me != null) {
-                String role = me.getRole() == null ? "" : me.getRole().toLowerCase();
-                if (role.equals("lo") || role.equals("processor") || role.equals("admin") || role.equals("manager")) {
-                    la.setAssignedLoId(me.getId());
-                    la.setAssignedLoName(me.getName());
-                }
+                la.setAssignedLoId(me.getId());
+                la.setAssignedLoName(me.getName());
             }
 
             try (var stream = new java.io.ByteArrayInputStream(file.getBytes())) {

@@ -50,6 +50,7 @@ public class DocumentController {
     private final S3DocumentService s3;
     private final CurrentUserService currentUserService;
     private final com.yourcompany.mortgage.repository.FolderRepository folderRepository;
+    private final com.yourcompany.mortgage.security.LoanAccessGuard loanAccessGuard;
 
     // ─────────────────────────────────── Step 1: presigned upload ────────────────────
 
@@ -176,14 +177,11 @@ public class DocumentController {
                     .toList();
         }
 
-        // Filter for non-LO callers based on the visibility flags
-        boolean internal = currentUserService.currentUser()
-                .map(u -> List.of("admin", "manager", "lo", "processor").contains(u.getRole().toLowerCase()))
-                .orElse(false);
-        if (!internal) {
-            boolean asAgent = currentUserService.currentUser()
-                    .map(u -> "realestateagent".equals(u.getRole().toLowerCase()) || "agent".equals(u.getRole().toLowerCase()))
-                    .orElse(false);
+        // Filter for non-LO callers based on the visibility flags. Authority comes from
+        // the JWT (Cognito groups), not the local users.role column — the latter is a
+        // first-sign-in snapshot and can drift if a user's group membership changes.
+        if (!loanAccessGuard.isInternal()) {
+            boolean asAgent = hasAuthority("ROLE_RealEstateAgent");
             docs = docs.stream()
                     .filter(d -> asAgent ? Boolean.TRUE.equals(d.getVisibleToAgent())
                                          : Boolean.TRUE.equals(d.getVisibleToBorrower()))
@@ -366,6 +364,16 @@ public class DocumentController {
     public record MoveDocumentsRequest(List<String> docUuids, Long toFolderId) {}
 
     // ─────────────────────────────────── helpers ─────────────────────────────────────
+
+    private static boolean hasAuthority(String role) {
+        var auth = org.springframework.security.core.context.SecurityContextHolder
+                .getContext().getAuthentication();
+        if (auth == null) return false;
+        for (var ga : auth.getAuthorities()) {
+            if (role.equals(ga.getAuthority())) return true;
+        }
+        return false;
+    }
 
     private static Map<String, Object> toView(Document d, boolean withDownloadUrl) {
         Map<String, Object> v = new LinkedHashMap<>();

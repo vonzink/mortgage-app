@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { useDropzone } from 'react-dropzone';
-import { FaUpload, FaFile, FaDownload, FaTrash, FaCheckCircle, FaTimes, FaFolder } from 'react-icons/fa';
+import { FaUpload, FaFile, FaTimes, FaFolder } from 'react-icons/fa';
 
 import WorkspaceTab from '../workspace/WorkspaceTab';
 import mortgageService from '../services/mortgageService';
@@ -140,31 +140,6 @@ const ApplicationDetails = () => {
     }
 
     setUploading(false);
-  };
-
-  const handleDownload = async (doc) => {
-    try {
-      await mortgageService.downloadDocument(doc.id, doc.fileName);
-      toast.success('Document downloaded successfully!');
-    } catch (error) {
-      toast.error('Failed to download document');
-      console.error('Download error:', error);
-    }
-  };
-
-  const handleDelete = async (docId) => {
-    if (!window.confirm('Are you sure you want to delete this document?')) {
-      return;
-    }
-
-    try {
-      await mortgageService.deleteDocument(docId);
-      toast.success('Document deleted successfully!');
-      await fetchDocuments();
-    } catch (error) {
-      toast.error('Failed to delete document');
-      console.error('Delete error:', error);
-    }
   };
 
   const formatFileSize = (bytes) => {
@@ -362,15 +337,16 @@ const ApplicationDetails = () => {
             </div>
           )}
           
-        {/* Uploaded Documents with toggleable upload log */}
-        <div className="uploaded-documents-section">
+        {/* Upload log — toggleable audit table. The actual document list lives in
+         *  the workspace below; this is just a flat what-was-uploaded-when view. */}
+        <div className="upload-log-section" style={{ marginTop: '1.5rem' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <h3>Uploaded Documents ({documents.length})</h3>
+            <h3 style={{ margin: 0 }}>Upload Log ({documents.length})</h3>
             <button
               className="btn btn-outline-secondary"
               onClick={() => setShowUploadLog(prev => !prev)}
             >
-              {showUploadLog ? 'Hide Upload Log' : 'Show Upload Log'}
+              {showUploadLog ? 'Hide' : 'Show'}
             </button>
           </div>
           {showUploadLog && (
@@ -397,46 +373,6 @@ const ApplicationDetails = () => {
                   </tbody>
                 </table>
               )}
-            </div>
-          )}
-          {documents.length === 0 ? (
-            <p className="empty-text">No documents uploaded yet.</p>
-          ) : (
-            <div className="uploaded-documents-list">
-              {documents.map((doc) => (
-                <div key={doc.id} className="uploaded-document-item">
-                  <div className="document-info">
-                    <FaCheckCircle className="success-icon" />
-                    <div className="document-details">
-                      <div className="document-name-row">
-                        <span className="document-name">{doc.fileName}</span>
-                        <span className="document-type-badge">{doc.documentType}</span>
-                      </div>
-                      <div className="document-meta">
-                        <span>{formatFileSize(doc.fileSize)}</span>
-                        <span>•</span>
-                        <span>{formatDate(doc.uploadedAt)}</span>
-                      </div>
-                    </div>
-                  </div>
-                  <div className="document-actions">
-                    <button
-                      onClick={() => handleDownload(doc)}
-                      className="btn-icon btn-secondary"
-                      title="Download"
-                    >
-                      <FaDownload />
-                    </button>
-                    <button
-                      onClick={() => handleDelete(doc.id)}
-                      className="btn-icon btn-danger"
-                      title="Delete"
-                    >
-                      <FaTrash />
-                    </button>
-                  </div>
-                </div>
-              ))}
             </div>
           )}
         </div>

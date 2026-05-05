@@ -84,6 +84,14 @@
   overflow-y: visible;
 }
 
+/* Reset list-item wrapper — the <ol> gives semantics, the visual is on <button>. */
+.progress-step-item {
+  list-style: none;
+  flex: 1;
+  display: flex;
+  justify-content: center;
+}
+
 .progress-step {
   display: flex;
   flex-direction: column;
@@ -105,11 +113,42 @@
   cursor: pointer;
   box-sizing: border-box;
   justify-content: center;
-  box-shadow: 
+  /* Reset native <button> defaults — font from parent, no extra spacing. */
+  font: inherit;
+  color: inherit;
+  margin: 0;
+  box-shadow:
     0 4px 15px rgba(0, 0, 0, 0.1),
     0 2px 8px rgba(0, 0, 0, 0.05),
     inset 0 1px 0 rgba(255, 255, 255, 0.2),
     inset 0 -1px 0 rgba(0, 0, 0, 0.1);
+}
+
+/* Future steps — disabled buttons. No hover lift, plainly inert cursor. */
+.progress-step:disabled {
+  cursor: not-allowed;
+}
+.progress-step:disabled:hover {
+  transform: none;
+  background: rgba(255, 255, 255, 0.03);
+  border-color: rgba(108, 117, 125, 0.3);
+  box-shadow:
+    0 4px 15px rgba(0, 0, 0, 0.1),
+    0 2px 8px rgba(0, 0, 0, 0.05),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.1);
+}
+.progress-step:disabled:hover .step-icon {
+  transform: none;
+  box-shadow: none;
+}
+/* Active step is also disabled (its own click is a no-op), but keep its visual */
+.progress-step.active:disabled {
+  cursor: default;
+}
+.progress-step.active:disabled:hover {
+  /* Don't undo the active styling on hover */
+  transform: translateY(-4px);
 }
 
 .progress-step:hover {
@@ -232,7 +271,7 @@
   opacity: 1;
 }
 
-.step-info h4 {
+.step-title {
   color: var(--text-primary);
   margin-bottom: 0;
   font-size: var(--font-size-xs);
@@ -251,12 +290,12 @@
   display: none;
 }
 
-.progress-step:hover .step-info h4 {
+.progress-step:hover .step-title {
   color: var(--primary-color);
   transform: translateY(-1px);
 }
 
-.progress-step:not(.active):not(.completed):hover .step-info h4 {
+.progress-step:not(.active):not(.completed):hover .step-title {
   color: var(--primary-color);
 }
 

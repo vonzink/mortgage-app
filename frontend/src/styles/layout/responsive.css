@@ -18,7 +18,7 @@
     font-size: var(--font-size-sm);
   }
   
-  .step-info h4 {
+  .step-title {
     font-size: var(--font-size-xs);
   }
 }
@@ -38,7 +38,7 @@
     font-size: var(--font-size-xs);
   }
   
-  .step-info h4 {
+  .step-title {
     font-size: var(--font-size-xs);
   }
   
@@ -98,7 +98,7 @@
     text-align: center;
   }
   
-  .step-info h4 {
+  .step-title {
     font-size: var(--font-size-xs);
     margin-bottom: 0;
     white-space: nowrap;
@@ -151,7 +151,7 @@
     font-size: var(--font-size-xs);
   }
   
-  .step-info h4 {
+  .step-title {
     font-size: var(--font-size-xs);
   }
   
@@ -215,7 +215,7 @@
     font-size: var(--font-size-xs);
   }
   
-  .step-info h4 {
+  .step-title {
     font-size: var(--font-size-xs);
   }
   
@@ -259,7 +259,7 @@
     margin-bottom: var(--spacing-xs);
   }
   
-  .step-info h4 {
+  .step-title {
     font-size: var(--font-size-xs);
   }
 }

@@ -62,10 +62,12 @@ export default function WorkspaceTab({ loanId }) {
     if (!selectedFolderId) return;
     setLoadingDocs(true);
     try {
-      const opts = (selectedFolderId === rootId)
-        ? { atRoot: true }
-        : { folderId: selectedFolderId };
-      const docs = await workspaceService.getDocumentsInFolder(loanId, opts);
+      // Clicking the loan root behaves like Dropbox's account root: show every
+      // document on the loan regardless of which subfolder it's filed in (unfiled
+      // legacy uploads included). Subfolders show only their own contents.
+      const docs = (selectedFolderId === rootId)
+        ? await workspaceService.getAllDocuments(loanId)
+        : await workspaceService.getDocumentsInFolder(loanId, { folderId: selectedFolderId });
       setDocuments(docs);
       // Clear selection that no longer exists in the new view
       setSelectedDocUuids((prev) => {
@@ -145,6 +147,23 @@ export default function WorkspaceTab({ loanId }) {
       window.location.href = downloadUrl;
     } catch (err) {
       toast.error(`Download failed: ${err.message || err}`);
+    }
+  };
+
+  // ── Rename ──────────────────────────────────────────────────────────────
+  const handleRename = async (doc) => {
+    const current = doc.fileName || '';
+    // Phase 2: simple browser prompt. Phase 3 swaps in an inline-edit cell.
+    const next = window.prompt('Rename document:', current);
+    if (next == null) return;                  // user hit Cancel
+    const trimmed = next.trim();
+    if (!trimmed || trimmed === current) return;
+    try {
+      await workspaceService.renameDocument(loanId, doc.docUuid, trimmed);
+      toast.success('Renamed');
+      await loadDocs();
+    } catch (err) {
+      toast.error(`Rename failed: ${err.response?.data?.message || err.message || err}`);
     }
   };
 
@@ -263,6 +282,7 @@ export default function WorkspaceTab({ loanId }) {
             onPrefetchDownload={prefetchDownloadUrl}
             getDownloadUrl={getCachedDownloadUrl}
             onDownload={handleDownload}
+            onRename={handleRename}
           />
         </main>
       </div>

@@ -64,6 +64,21 @@ const workspaceService = {
     });
     return data;
   },
+
+  /** Rename a single document (changes the user-visible fileName; S3 key stays immutable). */
+  renameDocument: async (loanId, docUuid, fileName) => {
+    const { data } = await apiClient.patch(
+      `/loan-applications/${loanId}/documents/${docUuid}`,
+      { fileName },
+    );
+    return data;
+  },
+
+  /** Returns every uploaded document on the loan, regardless of folder. */
+  getAllDocuments: async (loanId) => {
+    const { data } = await apiClient.get(`/loan-applications/${loanId}/documents`);
+    return Array.isArray(data) ? data : (data.documents || []);
+  },
 };
 
 /** Reconstructs a tree (root → [children]) from a flat list with parentId. */

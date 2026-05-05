@@ -339,7 +339,7 @@ public class MismoImporter {
             // Email + phone (first match per type)
             String email = pluck(party, ".//*[local-name()='ContactPointEmailValue']");
             if (email != null) stringSet(b::getEmail, b::setEmail, email, prefix + "email", changes);
-            String phone = pluck(party, ".//*[local-name()='ContactPointTelephoneValue']");
+            String phone = normalizePhone(pluck(party, ".//*[local-name()='ContactPointTelephoneValue']"));
             if (phone != null) stringSet(b::getPhone, b::setPhone, phone, prefix + "phone", changes);
 
             // ── Whole-list replace of child collections ─────────────────────────────
@@ -417,11 +417,11 @@ public class MismoImporter {
             emp.setBorrower(b);
             emp.setSequenceNumber(parseSeq(e, i + 1));
             emp.setEmployerName(employerName);
-            emp.setEmployerPhone(pluck(e, ".//*[local-name()='ContactPointTelephoneValue']"));
+            emp.setEmployerPhone(normalizePhone(pluck(e, ".//*[local-name()='ContactPointTelephoneValue']")));
             emp.setEmployerAddress(pluck(e, ".//*[local-name()='AddressLineText']"));
             emp.setEmployerCity(pluck(e, ".//*[local-name()='CityName']"));
             emp.setEmployerState(pluck(e, ".//*[local-name()='StateCode']"));
-            emp.setEmployerZip(pluck(e, ".//*[local-name()='PostalCode']"));
+            emp.setEmployerZip(normalizeZip(pluck(e, ".//*[local-name()='PostalCode']")));
             emp.setPosition(pluck(e, ".//*[local-name()='EmploymentPositionDescription']"));
             try { emp.setStartDate(start == null ? null : LocalDate.parse(start)); } catch (Exception ignored) { }
             String end = pluck(e, ".//*[local-name()='EmploymentEndDate']");
@@ -707,6 +707,47 @@ public class MismoImporter {
         if (t.equalsIgnoreCase("true") || t.equalsIgnoreCase("yes") || t.equals("Y") || t.equals("1")) return true;
         if (t.equalsIgnoreCase("false") || t.equalsIgnoreCase("no") || t.equals("N") || t.equals("0")) return false;
         return null;
+    }
+
+    /**
+     * Convert any phone-shaped string into the {@code 123-456-7890} format that
+     * Employment.employerPhone and similar bean-validated fields require.
+     *
+     * <ul>
+     *   <li>null / blank → null</li>
+     *   <li>10 digits (any punctuation stripped) → reformatted with dashes</li>
+     *   <li>11 digits starting with 1 (US country code) → drop the 1, reformat</li>
+     *   <li>Already in canonical {@code 123-456-7890} → passed through</li>
+     *   <li>Anything else → returned as-is so the validator can surface a real error
+     *       instead of us silently swallowing data we don't understand</li>
+     * </ul>
+     */
+    static String normalizePhone(String raw) {
+        if (raw == null) return null;
+        String trimmed = raw.trim();
+        if (trimmed.isEmpty()) return null;
+        if (trimmed.matches("\\d{3}-\\d{3}-\\d{4}")) return trimmed;
+        String digits = trimmed.replaceAll("\\D", "");
+        if (digits.length() == 11 && digits.startsWith("1")) digits = digits.substring(1);
+        if (digits.length() == 10) {
+            return digits.substring(0, 3) + "-" + digits.substring(3, 6) + "-" + digits.substring(6);
+        }
+        return trimmed;
+    }
+
+    /**
+     * Convert a postal-code value to {@code 12345} or {@code 12345-6789} format.
+     * 9 raw digits becomes the dashed ZIP+4 form; everything else passes through.
+     */
+    static String normalizeZip(String raw) {
+        if (raw == null) return null;
+        String trimmed = raw.trim();
+        if (trimmed.isEmpty()) return null;
+        if (trimmed.matches("\\d{5}(-\\d{4})?")) return trimmed;
+        String digits = trimmed.replaceAll("\\D", "");
+        if (digits.length() == 9) return digits.substring(0, 5) + "-" + digits.substring(5);
+        if (digits.length() == 5) return digits;
+        return trimmed;
     }
 
     /** Generic setter that records a change if the value differs. */

@@ -1,5 +1,5 @@
 import React, { useCallback } from 'react';
-import { FaFileAlt, FaDownload, FaTrash } from 'react-icons/fa';
+import { FaFileAlt, FaDownload, FaTrash, FaPencilAlt } from 'react-icons/fa';
 
 /** MIME tag we use to recognize internal (within-app) drags from external (OS file) drops. */
 export const INTERNAL_DRAG_MIME = 'application/x-mortgage-docs';
@@ -23,6 +23,8 @@ export const INTERNAL_DRAG_MIME = 'application/x-mortgage-docs';
  *                        DownloadURL synchronously.
  *   getDownloadUrl     — (doc) => string | undefined; lookup into the prefetch cache
  *   onDownload         — (doc) => void; explicit download button click
+ *   onRename           — (doc) => void; or null to hide. WorkspaceTab supplies
+ *                        a window.prompt-driven handler for now.
  *   onDelete           — (doc) => void; or null to hide
  */
 export default function FileTable({
@@ -33,6 +35,7 @@ export default function FileTable({
   onPrefetchDownload,
   getDownloadUrl,
   onDownload,
+  onRename,
   onDelete,
 }) {
   // ── Selection helpers ────────────────────────────────────────────────────
@@ -152,6 +155,11 @@ export default function FileTable({
               <td>{formatSize(doc.fileSize)}</td>
               <td>{formatDate(doc.uploadedAt)}</td>
               <td className="ws-file-actions">
+                {onRename && (
+                  <button type="button" className="btn-icon" onClick={() => onRename(doc)} title="Rename">
+                    <FaPencilAlt />
+                  </button>
+                )}
                 {onDownload && (
                   <button type="button" className="btn-icon" onClick={() => onDownload(doc)} title="Download">
                     <FaDownload />

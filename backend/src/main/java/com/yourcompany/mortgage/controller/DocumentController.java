@@ -224,6 +224,47 @@ public class DocumentController {
         return ResponseEntity.ok(Map.of("downloadUrl", url, "expiresInSeconds", 900));
     }
 
+    // ─────────────────────────────────── Rename ─────────────────────────────────────
+
+    /**
+     * Rename a document (changes the user-visible {@code fileName}). The S3 key, original
+     * upload metadata, and {@code safeFilename} are immutable — rename only affects what
+     * the workspace and download link show.
+     */
+    @PatchMapping("/{docUuid}")
+    @PreAuthorize("@loanAccessGuard.canAccess(#loanId)")
+    public ResponseEntity<?> patch(
+            @PathVariable Long loanId,
+            @PathVariable String docUuid,
+            @RequestBody PatchDocumentRequest req
+    ) {
+        Document doc = documentRepository.findByDocUuid(docUuid)
+                .orElseThrow(() -> new ResourceNotFoundException("Document " + docUuid + " not found"));
+        if (!doc.getApplication().getId().equals(loanId)) {
+            return ResponseEntity.badRequest().body(Map.of("error", "doc/loan mismatch"));
+        }
+
+        if (req != null && req.fileName() != null) {
+            String trimmed = req.fileName().trim();
+            if (trimmed.isEmpty()) {
+                throw new com.yourcompany.mortgage.exception.BusinessValidationException(
+                        "fileName must not be empty");
+            }
+            if (trimmed.length() > 255) {
+                throw new com.yourcompany.mortgage.exception.BusinessValidationException(
+                        "fileName must be 255 characters or fewer");
+            }
+            doc.setFileName(trimmed);
+        }
+        if (req != null && req.folderId() != null) {
+            doc.setFolderId(resolveFolderId(loanId, req.folderId()));
+        }
+        Document saved = documentRepository.save(doc);
+        return ResponseEntity.ok(toView(saved, /*withDownloadUrl*/ false));
+    }
+
+    public record PatchDocumentRequest(String fileName, Long folderId) {}
+
     // ─────────────────────────────────── Move (drag-drop / bulk) ────────────────────
 
     /**

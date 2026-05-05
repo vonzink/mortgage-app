@@ -7,9 +7,9 @@ FROM eclipse-temurin:25-jdk-alpine AS build
 
 WORKDIR /workspace
 
-# Maven wrapper / pom first so dependency resolution is cached across rebuilds —
+# pom first so dependency resolution is cached across rebuilds —
 # only re-runs when pom.xml actually changes, not on every code edit.
-COPY pom.xml mvnw .mvn/ ./
+COPY pom.xml ./
 RUN apk add --no-cache maven \
  && mvn -B -q -e -DskipTests dependency:go-offline
 

@@ -359,19 +359,18 @@ export default function WorkspaceTab({ loanId }) {
             />
           </div>
 
-          {/* Download tray relocated inline below the file list — easier to spot
-              than the floating bottom-right panel. Only shows when something has
-              been staged into it via drag. */}
-          {stagedDocs.length > 0 && (
-            <DownloadTray
-              stagedDocs={stagedDocs}
-              onAdd={handleStageDocs}
-              onRemove={handleUnstageDoc}
-              onClear={handleClearTray}
-              resolveDownloadUrl={resolveDownloadUrl}
-              inline
-            />
-          )}
+          {/* Download tray inline below the file list. Always rendered so its
+              empty-state placeholder ("Drag files here to stage them for
+              download.") gives the LO an obvious drop target — the tray itself
+              is what receives the drag, not a phantom region. */}
+          <DownloadTray
+            stagedDocs={stagedDocs}
+            onAdd={handleStageDocs}
+            onRemove={handleUnstageDoc}
+            onClear={handleClearTray}
+            resolveDownloadUrl={resolveDownloadUrl}
+            inline
+          />
         </main>
       </div>
 

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
-import { FaFileAlt, FaEye, FaEdit, FaTrash, FaClock, FaCheckCircle, FaTimesCircle, FaFileDownload, FaCopy, FaFileUpload, FaPlus } from 'react-icons/fa';
+import { FaFileAlt, FaEye, FaEdit, FaTrash, FaClock, FaCheckCircle, FaTimesCircle, FaFileDownload, FaCopy, FaFileUpload, FaPlus, FaChartLine } from 'react-icons/fa';
 import mortgageService from '../services/mortgageService';
 
 const ApplicationList = () => {
@@ -317,6 +317,13 @@ const ApplicationList = () => {
                     title="View read-only details and upload documents"
                   >
                     <FaEye /> View / Docs
+                  </Link>
+                  <Link
+                    to={`/loan/${application.id}`}
+                    className="btn btn-outline-primary"
+                    title="LO view: terms, housing expenses, milestones"
+                  >
+                    <FaChartLine /> Dashboard
                   </Link>
                   <button
                     type="button"

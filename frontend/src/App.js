@@ -12,6 +12,7 @@ import RequireAuth from './auth/RequireAuth';
 import ApplicationForm from './pages/ApplicationForm';
 import ApplicationList from './pages/ApplicationList';
 import ApplicationDetails from './pages/ApplicationDetails';
+import LoanDashboardPage from './pages/LoanDashboardPage';
 
 // Styles
 import './App.css';
@@ -87,6 +88,11 @@ function App() {
             <Route
               path="/applications/:id"
               element={<RequireAuth><ApplicationDetails /></RequireAuth>}
+            />
+            {/* Loan Dashboard — LO-side view, separate from the borrower URLA. */}
+            <Route
+              path="/loan/:loanId"
+              element={<RequireAuth><LoanDashboardPage /></RequireAuth>}
             />
           </Routes>
         </main>

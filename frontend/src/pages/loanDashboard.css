@@ -1,0 +1,148 @@
+/* Loan Dashboard layout — borrower-faced URLA stays compact, this is the LO's
+ * working canvas: cards arranged on a responsive grid, with one wide card
+ * spanning the full row for housing expenses (the table needs the room).
+ */
+
+.dashboard-root {
+  padding: 1.5rem;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.dashboard-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+  margin-bottom: 1rem;
+}
+.dashboard-header h1 { font-size: 1.5rem; }
+
+.dashboard-subhead {
+  margin-top: 0.4rem;
+  color: var(--text-muted, #6b7280);
+  font-size: 0.95rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+.dashboard-sep { color: #d1d5db; }
+
+.dashboard-actions {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+/* Status pill — color-coded by stage. */
+.status-pill {
+  display: inline-block;
+  padding: 2px 10px;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  background: #e5e7eb;
+  color: #374151;
+}
+.status-registered, .status-application { background: #dbeafe; color: #1e40af; }
+.status-disclosures_sent, .status-disclosures_signed { background: #fef3c7; color: #92400e; }
+.status-underwriting, .status-approved { background: #d1fae5; color: #065f46; }
+.status-appraisal, .status-insurance, .status-ctc, .status-docs_out { background: #ede9fe; color: #5b21b6; }
+.status-funded { background: #d1fae5; color: #064e3b; font-weight: 700; }
+.status-dispositioned { background: #fee2e2; color: #991b1b; }
+
+/* ── Card grid ────────────────────────────────────────────────── */
+.dashboard-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
+  gap: 1rem;
+}
+
+.dashboard-card {
+  display: flex;
+  flex-direction: column;
+}
+.dashboard-card--wide {
+  grid-column: 1 / -1;
+}
+
+.dashboard-card-title {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 1rem;
+  margin: 0 0 0.75rem 0;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid var(--border-color, #e5e7eb);
+  color: #111827;
+}
+.dashboard-card-title svg { color: #2c5f2d; }
+
+/* ── Definition list ──────────────────────────────────────────── */
+.dashboard-dl {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+.dashboard-dl-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 1rem;
+  padding: 0.3rem 0;
+  border-bottom: 1px dotted #f3f4f6;
+}
+.dashboard-dl-row:last-child { border-bottom: none; }
+.dashboard-dl dt {
+  color: var(--text-muted, #6b7280);
+  font-size: 0.85rem;
+  font-weight: 500;
+  flex-shrink: 0;
+}
+.dashboard-dl dd {
+  margin: 0;
+  font-size: 0.95rem;
+  text-align: right;
+  font-weight: 500;
+  color: #111827;
+}
+
+.dashboard-empty {
+  color: var(--text-muted, #6b7280);
+  font-size: 0.9rem;
+  font-style: italic;
+  margin: 0.5rem 0 0;
+}
+
+/* ── Housing expense table ────────────────────────────────────── */
+.dashboard-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.92rem;
+}
+.dashboard-table th {
+  text-align: left;
+  padding: 0.5rem 0.5rem 0.5rem 0;
+  background: transparent;
+  border-bottom: 1px solid var(--border-color, #e5e7eb);
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  color: var(--text-muted, #6b7280);
+  letter-spacing: 0.04em;
+  font-weight: 600;
+}
+.dashboard-table td {
+  padding: 0.55rem 0.5rem 0.55rem 0;
+  border-bottom: 1px solid #f3f4f6;
+}
+.dashboard-table tr:last-child td { border-bottom: none; }
+.dashboard-table-total td {
+  border-top: 2px solid #e5e7eb;
+  border-bottom: none;
+  padding-top: 0.75rem;
+}

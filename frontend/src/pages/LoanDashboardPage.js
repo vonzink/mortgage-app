@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import {
@@ -9,7 +9,6 @@ import {
   FaFileSignature,
   FaCalendarAlt,
   FaIdBadge,
-  FaCheck,
   FaCheckCircle,
   FaTimesCircle,
   FaPlus,
@@ -24,14 +23,20 @@ import {
 import dashboardService from '../services/dashboardService';
 import './loanDashboard.css';
 
+import { DashCard, DefinitionList, EmptyHint } from './loanDashboard/DashCard';
+import { EditTermsModal } from './loanDashboard/EditTermsModal';
+import { AddConditionModal } from './loanDashboard/AddConditionModal';
+import {
+  formatMoney, formatRate, formatDate,
+  hasAnyIdentifier, sumExpenses, sumCredits, prettyEnum,
+} from './loanDashboard/format';
+
 /** Status workflow that drives the status dropdown order. Mirrors LoanStatus.java. */
 const STATUS_ORDER = [
   'REGISTERED', 'APPLICATION', 'DISCLOSURES_SENT', 'DISCLOSURES_SIGNED',
   'UNDERWRITING', 'APPROVED', 'APPRAISAL', 'INSURANCE',
   'CTC', 'DOCS_OUT', 'FUNDED', 'DISPOSITIONED',
 ];
-
-const CONDITION_TYPES = ['PriorToDocs', 'PriorToFunding', 'AtClosing', 'PostClose', 'Other'];
 
 /**
  * Loan Dashboard — LO-side view of a single loan in flight. Read-only fields
@@ -64,7 +69,6 @@ export default function LoanDashboardPage() {
 
   useEffect(() => { load(); }, [load]);
 
-  // ── Status change ───────────────────────────────────────────────────────
   const handleStatusChange = async (next) => {
     if (!next || next === data.status) return;
     try {
@@ -76,7 +80,6 @@ export default function LoanDashboardPage() {
     }
   };
 
-  // ── Loan terms edit ─────────────────────────────────────────────────────
   const saveTerms = async (patch) => {
     await dashboardService.patchTerms(loanId, patch);
     toast.success('Loan terms updated');
@@ -84,7 +87,6 @@ export default function LoanDashboardPage() {
     await load();
   };
 
-  // ── Conditions ──────────────────────────────────────────────────────────
   const addCondition = async (payload) => {
     await dashboardService.createCondition(loanId, payload);
     toast.success('Condition added');
@@ -112,7 +114,6 @@ export default function LoanDashboardPage() {
     }
   };
 
-  // ── Render ──────────────────────────────────────────────────────────────
   if (loading) return <div className="card" style={{ padding: '2rem' }}>Loading dashboard…</div>;
   if (error || !data) {
     return (
@@ -133,7 +134,6 @@ export default function LoanDashboardPage() {
 
   return (
     <div className="dashboard-root">
-      {/* ── Header ─────────────────────────────────────────────────── */}
       <div className="card dashboard-header">
         <div>
           <h1 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
@@ -161,23 +161,16 @@ export default function LoanDashboardPage() {
           </div>
         </div>
         <div className="dashboard-actions">
-          <button
-            className="btn btn-secondary"
-            onClick={() => navigate(`/applications/${loanId}`)}
-          >
+          <button className="btn btn-secondary" onClick={() => navigate(`/applications/${loanId}`)}>
             View application
           </button>
-          <button
-            className="btn btn-secondary"
-            onClick={() => navigate('/applications')}
-          >
+          <button className="btn btn-secondary" onClick={() => navigate('/applications')}>
             <FaArrowLeft /> All loans
           </button>
         </div>
       </div>
 
       <div className="dashboard-grid">
-        {/* ── Loan Terms (editable) ─────────────────────────────── */}
         <DashCard
           icon={<FaFileSignature />}
           title="Loan Terms"
@@ -207,7 +200,6 @@ export default function LoanDashboardPage() {
           )}
         </DashCard>
 
-        {/* ── Property ───────────────────────────────────────────── */}
         <DashCard icon={<FaHome />} title="Subject Property">
           {data.property ? (
             <DefinitionList rows={[
@@ -228,7 +220,6 @@ export default function LoanDashboardPage() {
           ) : <EmptyHint>No property on file.</EmptyHint>}
         </DashCard>
 
-        {/* ── Primary borrower ───────────────────────────────────── */}
         <DashCard icon={<FaUser />} title="Primary Borrower">
           {data.primaryBorrower ? (
             <DefinitionList rows={[
@@ -243,7 +234,6 @@ export default function LoanDashboardPage() {
           ) : <EmptyHint>No borrower yet.</EmptyHint>}
         </DashCard>
 
-        {/* ── Identifiers ───────────────────────────────────────── */}
         <DashCard icon={<FaIdBadge />} title="Loan Identifiers">
           {hasAnyIdentifier(data.identifiers) ? (
             <DefinitionList rows={[
@@ -254,7 +244,6 @@ export default function LoanDashboardPage() {
           ) : <EmptyHint>No external identifiers yet.</EmptyHint>}
         </DashCard>
 
-        {/* ── Loan Agents ───────────────────────────────────────── */}
         <DashCard icon={<FaUserTie />} title="Loan Agents">
           {data.loanAgents && data.loanAgents.length > 0 ? (
             <ul className="dashboard-list">
@@ -271,7 +260,6 @@ export default function LoanDashboardPage() {
           ) : <EmptyHint>No agents assigned. Use Loan Agents admin to assign.</EmptyHint>}
         </DashCard>
 
-        {/* ── Closing Information ──────────────────────────────── */}
         <DashCard icon={<FaHandshake />} title="Closing Information">
           {data.closingInformation ? (
             <DefinitionList rows={[
@@ -290,7 +278,6 @@ export default function LoanDashboardPage() {
           ) : <EmptyHint>Closing details will appear once scheduled.</EmptyHint>}
         </DashCard>
 
-        {/* ── Status History (full-width) ──────────────────────── */}
         <DashCard icon={<FaHistory />} title="Status Timeline" fullWidth>
           {data.statusHistory && data.statusHistory.length > 0 ? (
             <ol className="dashboard-timeline">
@@ -309,7 +296,6 @@ export default function LoanDashboardPage() {
           ) : <EmptyHint>No status changes recorded yet.</EmptyHint>}
         </DashCard>
 
-        {/* ── Housing expenses (full-width) ────────────────────── */}
         <DashCard icon={<FaCalendarAlt />} title="Proposed Housing Expenses" fullWidth>
           {data.housingExpenses && data.housingExpenses.length > 0 ? (
             <table className="dashboard-table">
@@ -339,7 +325,6 @@ export default function LoanDashboardPage() {
           ) : <EmptyHint>No housing expenses imported. They populate from a URLA MISMO import.</EmptyHint>}
         </DashCard>
 
-        {/* ── Purchase credits ─────────────────────────────────── */}
         <DashCard icon={<FaHandshake />} title="Purchase Credits">
           {data.purchaseCredits && data.purchaseCredits.length > 0 ? (
             <table className="dashboard-table">
@@ -365,7 +350,6 @@ export default function LoanDashboardPage() {
           ) : <EmptyHint>No purchase credits imported.</EmptyHint>}
         </DashCard>
 
-        {/* ── Conditions (full-width, with add) ────────────────── */}
         <DashCard
           icon={<FaListUl />}
           title="Conditions"
@@ -415,7 +399,6 @@ export default function LoanDashboardPage() {
         </DashCard>
       </div>
 
-      {/* Modals */}
       {editingTerms && (
         <EditTermsModal
           initial={data.loanTerms || {}}
@@ -431,236 +414,4 @@ export default function LoanDashboardPage() {
       )}
     </div>
   );
-}
-
-// ─── Subcomponents ────────────────────────────────────────────────────────
-
-function DashCard({ icon, title, children, fullWidth, actionRight }) {
-  return (
-    <div className={`card dashboard-card${fullWidth ? ' dashboard-card--wide' : ''}`}>
-      <div className="dashboard-card-titlebar">
-        <h2 className="dashboard-card-title">{icon} {title}</h2>
-        {actionRight}
-      </div>
-      {children}
-    </div>
-  );
-}
-
-function DefinitionList({ rows }) {
-  return (
-    <dl className="dashboard-dl">
-      {rows
-        .filter(([, v]) => v !== null && v !== undefined && v !== '')
-        .map(([label, value]) => (
-          <div key={label} className="dashboard-dl-row">
-            <dt>{label}</dt>
-            <dd>{value}</dd>
-          </div>
-        ))}
-    </dl>
-  );
-}
-
-function EmptyHint({ children }) {
-  return <p className="dashboard-empty">{children}</p>;
-}
-
-function EditTermsModal({ initial, onClose, onSave }) {
-  const [form, setForm] = useState({
-    baseLoanAmount: initial.baseLoanAmount ?? '',
-    noteAmount: initial.noteAmount ?? '',
-    noteRatePercent: initial.noteRatePercent ?? '',
-    downPaymentAmount: initial.downPaymentAmount ?? '',
-    amortizationType: initial.amortizationType ?? '',
-    amortizationTermMonths: initial.amortizationTermMonths ?? '',
-    lienPriorityType: initial.lienPriorityType ?? '',
-    applicationReceivedDate: initial.applicationReceivedDate ?? '',
-  });
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState(null);
-
-  const set = (field) => (e) => setForm(f => ({ ...f, [field]: e.target.value }));
-
-  const submit = async (e) => {
-    e?.preventDefault?.();
-    setSaving(true);
-    setError(null);
-    // Strip empty strings → null (server treats null as "skip this field")
-    const payload = Object.fromEntries(Object.entries(form)
-      .filter(([, v]) => v !== '' && v !== null && v !== undefined));
-    try {
-      await onSave(payload);
-    } catch (err) {
-      setError(err?.response?.data?.message || err.message || 'Save failed');
-      setSaving(false);
-    }
-  };
-
-  return (
-    <ModalShell title="Edit loan terms" onClose={onClose}>
-      <form onSubmit={submit} className="dashboard-form">
-        <Row label="Note rate (%)">
-          <input type="number" step="0.0001" value={form.noteRatePercent} onChange={set('noteRatePercent')} />
-        </Row>
-        <Row label="Note amount">
-          <input type="number" step="0.01" value={form.noteAmount} onChange={set('noteAmount')} />
-        </Row>
-        <Row label="Base loan amount">
-          <input type="number" step="0.01" value={form.baseLoanAmount} onChange={set('baseLoanAmount')} />
-        </Row>
-        <Row label="Down payment">
-          <input type="number" step="0.01" value={form.downPaymentAmount} onChange={set('downPaymentAmount')} />
-        </Row>
-        <Row label="Amortization type">
-          <select value={form.amortizationType} onChange={set('amortizationType')}>
-            <option value="">—</option>
-            <option value="Fixed">Fixed</option>
-            <option value="AdjustableRate">Adjustable Rate</option>
-            <option value="GraduatedPaymentMortgage">Graduated Payment</option>
-            <option value="Other">Other</option>
-          </select>
-        </Row>
-        <Row label="Term (months)">
-          <input type="number" step="1" value={form.amortizationTermMonths} onChange={set('amortizationTermMonths')} />
-        </Row>
-        <Row label="Lien priority">
-          <select value={form.lienPriorityType} onChange={set('lienPriorityType')}>
-            <option value="">—</option>
-            <option value="FirstLien">First Lien</option>
-            <option value="SecondLien">Second Lien</option>
-            <option value="ThirdLien">Third Lien</option>
-          </select>
-        </Row>
-        <Row label="Application received">
-          <input type="date" value={form.applicationReceivedDate} onChange={set('applicationReceivedDate')} />
-        </Row>
-        {error && <p className="dashboard-form-error">{error}</p>}
-        <div className="dashboard-modal-actions">
-          <button type="button" className="btn btn-secondary" onClick={onClose} disabled={saving}>Cancel</button>
-          <button type="submit" className="btn btn-primary" disabled={saving}>
-            <FaCheck /> {saving ? 'Saving…' : 'Save'}
-          </button>
-        </div>
-      </form>
-    </ModalShell>
-  );
-}
-
-function AddConditionModal({ onClose, onSave }) {
-  const [form, setForm] = useState({
-    conditionText: '',
-    conditionType: 'PriorToDocs',
-    dueDate: '',
-    notes: '',
-  });
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState(null);
-  const set = (field) => (e) => setForm(f => ({ ...f, [field]: e.target.value }));
-
-  const submit = async (e) => {
-    e?.preventDefault?.();
-    if (!form.conditionText.trim()) {
-      setError('Condition text is required');
-      return;
-    }
-    setSaving(true);
-    setError(null);
-    try {
-      const payload = { ...form };
-      if (!payload.dueDate) delete payload.dueDate;
-      if (!payload.notes) delete payload.notes;
-      await onSave(payload);
-    } catch (err) {
-      setError(err?.response?.data?.message || err.message || 'Save failed');
-      setSaving(false);
-    }
-  };
-
-  return (
-    <ModalShell title="Add condition" onClose={onClose}>
-      <form onSubmit={submit} className="dashboard-form">
-        <Row label="Condition" full>
-          <textarea
-            rows={3}
-            value={form.conditionText}
-            onChange={set('conditionText')}
-            placeholder='e.g., "Provide most recent 2 months bank statements all pages"'
-            autoFocus
-          />
-        </Row>
-        <Row label="Type">
-          <select value={form.conditionType} onChange={set('conditionType')}>
-            {CONDITION_TYPES.map(t => <option key={t} value={t}>{prettyEnum(t)}</option>)}
-          </select>
-        </Row>
-        <Row label="Due date">
-          <input type="date" value={form.dueDate} onChange={set('dueDate')} />
-        </Row>
-        <Row label="Notes" full>
-          <textarea rows={2} value={form.notes} onChange={set('notes')} />
-        </Row>
-        {error && <p className="dashboard-form-error">{error}</p>}
-        <div className="dashboard-modal-actions">
-          <button type="button" className="btn btn-secondary" onClick={onClose} disabled={saving}>Cancel</button>
-          <button type="submit" className="btn btn-primary" disabled={saving}>
-            <FaPlus /> {saving ? 'Adding…' : 'Add'}
-          </button>
-        </div>
-      </form>
-    </ModalShell>
-  );
-}
-
-function ModalShell({ title, children, onClose }) {
-  return (
-    <div className="dashboard-modal-backdrop" onClick={onClose}>
-      <div className="dashboard-modal" onClick={(e) => e.stopPropagation()}>
-        <div className="dashboard-modal-head">
-          <h3>{title}</h3>
-          <button className="btn-icon" onClick={onClose} aria-label="Close">×</button>
-        </div>
-        <div className="dashboard-modal-body">{children}</div>
-      </div>
-    </div>
-  );
-}
-
-function Row({ label, children, full }) {
-  return (
-    <label className={`dashboard-form-row${full ? ' dashboard-form-row--full' : ''}`}>
-      <span>{label}</span>
-      {children}
-    </label>
-  );
-}
-
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-
-function formatMoney(value) {
-  if (value === null || value === undefined || value === '') return null;
-  const n = Number(value);
-  if (Number.isNaN(n)) return null;
-  return n.toLocaleString('en-US', { style: 'currency', currency: 'USD' });
-}
-function formatRate(value) {
-  if (value === null || value === undefined || value === '') return null;
-  const n = Number(value);
-  if (Number.isNaN(n)) return null;
-  return `${n.toFixed(4).replace(/\.?0+$/, '')}%`;
-}
-function formatDate(iso) {
-  if (!iso) return null;
-  try {
-    return new Date(iso).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' });
-  } catch { return iso; }
-}
-function hasAnyIdentifier(ids) {
-  return ids && (ids.lendingpadLoanNumber || ids.investorLoanNumber || ids.mersMin);
-}
-function sumExpenses(list) { return list.reduce((acc, h) => acc + (Number(h.paymentAmount) || 0), 0); }
-function sumCredits(list) { return list.reduce((acc, c) => acc + (Number(c.amount) || 0), 0); }
-function prettyEnum(s) {
-  if (!s) return '—';
-  return s.replace(/([a-z])([A-Z])/g, '$1 $2').replace(/_/g, ' ');
 }

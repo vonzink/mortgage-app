@@ -52,8 +52,8 @@
 .ws-tree-row {
   display: flex;
   align-items: center;
-  gap: 4px;
-  padding: 4px 8px;
+  gap: 6px;
+  padding: 7px 8px;
   border-radius: 4px;
   cursor: default;
 }
@@ -105,7 +105,9 @@
   text-overflow: ellipsis;
 }
 
-.ws-tree-label svg { color: #2c5f2d; flex-shrink: 0; }
+/* Larger folder icon for an easier drop target — 18px with a touch more
+ * row height than before so drag-onto is forgiving. */
+.ws-tree-label svg { color: #2c5f2d; flex-shrink: 0; font-size: 18px; }
 
 /* ── Breadcrumbs ───────────────────────────────────────── */
 .ws-crumbs {

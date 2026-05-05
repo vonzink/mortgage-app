@@ -110,7 +110,14 @@ public class Employment {
     }
     
     // Utility methods
+    /**
+     * Months between startDate and (endDate or today). Returns 0 when startDate
+     * is missing — common for MISMO imports where the LP feed didn't include a
+     * start date. Returning 0 keeps Jackson serialization safe; callers that
+     * need to distinguish "unknown" can check startDate directly.
+     */
     public int getEmploymentDurationMonths() {
+        if (startDate == null) return 0;
         LocalDate endDateToUse = endDate != null ? endDate : LocalDate.now();
         return (int) Period.between(startDate, endDateToUse).toTotalMonths();
     }

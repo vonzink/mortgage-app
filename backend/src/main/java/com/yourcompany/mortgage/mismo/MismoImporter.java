@@ -271,6 +271,21 @@ public class MismoImporter {
             } catch (NumberFormatException ignored) { }
         }
 
+        // Purchase price (separate from estimated/appraised value). Only present on purchase loans.
+        BigDecimal salesAmt = parseDecimal(pluck(subj, ".//*[local-name()='SalesContractAmount']"));
+        if (salesAmt != null && !Objects.equals(p.getPurchasePrice(), salesAmt)) {
+            changes.add(new FieldChange("property.purchasePrice",
+                    p.getPurchasePrice() == null ? null : p.getPurchasePrice().toPlainString(),
+                    salesAmt.toPlainString()));
+            p.setPurchasePrice(salesAmt);
+        }
+
+        // Attached/Detached + project structure (Condominium / PUD / Cooperative / None).
+        stringSet(p::getAttachmentType, p::setAttachmentType,
+                pluck(subj, ".//*[local-name()='AttachmentType']"), "property.attachmentType", changes);
+        stringSet(p::getProjectType, p::setProjectType,
+                pluck(subj, ".//*[local-name()='ProjectLegalStructureType']"), "property.projectType", changes);
+
         propertyRepository.save(p);
     }
 
@@ -789,6 +804,19 @@ public class MismoImporter {
         if (received != null) {
             try { terms.setApplicationReceivedDate(LocalDate.parse(received)); }
             catch (Exception ignored) { }
+        }
+
+        // Down payment: prefer an explicit MISMO field if present, else compute.
+        // MISMO 3.4 carries it on the LOAN's DOWN_PAYMENTS/DOWN_PAYMENT/DownPaymentAmount;
+        // some LP exports omit it. When missing, derive from the property/value/loan delta.
+        BigDecimal explicitDown = parseDecimal(pluck(loan, ".//*[local-name()='DownPaymentAmount']"));
+        if (explicitDown != null) {
+            terms.setDownPaymentAmount(explicitDown);
+        } else if (la.getProperty() != null && la.getProperty().getPropertyValue() != null
+                && terms.getBaseLoanAmount() != null) {
+            BigDecimal derived = la.getProperty().getPropertyValue().subtract(terms.getBaseLoanAmount());
+            // Don't store negatives — that would be a bad MISMO file or a refi shape.
+            if (derived.signum() >= 0) terms.setDownPaymentAmount(derived);
         }
 
         loanTermsRepository.save(terms);

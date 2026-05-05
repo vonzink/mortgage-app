@@ -84,21 +84,34 @@ public class LoanDashboardController {
             primary.put("lastName", b.getLastName());
             primary.put("email", b.getEmail());
             primary.put("phone", b.getPhone());
+            primary.put("maritalStatus", b.getMaritalStatus());
+            primary.put("citizenshipType", b.getCitizenshipType());
+            // Borrower intent to occupy lives on the Declaration; surface it next to the
+            // borrower so the dashboard reads as one mental block ("about Sarah").
+            if (b.getDeclaration() != null) {
+                primary.put("intentToOccupy", b.getDeclaration().getIntentToOccupy());
+            }
             body.put("primaryBorrower", primary);
         }
 
         if (la.getProperty() != null) {
+            var p = la.getProperty();
             Map<String, Object> prop = new LinkedHashMap<>();
-            prop.put("addressLine", la.getProperty().getAddressLine());
-            prop.put("city", la.getProperty().getCity());
-            prop.put("state", la.getProperty().getState());
-            prop.put("zipCode", la.getProperty().getZipCode());
-            prop.put("county", la.getProperty().getCounty());
-            prop.put("propertyType", la.getProperty().getPropertyType());
-            prop.put("propertyValue", la.getProperty().getPropertyValue());
-            prop.put("constructionType", la.getProperty().getConstructionType());
-            prop.put("yearBuilt", la.getProperty().getYearBuilt());
-            prop.put("unitsCount", la.getProperty().getUnitsCount());
+            prop.put("addressLine", p.getAddressLine());
+            prop.put("city", p.getCity());
+            prop.put("state", p.getState());
+            prop.put("zipCode", p.getZipCode());
+            prop.put("county", p.getCounty());
+            // Naming: propertyType in the entity = MISMO PropertyUsageType (occupancy).
+            // Re-label as propertyUse on the wire so the dashboard's labels match the URLA's.
+            prop.put("propertyUse", p.getPropertyType());
+            prop.put("propertyValue", p.getPropertyValue());
+            prop.put("purchasePrice", p.getPurchasePrice());
+            prop.put("attachmentType", p.getAttachmentType());
+            prop.put("projectType", p.getProjectType());
+            prop.put("constructionType", p.getConstructionType());
+            prop.put("yearBuilt", p.getYearBuilt());
+            prop.put("unitsCount", p.getUnitsCount());
             body.put("property", prop);
         }
 
@@ -154,6 +167,7 @@ public class LoanDashboardController {
         if (req.amortizationTermMonths() != null) terms.setAmortizationTermMonths(req.amortizationTermMonths());
         if (req.lienPriorityType() != null) terms.setLienPriorityType(req.lienPriorityType().trim());
         if (req.applicationReceivedDate() != null) terms.setApplicationReceivedDate(req.applicationReceivedDate());
+        if (req.downPaymentAmount() != null) terms.setDownPaymentAmount(req.downPaymentAmount());
 
         loanTermsRepository.save(terms);
         return ResponseEntity.ok(termsView(terms));
@@ -166,7 +180,8 @@ public class LoanDashboardController {
             String amortizationType,
             Integer amortizationTermMonths,
             String lienPriorityType,
-            LocalDate applicationReceivedDate
+            LocalDate applicationReceivedDate,
+            BigDecimal downPaymentAmount
     ) {}
 
     // ─── Conditions CRUD ────────────────────────────────────────────────────
@@ -263,6 +278,7 @@ public class LoanDashboardController {
         m.put("baseLoanAmount", t.getBaseLoanAmount());
         m.put("noteAmount", t.getNoteAmount());
         m.put("noteRatePercent", t.getNoteRatePercent());
+        m.put("downPaymentAmount", t.getDownPaymentAmount());
         m.put("amortizationType", t.getAmortizationType());
         m.put("amortizationTermMonths", t.getAmortizationTermMonths());
         m.put("lienPriorityType", t.getLienPriorityType());

@@ -77,6 +77,21 @@ public class Property {
     @Max(value = 4, message = "Units count cannot exceed 4 for residential properties")
     private Integer unitsCount = 1;
 
+    /** Purchase loans: SalesContractAmount. Refis: typically null. */
+    @Column(name = "purchase_price", precision = 15, scale = 2)
+    private java.math.BigDecimal purchasePrice;
+
+    /** MISMO AttachmentType: Attached | Detached. Form dropdown values match. */
+    @Column(name = "attachment_type", length = 50)
+    private String attachmentType;
+
+    /**
+     * MISMO ProjectLegalStructureType: Condominium | PUD | Cooperative | None.
+     * Drives downstream behavior (HOA dues lookup, condo questionnaire, etc.).
+     */
+    @Column(name = "project_type", length = 50)
+    private String projectType;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
@@ -203,7 +218,16 @@ public class Property {
     public void setUnitsCount(Integer unitsCount) {
         this.unitsCount = unitsCount;
     }
-    
+
+    public java.math.BigDecimal getPurchasePrice() { return purchasePrice; }
+    public void setPurchasePrice(java.math.BigDecimal purchasePrice) { this.purchasePrice = purchasePrice; }
+
+    public String getAttachmentType() { return attachmentType; }
+    public void setAttachmentType(String attachmentType) { this.attachmentType = attachmentType; }
+
+    public String getProjectType() { return projectType; }
+    public void setProjectType(String projectType) { this.projectType = projectType; }
+
     public LocalDateTime getCreatedAt() {
         return createdAt;
     }

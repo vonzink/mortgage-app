@@ -31,7 +31,12 @@ public class FolderService {
     private final FolderRepository folderRepository;
     private final LoanApplicationRepository loanApplicationRepository;
 
-    /** The 15 default subfolders, in display order. The numeric prefix is part of the name. */
+    /**
+     * Default subfolders, in display order. Numeric prefix is part of the name (drives
+     * sort order). Underwriting was added between Conditions and Closing — existing loans
+     * will see it gap-filled by ensureSeeded(); their pre-existing "11 Closing" keeps its
+     * label so re-numbering isn't needed in the database.
+     */
     private static final List<String> DEFAULT_SUBFOLDERS = List.of(
             "01 Submission",
             "02 Borrower Documents",
@@ -43,14 +48,15 @@ public class FolderService {
             "08 Insurance",
             "09 Disclosures",
             "10 Conditions",
-            "11 Closing",
-            "12 Post Closing",
-            "13 Invoices",
-            "14 Correspondence",
-            "15 Old Loan Files"
+            "11 Underwriting",
+            "12 Closing",
+            "13 Post Closing",
+            "14 Invoices",
+            "15 Correspondence",
+            "16 Old Loan Files"
     );
 
-    private static final String OLD_LOAN_FILES_NAME = "15 Old Loan Files";
+    private static final String OLD_LOAN_FILES_NAME = "16 Old Loan Files";
 
     // ─── Read ────────────────────────────────────────────────────────────────────
 
@@ -183,6 +189,24 @@ public class FolderService {
                 .createdByUserId(createdByUserId)
                 .build();
         return folderRepository.save(f);
+    }
+
+    /**
+     * Soft-delete a user-created folder. System folders (the seeded defaults + the loan
+     * root) refuse deletion — they're contracted into the dashboard's auto-routing and
+     * the LO's mental model. Documents inside the deleted folder become "unfiled"
+     * (folder_id stays the same in the DB; the next list query at root surfaces them).
+     */
+    @Transactional
+    public void softDelete(Long folderId) {
+        Folder f = folderRepository.findActiveById(folderId)
+                .orElseThrow(() -> new ResourceNotFoundException("Folder " + folderId + " not found"));
+        if (Boolean.TRUE.equals(f.getIsSystem())) {
+            throw new BusinessValidationException(
+                    "Default folders cannot be deleted. Rename instead if you want to repurpose it.");
+        }
+        f.setDeletedAt(java.time.LocalDateTime.now());
+        folderRepository.save(f);
     }
 
     /**

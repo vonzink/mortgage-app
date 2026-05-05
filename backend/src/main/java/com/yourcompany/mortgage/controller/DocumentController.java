@@ -73,6 +73,12 @@ public class DocumentController {
         String key = s3.buildApplicationKey(la.getId(), partyRole, docType, docUuid, safeName);
 
         Long folderId = resolveFolderId(loanId, req.folderId());
+        // Auto-route by tag when the LO didn't explicitly pick a folder. Maps the
+        // documentType (e.g. "Income", "Underwriting") to the matching seeded default
+        // folder. The LO can still drag the file elsewhere afterwards.
+        if (folderId == null && req.documentType() != null) {
+            folderId = findDefaultFolderForTag(loanId, req.documentType()).orElse(null);
+        }
 
         Document doc = Document.builder()
                 .application(la)
@@ -186,6 +192,37 @@ public class DocumentController {
 
         List<Map<String, Object>> items = docs.stream().map(d -> toView(d, /*withDownloadUrl*/ false)).toList();
         return ResponseEntity.ok(Map.of("count", items.size(), "documents", items));
+    }
+
+    /**
+     * Single-word tag → seeded default folder. The user-facing dropdown uses the
+     * folder's display name suffix ("Income", "Assets", "Underwriting", etc.); we
+     * match against the folder name's tail so a tag like "Income" lands a doc in
+     * "03 Income". Case-insensitive. Returns empty when no match — caller leaves
+     * folderId null and the doc shows up at root for the LO to file manually.
+     */
+    private java.util.Optional<Long> findDefaultFolderForTag(Long loanId, String tag) {
+        if (tag == null || tag.isBlank()) return java.util.Optional.empty();
+        String t = tag.trim().toLowerCase();
+        // Common synonyms that don't textually match a folder name.
+        switch (t) {
+            case "borrower":     t = "borrower documents";  break;
+            case "postclosing":
+            case "post closing": t = "post closing";        break;
+            case "correspondence": t = "correspondence";    break;
+            case "invoice":      t = "invoices";            break;
+            default: /* fall through */
+        }
+        String wanted = t;
+        return folderRepository.findLiveByApplicationId(loanId).stream()
+                .filter(f -> f.getParentId() != null) // skip the loan root itself
+                .filter(f -> {
+                    String name = f.getDisplayName().toLowerCase();
+                    // Match either the tail ("01 income" → "income") or whole-name.
+                    return name.endsWith(" " + wanted) || name.equals(wanted);
+                })
+                .map(com.yourcompany.mortgage.model.Folder::getId)
+                .findFirst();
     }
 
     /**

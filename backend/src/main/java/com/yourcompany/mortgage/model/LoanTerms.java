@@ -60,6 +60,13 @@ public class LoanTerms {
     @Column(name = "application_received_date")
     private LocalDate applicationReceivedDate;
 
+    /**
+     * Down payment toward closing. When MISMO doesn't supply it directly we compute
+     * {@code propertyValue - baseLoanAmount} on import. Editable on the dashboard.
+     */
+    @Column(name = "down_payment_amount", precision = 15, scale = 2)
+    private BigDecimal downPaymentAmount;
+
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;
 

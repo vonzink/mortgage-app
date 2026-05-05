@@ -75,6 +75,23 @@ public class FolderController {
         return ResponseEntity.ok(toView(created));
     }
 
+    /**
+     * Soft-delete a folder. System folders (the seeded defaults + loan root) refuse —
+     * the service throws BusinessValidationException → 400. Documents in the folder
+     * stay associated by folder_id, but the folder is hidden from the tree; root-view
+     * queries still pick them up.
+     */
+    @DeleteMapping("/{folderId}")
+    @PreAuthorize("@loanAccessGuard.canAccess(#loanId)")
+    public ResponseEntity<?> delete(@PathVariable Long loanId, @PathVariable Long folderId) {
+        Folder existing = folderService.getById(folderId);
+        if (!existing.getApplicationId().equals(loanId)) {
+            throw new BusinessValidationException("Folder belongs to a different loan");
+        }
+        folderService.softDelete(folderId);
+        return ResponseEntity.noContent().build();
+    }
+
     /** Rename. Body: {@code {displayName}}. */
     @PatchMapping("/{folderId}")
     @PreAuthorize("@loanAccessGuard.canAccess(#loanId)")

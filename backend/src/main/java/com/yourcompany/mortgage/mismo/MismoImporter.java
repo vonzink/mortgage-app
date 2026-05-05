@@ -12,6 +12,20 @@ import com.yourcompany.mortgage.model.LoanApplication;
 import com.yourcompany.mortgage.model.Property;
 import com.yourcompany.mortgage.model.REOProperty;
 import com.yourcompany.mortgage.model.Residence;
+import com.yourcompany.mortgage.mismo.parse.LinkContext;
+
+import static com.yourcompany.mortgage.mismo.parse.MismoCoerce.firstNonNull;
+import static com.yourcompany.mortgage.mismo.parse.MismoCoerce.normalizeAssetType;
+import static com.yourcompany.mortgage.mismo.parse.MismoCoerce.normalizePhone;
+import static com.yourcompany.mortgage.mismo.parse.MismoCoerce.normalizeZip;
+import static com.yourcompany.mortgage.mismo.parse.MismoCoerce.parseBool;
+import static com.yourcompany.mortgage.mismo.parse.MismoCoerce.parseDecimal;
+import static com.yourcompany.mortgage.mismo.parse.MismoNodes.first;
+import static com.yourcompany.mortgage.mismo.parse.MismoNodes.parseSeq;
+import static com.yourcompany.mortgage.mismo.parse.MismoNodes.pluck;
+import static com.yourcompany.mortgage.mismo.parse.MismoNodes.pluckTaxId;
+import static com.yourcompany.mortgage.mismo.parse.MismoNodes.textOf;
+import com.yourcompany.mortgage.mismo.parse.MismoXml;
 import com.yourcompany.mortgage.repository.BorrowerRepository;
 import com.yourcompany.mortgage.repository.LiabilityRepository;
 import com.yourcompany.mortgage.repository.LoanApplicationRepository;
@@ -22,23 +36,15 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
-import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
-import org.xml.sax.InputSource;
 
-import javax.xml.parsers.DocumentBuilder;
-import javax.xml.parsers.DocumentBuilderFactory;
-import javax.xml.parsers.ParserConfigurationException;
-import javax.xml.xpath.XPath;
 import javax.xml.xpath.XPathConstants;
 import javax.xml.xpath.XPathExpressionException;
-import javax.xml.xpath.XPathFactory;
 import java.io.IOException;
 import java.io.InputStream;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -96,8 +102,8 @@ public class MismoImporter {
      */
     public LocalDateTime peekCreatedDatetime(InputStream xml) throws IOException {
         try {
-            Document doc = parse(xml);
-            return readCreatedDatetime(doc);
+            Document doc = MismoXml.parse(xml);
+            return MismoXml.readCreatedDatetime(doc);
         } catch (Exception e) {
             throw new IOException("Failed to parse MISMO header: " + e.getMessage(), e);
         }
@@ -110,8 +116,8 @@ public class MismoImporter {
     @Transactional
     public ImportResult importInto(LoanApplication la, InputStream xml) throws IOException {
         try {
-            Document doc = parse(xml);
-            LocalDateTime fileCreated = readCreatedDatetime(doc);
+            Document doc = MismoXml.parse(xml);
+            LocalDateTime fileCreated = MismoXml.readCreatedDatetime(doc);
             List<FieldChange> changes = new ArrayList<>();
 
             // Index xlink:label → element + the RELATIONSHIPS arcs once. Lets us
@@ -134,7 +140,7 @@ public class MismoImporter {
 
             String summaryJson = changes.isEmpty() ? "[]" : changesToJson(changes);
             return new ImportResult(saved, fileCreated, changes, summaryJson);
-        } catch (ParserConfigurationException | XPathExpressionException e) {
+        } catch (javax.xml.parsers.ParserConfigurationException | XPathExpressionException e) {
             throw new IOException("Failed to parse/walk MISMO file: " + e.getMessage(), e);
         } catch (org.xml.sax.SAXException e) {
             throw new IOException("Malformed XML: " + e.getMessage(), e);
@@ -147,7 +153,7 @@ public class MismoImporter {
 
     private void applyLoanIdentifiers(Document doc, LoanApplication la, List<FieldChange> changes)
             throws XPathExpressionException {
-        NodeList ids = (NodeList) xp().evaluate(
+        NodeList ids = (NodeList) MismoXml.xp().evaluate(
                 "//*[local-name()='LOAN_IDENTIFIER']", doc, XPathConstants.NODESET);
         for (int i = 0; i < ids.getLength(); i++) {
             Element e = (Element) ids.item(i);
@@ -208,7 +214,7 @@ public class MismoImporter {
             la.setProperty(p);
         }
 
-        Element addr = (Element) xp().evaluate(".//*[local-name()='ADDRESS']", subj, XPathConstants.NODE);
+        Element addr = (Element) MismoXml.xp().evaluate(".//*[local-name()='ADDRESS']", subj, XPathConstants.NODE);
         if (addr != null) {
             stringSet(p::getAddressLine, p::setAddressLine,
                     pluck(addr, "*[local-name()='AddressLineText']"), "property.addressLine", changes);
@@ -299,7 +305,7 @@ public class MismoImporter {
             throws XPathExpressionException {
         // Only walk PARTYs that are actually Borrowers (skip PropertyOwner, LegalEntity for the LO,
         // title companies, agents, etc.). MISMO marks the role with PartyRoleType=Borrower.
-        NodeList parties = (NodeList) xp().evaluate(
+        NodeList parties = (NodeList) MismoXml.xp().evaluate(
                 "//*[local-name()='PARTY']" +
                 "[.//*[local-name()='ROLE_DETAIL']/*[local-name()='PartyRoleType' and text()='Borrower']]",
                 doc, XPathConstants.NODESET);
@@ -389,7 +395,7 @@ public class MismoImporter {
 
     private void replaceResidences(Element party, Borrower b, String prefix, List<FieldChange> changes)
             throws XPathExpressionException {
-        NodeList nodes = (NodeList) xp().evaluate(
+        NodeList nodes = (NodeList) MismoXml.xp().evaluate(
                 ".//*[local-name()='RESIDENCE']", party, XPathConstants.NODESET);
         if (nodes.getLength() == 0) return;
         if (b.getResidences() == null) b.setResidences(new ArrayList<>());
@@ -422,7 +428,7 @@ public class MismoImporter {
 
     private void replaceEmployment(Element party, Borrower b, LinkContext links, String prefix, List<FieldChange> changes)
             throws XPathExpressionException {
-        NodeList nodes = (NodeList) xp().evaluate(
+        NodeList nodes = (NodeList) MismoXml.xp().evaluate(
                 ".//*[local-name()='EMPLOYER']", party, XPathConstants.NODESET);
         if (nodes.getLength() == 0) return;
         if (b.getEmploymentHistory() == null) b.setEmploymentHistory(new ArrayList<>());
@@ -488,7 +494,7 @@ public class MismoImporter {
 
     private void replaceIncomeSources(Element party, Borrower b, String prefix, List<FieldChange> changes)
             throws XPathExpressionException {
-        NodeList items = (NodeList) xp().evaluate(
+        NodeList items = (NodeList) MismoXml.xp().evaluate(
                 ".//*[local-name()='CURRENT_INCOME_ITEM']", party, XPathConstants.NODESET);
         if (items.getLength() == 0) return;
         if (b.getIncomeSources() == null) b.setIncomeSources(new ArrayList<>());
@@ -527,7 +533,7 @@ public class MismoImporter {
      */
     private void applyAssets(Document doc, LoanApplication la, LinkContext links,
                              List<FieldChange> changes) throws XPathExpressionException {
-        NodeList nodes = (NodeList) xp().evaluate(
+        NodeList nodes = (NodeList) MismoXml.xp().evaluate(
                 "//*[local-name()='ASSETS']/*[local-name()='ASSET']", doc, XPathConstants.NODESET);
         if (nodes.getLength() == 0) return;
 
@@ -626,7 +632,7 @@ public class MismoImporter {
     @SuppressWarnings("unused")
     private void replaceAssets(Element party, Borrower b, String prefix, List<FieldChange> changes)
             throws XPathExpressionException {
-        NodeList nodes = (NodeList) xp().evaluate(
+        NodeList nodes = (NodeList) MismoXml.xp().evaluate(
                 ".//*[local-name()='ASSET']", party, XPathConstants.NODESET);
         if (nodes.getLength() == 0) return;
         if (b.getAssets() == null) b.setAssets(new ArrayList<>());
@@ -656,7 +662,7 @@ public class MismoImporter {
 
     private void replaceReoProperties(Element party, Borrower b, String prefix, List<FieldChange> changes)
             throws XPathExpressionException {
-        NodeList nodes = (NodeList) xp().evaluate(
+        NodeList nodes = (NodeList) MismoXml.xp().evaluate(
                 ".//*[local-name()='OWNED_PROPERTY']", party, XPathConstants.NODESET);
         if (nodes.getLength() == 0) return;
         if (b.getReoProperties() == null) b.setReoProperties(new ArrayList<>());
@@ -729,7 +735,7 @@ public class MismoImporter {
      */
     private void applyLiabilities(Document doc, LoanApplication la, List<FieldChange> changes)
             throws XPathExpressionException {
-        NodeList items = (NodeList) xp().evaluate(
+        NodeList items = (NodeList) MismoXml.xp().evaluate(
                 "//*[local-name()='LIABILITY']", doc, XPathConstants.NODESET);
         if (items.getLength() == 0) return;  // no liabilities section → leave existing untouched
 
@@ -830,7 +836,7 @@ public class MismoImporter {
     private void applyHousingExpenses(org.w3c.dom.Document doc, LoanApplication la, List<FieldChange> changes)
             throws XPathExpressionException {
         if (la.getId() == null) return;
-        NodeList nodes = (NodeList) xp().evaluate(
+        NodeList nodes = (NodeList) MismoXml.xp().evaluate(
                 "//*[local-name()='HOUSING_EXPENSES']/*[local-name()='HOUSING_EXPENSE']",
                 doc, XPathConstants.NODESET);
         if (nodes.getLength() == 0) return;
@@ -868,7 +874,7 @@ public class MismoImporter {
     private void applyPurchaseCredits(org.w3c.dom.Document doc, LoanApplication la, List<FieldChange> changes)
             throws XPathExpressionException {
         if (la.getId() == null) return;
-        NodeList nodes = (NodeList) xp().evaluate(
+        NodeList nodes = (NodeList) MismoXml.xp().evaluate(
                 "//*[local-name()='PURCHASE_CREDITS']/*[local-name()='PURCHASE_CREDIT']",
                 doc, XPathConstants.NODESET);
         if (nodes.getLength() == 0) return;
@@ -903,181 +909,11 @@ public class MismoImporter {
     // Parsing + utility helpers
     // ───────────────────────────────────────────────────────────────────────────
 
-    private static Document parse(InputStream xml) throws ParserConfigurationException, IOException, org.xml.sax.SAXException {
-        DocumentBuilderFactory f = DocumentBuilderFactory.newInstance();
-        // Disable external entities (XXE protection)
-        f.setFeature("http://apache.org/xml/features/disallow-doctype-decl", true);
-        f.setFeature("http://xml.org/sax/features/external-general-entities", false);
-        f.setFeature("http://xml.org/sax/features/external-parameter-entities", false);
-        f.setNamespaceAware(true);
-        DocumentBuilder b = f.newDocumentBuilder();
-        return b.parse(new InputSource(xml));
-    }
-
-    private static XPath xp() {
-        return XPathFactory.newInstance().newXPath();
-    }
-
-    private static LocalDateTime readCreatedDatetime(Document doc) throws XPathExpressionException {
-        String dt = (String) xp().evaluate(
-                "string(//*[local-name()='ABOUT_VERSION']/*[local-name()='CreatedDatetime'])", doc, XPathConstants.STRING);
-        if (dt == null || dt.isBlank()) return null;
-        try {
-            return OffsetDateTime.parse(dt).toLocalDateTime();
-        } catch (Exception e) {
-            try { return LocalDateTime.parse(dt); } catch (Exception ee) { return null; }
-        }
-    }
-
-    private static String textOf(Element parent, String childLocalName) {
-        NodeList nl = parent.getChildNodes();
-        for (int i = 0; i < nl.getLength(); i++) {
-            Node n = nl.item(i);
-            if (n.getNodeType() == Node.ELEMENT_NODE
-                    && childLocalName.equals(n.getLocalName())) {
-                String t = n.getTextContent();
-                return t == null ? null : t.trim();
-            }
-        }
-        return null;
-    }
-
-    private static String pluck(Object context, String xpath) throws XPathExpressionException {
-        Object obj = xp().evaluate(xpath, context, XPathConstants.NODE);
-        if (obj == null) return null;
-        Node n = (Node) obj;
-        String t = n.getTextContent();
-        if (t == null) return null;
-        String trimmed = t.trim();
-        return trimmed.isEmpty() ? null : trimmed;
-    }
-
-    private static Element first(Object context, String xpath) throws XPathExpressionException {
-        Node n = (Node) xp().evaluate(xpath, context, XPathConstants.NODE);
-        return (n instanceof Element) ? (Element) n : null;
-    }
-
-    private static String pluckTaxId(Element party, String type) throws XPathExpressionException {
-        NodeList ids = (NodeList) xp().evaluate(
-                ".//*[local-name()='TAXPAYER_IDENTIFIER']", party, XPathConstants.NODESET);
-        for (int i = 0; i < ids.getLength(); i++) {
-            Element e = (Element) ids.item(i);
-            if (type.equals(textOf(e, "TaxpayerIdentifierType"))) {
-                return textOf(e, "TaxpayerIdentifierValue");
-            }
-        }
-        return null;
-    }
-
-    private static int parseSeq(Element party, int fallback) {
-        String s = party.getAttribute("SequenceNumber");
-        if (s == null || s.isBlank()) return fallback;
-        try { return Integer.parseInt(s); } catch (NumberFormatException e) { return fallback; }
-    }
-
     private static Borrower findBorrower(List<Borrower> existing, int seq, int posIndex) {
         for (Borrower b : existing) {
             if (b.getSequenceNumber() != null && b.getSequenceNumber() == seq) return b;
         }
         return posIndex < existing.size() ? existing.get(posIndex) : null;
-    }
-
-    private static BigDecimal parseDecimal(String s) {
-        if (s == null || s.isBlank()) return null;
-        try { return new BigDecimal(s); } catch (NumberFormatException e) { return null; }
-    }
-
-    /** Return the first non-null/non-blank string from the candidates. */
-    private static String firstNonNull(String... candidates) {
-        for (String c : candidates) {
-            if (c != null && !c.isBlank()) return c;
-        }
-        return null;
-    }
-
-    /** MISMO indicators come through as "true"/"false" or "Y"/"N". */
-    private static Boolean parseBool(String s) {
-        if (s == null || s.isBlank()) return null;
-        String t = s.trim();
-        if (t.equalsIgnoreCase("true") || t.equalsIgnoreCase("yes") || t.equals("Y") || t.equals("1")) return true;
-        if (t.equalsIgnoreCase("false") || t.equalsIgnoreCase("no") || t.equals("N") || t.equals("0")) return false;
-        return null;
-    }
-
-    /**
-     * Convert any phone-shaped string into the {@code 123-456-7890} format that
-     * Employment.employerPhone and similar bean-validated fields require.
-     *
-     * <ul>
-     *   <li>null / blank → null</li>
-     *   <li>10 digits (any punctuation stripped) → reformatted with dashes</li>
-     *   <li>11 digits starting with 1 (US country code) → drop the 1, reformat</li>
-     *   <li>Already in canonical {@code 123-456-7890} → passed through</li>
-     *   <li>Anything else → returned as-is so the validator can surface a real error
-     *       instead of us silently swallowing data we don't understand</li>
-     * </ul>
-     */
-    static String normalizePhone(String raw) {
-        if (raw == null) return null;
-        String trimmed = raw.trim();
-        if (trimmed.isEmpty()) return null;
-        if (trimmed.matches("\\d{3}-\\d{3}-\\d{4}")) return trimmed;
-        String digits = trimmed.replaceAll("\\D", "");
-        if (digits.length() == 11 && digits.startsWith("1")) digits = digits.substring(1);
-        if (digits.length() == 10) {
-            return digits.substring(0, 3) + "-" + digits.substring(3, 6) + "-" + digits.substring(6);
-        }
-        return trimmed;
-    }
-
-    /**
-     * Map MISMO {@code AssetType} values onto the short forms the {@code Asset} entity's
-     * {@code @Pattern} accepts. Unknown / blank values fall through to {@code "Other"}
-     * so a single unfamiliar type from a future MISMO version never blocks an import.
-     *
-     * <p>Allowed entity values are:
-     * Checking | Savings | MoneyMarket | CertificateOfDeposit | MutualFunds | Stocks |
-     * Bonds | Retirement401k | IRA | Pension | EarnestMoney | Other.
-     */
-    static String normalizeAssetType(String raw) {
-        if (raw == null || raw.isBlank()) return "Other";
-        String s = raw.trim();
-        switch (s) {
-            // exact matches first — entity values pass through
-            case "Checking": case "Savings": case "MoneyMarket":
-            case "CertificateOfDeposit": case "MutualFunds": case "Stocks":
-            case "Bonds": case "Retirement401k": case "IRA": case "Pension":
-            case "EarnestMoney": case "Other":
-                return s;
-            // MISMO 3.4 long forms → entity short forms
-            case "CheckingAccount":                         return "Checking";
-            case "SavingsAccount":                          return "Savings";
-            case "MoneyMarketFund":                         return "MoneyMarket";
-            case "MutualFund":                              return "MutualFunds";
-            case "Stock":                                   return "Stocks";
-            case "Bond":                                    return "Bonds";
-            case "RetirementFund":                          return "Retirement401k";
-            case "IndividualRetirementAccount":             return "IRA";
-            case "EarnestMoneyCashDeposit":
-            case "EarnestMoneyDeposit":                     return "EarnestMoney";
-            default:
-                return "Other";
-        }
-    }
-
-    /**
-     * Convert a postal-code value to {@code 12345} or {@code 12345-6789} format.
-     * 9 raw digits becomes the dashed ZIP+4 form; everything else passes through.
-     */
-    static String normalizeZip(String raw) {
-        if (raw == null) return null;
-        String trimmed = raw.trim();
-        if (trimmed.isEmpty()) return null;
-        if (trimmed.matches("\\d{5}(-\\d{4})?")) return trimmed;
-        String digits = trimmed.replaceAll("\\D", "");
-        if (digits.length() == 9) return digits.substring(0, 5) + "-" + digits.substring(5);
-        if (digits.length() == 5) return digits;
-        return trimmed;
     }
 
     /** Generic setter that records a change if the value differs. */
@@ -1117,51 +953,4 @@ public class MismoImporter {
         }
     }
 
-    /**
-     * Two-way index of the xlink machinery used by MISMO 3.4 to associate elements that
-     * don't live as parent/child in the document tree (e.g. DEAL-level ASSETs linked to
-     * a BORROWER, or CURRENT_INCOME_ITEMs linked to an EMPLOYER).
-     *
-     * <ul>
-     *   <li>{@code elementsByLabel} — every element that carries an {@code xlink:label}
-     *       attribute, indexed by that label.</li>
-     *   <li>{@code arcsByFrom} — for every {@code RELATIONSHIP} element, maps
-     *       {@code xlink:from} → {@code xlink:to}.</li>
-     *   <li>{@code arcsByTo} — the inverse (lets us answer "what was this employer
-     *       linked from").</li>
-     * </ul>
-     *
-     * Built once per import so each lookup is O(1) instead of repeated XPath scans.
-     */
-    static final class LinkContext {
-        static final String XLINK_NS = "http://www.w3.org/1999/xlink";
-
-        final Map<String, Element> elementsByLabel = new HashMap<>();
-        final Map<String, String> arcsByFrom = new HashMap<>();
-        final Map<String, String> arcsByTo = new HashMap<>();
-
-        static LinkContext from(Document doc) throws XPathExpressionException {
-            LinkContext ctx = new LinkContext();
-            // Index every element that carries an xlink:label
-            NodeList labeled = (NodeList) xp().evaluate(
-                    "//*[@*[local-name()='label']]", doc, XPathConstants.NODESET);
-            for (int i = 0; i < labeled.getLength(); i++) {
-                Element e = (Element) labeled.item(i);
-                String label = e.getAttributeNS(XLINK_NS, "label");
-                if (!label.isEmpty()) ctx.elementsByLabel.put(label, e);
-            }
-            // Index RELATIONSHIP arcs both ways
-            NodeList rels = (NodeList) xp().evaluate(
-                    "//*[local-name()='RELATIONSHIP']", doc, XPathConstants.NODESET);
-            for (int i = 0; i < rels.getLength(); i++) {
-                Element r = (Element) rels.item(i);
-                String from = r.getAttributeNS(XLINK_NS, "from");
-                String to = r.getAttributeNS(XLINK_NS, "to");
-                if (from.isEmpty() || to.isEmpty()) continue;
-                ctx.arcsByFrom.put(from, to);
-                ctx.arcsByTo.put(to, from);
-            }
-            return ctx;
-        }
-    }
 }

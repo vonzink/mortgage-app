@@ -74,6 +74,7 @@ public class MismoImporter {
     private final LiabilityRepository liabilityRepository;
     private final com.yourcompany.mortgage.repository.LoanTermsRepository loanTermsRepository;
     private final com.yourcompany.mortgage.repository.HousingExpenseRepository housingExpenseRepository;
+    private final com.yourcompany.mortgage.repository.PurchaseCreditRepository purchaseCreditRepository;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     /** Result of a single import. {@link #fileCreatedDatetime} is exposed so the caller can
@@ -126,6 +127,7 @@ public class MismoImporter {
             applyLiabilities(doc, la, changes);
             applyLoanTerms(doc, la, changes);       // populates the dashboard's "this loan" row
             applyHousingExpenses(doc, la, changes); // dashboard PITIA breakdown
+            applyPurchaseCredits(doc, la, changes); // earnest money, seller credit, etc.
 
             // Persist parent + cascading child changes
             LoanApplication saved = loanApplicationRepository.save(la);
@@ -827,6 +829,45 @@ public class MismoImporter {
         }
         if (kept > 0) {
             changes.add(new FieldChange("housingExpenses", "<replaced>", kept + " row(s)"));
+        }
+    }
+
+    /**
+     * Loan Dashboard: PURCHASE_CREDITS rows (earnest money, seller credit, lender credit).
+     * Wholesale-replace per loan. Empty PURCHASE_CREDIT placeholder elements are skipped —
+     * LP commonly emits a trailing empty &lt;PURCHASE_CREDIT/&gt; in these blocks.
+     */
+    private void applyPurchaseCredits(org.w3c.dom.Document doc, LoanApplication la, List<FieldChange> changes)
+            throws XPathExpressionException {
+        if (la.getId() == null) return;
+        NodeList nodes = (NodeList) xp().evaluate(
+                "//*[local-name()='PURCHASE_CREDITS']/*[local-name()='PURCHASE_CREDIT']",
+                doc, XPathConstants.NODESET);
+        if (nodes.getLength() == 0) return;
+
+        purchaseCreditRepository.deleteByApplicationId(la.getId());
+
+        int kept = 0;
+        for (int i = 0; i < nodes.getLength(); i++) {
+            Element e = (Element) nodes.item(i);
+            String type = pluck(e, ".//*[local-name()='PurchaseCreditType']");
+            BigDecimal amount = parseDecimal(pluck(e, ".//*[local-name()='PurchaseCreditAmount']"));
+            String source = pluck(e, ".//*[local-name()='PurchaseCreditSourceType']");
+            // Skip the empty placeholders LP loves emitting
+            if (type == null && amount == null) continue;
+
+            com.yourcompany.mortgage.model.PurchaseCredit pc = com.yourcompany.mortgage.model.PurchaseCredit.builder()
+                    .applicationId(la.getId())
+                    .creditType(type != null ? type : "Other")
+                    .amount(amount)
+                    .source(source)
+                    .sequenceNumber(i + 1)
+                    .build();
+            purchaseCreditRepository.save(pc);
+            kept++;
+        }
+        if (kept > 0) {
+            changes.add(new FieldChange("purchaseCredits", "<replaced>", kept + " row(s)"));
         }
     }
 

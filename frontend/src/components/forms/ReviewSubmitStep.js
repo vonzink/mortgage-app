@@ -6,8 +6,9 @@ import React from 'react';
 import { FaCheck, FaFilePdf } from 'react-icons/fa';
 import FormSection from '../shared/FormSection';
 import { formatCurrency, formatDate } from '../../utils/formHelpers';
-import { printURLAFormat } from '../../utils/urlaExport';
+import { printURLAFormat } from '../../exporters/urla/urlaExport';
 import { toast } from 'react-toastify';
+import { debug } from '../../utils/debug';
 
 const ReviewSubmitStep = ({ register, errors, getValues, onSubmit, isSubmitting, isEditing, isViewing = false }) => {
   const formData = getValues();
@@ -235,8 +236,8 @@ const ReviewSubmitStep = ({ register, errors, getValues, onSubmit, isSubmitting,
             <button
               type="button"
               onClick={() => {
-                console.log('[DEBUG] Submit button clicked in ReviewSubmitStep');
-                console.log('[DEBUG] Current form data:', formData);
+                debug('Submit button clicked in ReviewSubmitStep');
+                debug('Current form data:', formData);
                 onSubmit();
               }}
               className="btn btn-primary btn-large"

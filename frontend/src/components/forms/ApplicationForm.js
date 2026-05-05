@@ -23,6 +23,7 @@ import { useFormValidation } from '../../hooks/useFormValidation';
 // SSN/phone) before they reach the masked inputs. The PersonalInfoField mask
 // only fires on user typing; initial values need to arrive pre-formatted.
 import { formatSSN, formatPhone } from '../../utils/formHelpers';
+import { debug } from '../../utils/debug';
 
 // Components
 import ProgressIndicator from '../shared/ProgressIndicator';
@@ -73,7 +74,7 @@ const ApplicationForm = () => {
     if (carryOverData && !editId) {
       try {
         const data = JSON.parse(carryOverData);
-        console.log('[DEBUG] Loading carry-over data:', data);
+        debug('Loading carry-over data:', data);
         
         // Reset form with all the carried over data
         reset(data);
@@ -111,12 +112,12 @@ const ApplicationForm = () => {
     const loadApplicationData = async () => {
       if (editId) {
         try {
-          console.log('[DEBUG] ========== EDIT MODE ACTIVATED ==========');
-          console.log('[DEBUG] Loading application ID:', editId);
+          debug('========== EDIT MODE ACTIVATED ==========');
+          debug('Loading application ID:', editId);
           setIsEditing(true);
           const applicationData = await mortgageService.getApplication(editId);
           
-          console.log('[DEBUG] Loaded application data from backend:', applicationData);
+          debug('Loaded application data from backend:', applicationData);
           
           // Map backend data to form structure
           const formData = {
@@ -201,7 +202,7 @@ const ApplicationForm = () => {
             formData.borrowers[0].liabilities = applicationData.liabilities;
           }
           
-          console.log('[DEBUG] Mapped form data:', formData);
+          debug('Mapped form data:', formData);
           
           // Populate form with application data
           reset(formData);
@@ -277,14 +278,14 @@ const ApplicationForm = () => {
 
   // Form submission
   const onSubmit = async (data) => {
-    console.log('[DEBUG] ========== FORM SUBMISSION STARTED ==========');
-    console.log('[DEBUG] Raw form data:', data);
+    debug('========== FORM SUBMISSION STARTED ==========');
+    debug('Raw form data:', data);
     
     setIsSubmitting(true);
     try {
       // Transform the form data to match backend DTO structure
-      console.log('[DEBUG] Transforming form data to backend DTO structure...');
-      console.log('[DEBUG] data.property object:', data.property);
+      debug('Transforming form data to backend DTO structure...');
+      debug('data.property object:', data.property);
       
       // Normalize unsupported/legacy liability types before building payload
       const normalizeLiabilityType = (t) => {
@@ -413,21 +414,21 @@ const ApplicationForm = () => {
             )
       };
 
-      console.log('[DEBUG] Final application data to send:', JSON.stringify(applicationData, null, 2));
-      console.log('[DEBUG] Number of borrowers:', applicationData.borrowers?.length);
-      console.log('[DEBUG] Number of liabilities:', applicationData.liabilities?.length);
+      debug('Final application data to send:', JSON.stringify(applicationData, null, 2));
+      debug('Number of borrowers:', applicationData.borrowers?.length);
+      debug('Number of liabilities:', applicationData.liabilities?.length);
 
       // Edit mode actually updates the existing record; new mode creates fresh.
       // (Previously this always created a new "version" — that behavior was removed.)
       let savedApplication;
       if (isEditing && editId) {
-        console.log('[DEBUG] EDIT MODE: Updating application', editId);
+        debug('EDIT MODE: Updating application', editId);
         savedApplication = await mortgageService.updateApplication(editId, applicationData);
       } else {
-        console.log('[DEBUG] NEW APPLICATION: Creating fresh application');
+        debug('NEW APPLICATION: Creating fresh application');
         savedApplication = await mortgageService.createApplication(applicationData);
       }
-      console.log('[DEBUG] Application saved successfully! Response:', savedApplication);
+      debug('Application saved successfully! Response:', savedApplication);
 
       // Successful submit — drop the autosaved draft so the user doesn't see it next time.
       clearDraft(draftKey);

@@ -9,9 +9,10 @@ import FormSection from '../shared/FormSection';
 import PersonalInfoField from '../form-fields/PersonalInfoField';
 import AddressField from '../form-fields/AddressField';
 import CurrencyInput from '../form-fields/CurrencyInput';
-import { 
+import {
   checkResidenceHistoryWarning
 } from '../../utils/formHelpers';
+import { debug } from '../../utils/debug';
 import { 
   createDefaultResidence,
   createDefaultBorrower
@@ -41,7 +42,7 @@ const BorrowerInformationStep = ({
 
   // Track borrower count changes
   useEffect(() => {
-    console.log('[DEBUG] borrowerFields changed. Count:', borrowerFields.length);
+    debug('borrowerFields changed. Count:', borrowerFields.length);
   }, [borrowerFields.length]);
 
   // Clamp active borrower tab and limit visible borrowers to 4
@@ -56,16 +57,16 @@ const BorrowerInformationStep = ({
 
   const addBorrower = () => {
     if (isAddingRef.current) {
-      console.log('[DEBUG] Already adding borrower, ignoring duplicate call');
+      debug('Already adding borrower, ignoring duplicate call');
       return;
     }
     
-    console.log('[DEBUG] addBorrower called. Current count:', borrowerFields.length);
+    debug('addBorrower called. Current count:', borrowerFields.length);
     
     if (borrowerFields.length < 2) {
       isAddingRef.current = true;
       appendBorrower(createDefaultBorrower(borrowerFields.length + 1));
-      console.log('[DEBUG] appendBorrower called. New length should be:', borrowerFields.length + 1);
+      debug('appendBorrower called. New length should be:', borrowerFields.length + 1);
       
       // Reset the flag after a short delay
       setTimeout(() => {
@@ -124,7 +125,7 @@ const BorrowerInformationStep = ({
         <h5 style={{ margin: 0 }}>Borrower 1</h5>
       </div>
 
-      {console.log('[DEBUG] Rendering borrowers. borrowerFields.length:', borrowerFields.length, 'borrowerFields:', borrowerFields)}
+      {debug('Rendering borrowers. borrowerFields.length:', borrowerFields.length, 'borrowerFields:', borrowerFields)}
       {/* Always render Borrower 1 fields */}
       {visibleBorrowers[0] && (
         <div key={visibleBorrowers[0].id} className="borrower-section">

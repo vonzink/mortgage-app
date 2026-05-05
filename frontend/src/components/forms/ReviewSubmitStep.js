@@ -6,6 +6,7 @@ import React from 'react';
 import { FaCheck, FaFilePdf } from 'react-icons/fa';
 import FormSection from '../shared/FormSection';
 import { formatCurrency, formatDate } from '../../utils/formHelpers';
+import { displayLabel } from '../../utils/displayLabels';
 import { printURLAFormat } from '../../exporters/urla/urlaExport';
 import { toast } from 'react-toastify';
 import { debug } from '../../utils/debug';
@@ -41,7 +42,7 @@ const ReviewSubmitStep = ({ register, errors, getValues, onSubmit, isSubmitting,
           </div>
           <div className="summary-row">
             <span className="label">Marital Status:</span>
-            <span className="value">{borrower.maritalStatus || 'Not provided'}</span>
+            <span className="value">{displayLabel('maritalStatus', borrower.maritalStatus)}</span>
           </div>
           <div className="summary-row">
             <span className="label">Email:</span>
@@ -102,11 +103,11 @@ const ReviewSubmitStep = ({ register, errors, getValues, onSubmit, isSubmitting,
           <div className="review-grid">
             <div className="review-item">
               <span className="label">Loan Purpose:</span>
-              <span className="value">{formData.loanPurpose || 'Not provided'}</span>
+              <span className="value">{displayLabel('loanPurpose', formData.loanPurpose)}</span>
             </div>
             <div className="review-item">
               <span className="label">Loan Type:</span>
-              <span className="value">{formData.loanType || 'Not provided'}</span>
+              <span className="value">{displayLabel('loanType', formData.loanType)}</span>
             </div>
             <div className="review-item">
               <span className="label">Loan Amount:</span>
@@ -122,7 +123,7 @@ const ReviewSubmitStep = ({ register, errors, getValues, onSubmit, isSubmitting,
             </div>
             <div className="review-item">
               <span className="label">Property Use:</span>
-              <span className="value">{formData.propertyUse || 'Not provided'}</span>
+              <span className="value">{displayLabel('propertyUse', formData.propertyUse)}</span>
             </div>
           </div>
         </div>
@@ -148,7 +149,7 @@ const ReviewSubmitStep = ({ register, errors, getValues, onSubmit, isSubmitting,
             </div>
             <div className="review-item">
               <span className="label">Property Type:</span>
-              <span className="value">{formData.propertyType || 'Not provided'}</span>
+              <span className="value">{displayLabel('propertyType', formData.propertyType)}</span>
             </div>
             <div className="review-item">
               <span className="label">Construction Type:</span>

@@ -72,6 +72,8 @@ public class MismoImporter {
     private final BorrowerRepository borrowerRepository;
     private final PropertyRepository propertyRepository;
     private final LiabilityRepository liabilityRepository;
+    private final com.yourcompany.mortgage.repository.LoanTermsRepository loanTermsRepository;
+    private final com.yourcompany.mortgage.repository.HousingExpenseRepository housingExpenseRepository;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     /** Result of a single import. {@link #fileCreatedDatetime} is exposed so the caller can
@@ -122,6 +124,8 @@ public class MismoImporter {
             applyBorrowers(doc, la, links, changes);
             applyAssets(doc, la, links, changes);   // after borrowers — needs them to exist
             applyLiabilities(doc, la, changes);
+            applyLoanTerms(doc, la, changes);       // populates the dashboard's "this loan" row
+            applyHousingExpenses(doc, la, changes); // dashboard PITIA breakdown
 
             // Persist parent + cascading child changes
             LoanApplication saved = loanApplicationRepository.save(la);
@@ -738,6 +742,91 @@ public class MismoImporter {
                     String.valueOf(previous), String.valueOf(items.getLength())));
         } else {
             changes.add(new FieldChange("liabilities", "<replaced>", "<replaced (count unchanged)>"));
+        }
+    }
+
+    /**
+     * Loan Dashboard: terms (rate, amount, amortization, lien priority, app-received date).
+     * Single row per application; upsert semantics. The borrower-facing
+     * {@code LoanApplication.loanAmount} keeps mirroring {@code BaseLoanAmount} so the
+     * application list view continues to work; this entity is the LO's authoritative copy.
+     */
+    private void applyLoanTerms(org.w3c.dom.Document doc, LoanApplication la, List<FieldChange> changes)
+            throws XPathExpressionException {
+        Element loan = first(doc, "//*[local-name()='LOAN']");
+        if (loan == null || la.getId() == null) return;
+
+        com.yourcompany.mortgage.model.LoanTerms terms = loanTermsRepository
+                .findByApplicationId(la.getId())
+                .orElseGet(() -> com.yourcompany.mortgage.model.LoanTerms.builder()
+                        .applicationId(la.getId())
+                        .build());
+
+        BigDecimal baseAmt = parseDecimal(pluck(loan, ".//*[local-name()='BaseLoanAmount']"));
+        if (baseAmt != null) terms.setBaseLoanAmount(baseAmt);
+
+        BigDecimal noteAmt = parseDecimal(pluck(loan, ".//*[local-name()='NoteAmount']"));
+        if (noteAmt != null) terms.setNoteAmount(noteAmt);
+
+        BigDecimal rate = parseDecimal(pluck(loan, ".//*[local-name()='NoteRatePercent']"));
+        if (rate != null) terms.setNoteRatePercent(rate);
+
+        String amortType = pluck(loan, ".//*[local-name()='AmortizationType']");
+        if (amortType != null) terms.setAmortizationType(amortType);
+
+        String periodCount = pluck(loan, ".//*[local-name()='LoanAmortizationPeriodCount']");
+        if (periodCount != null) {
+            try { terms.setAmortizationTermMonths(Integer.parseInt(periodCount)); }
+            catch (NumberFormatException ignored) { }
+        }
+
+        String lien = pluck(loan, ".//*[local-name()='LienPriorityType']");
+        if (lien != null) terms.setLienPriorityType(lien);
+
+        String received = pluck(loan, ".//*[local-name()='ApplicationReceivedDate']");
+        if (received != null) {
+            try { terms.setApplicationReceivedDate(LocalDate.parse(received)); }
+            catch (Exception ignored) { }
+        }
+
+        loanTermsRepository.save(terms);
+        changes.add(new FieldChange("loanTerms", "<upserted>", "1 row"));
+    }
+
+    /**
+     * Loan Dashboard: proposed/present housing expenses (P&I, RE tax, MI, HOA, etc.).
+     * Wholesale-replace per loan — re-importing the same MISMO is idempotent.
+     */
+    private void applyHousingExpenses(org.w3c.dom.Document doc, LoanApplication la, List<FieldChange> changes)
+            throws XPathExpressionException {
+        if (la.getId() == null) return;
+        NodeList nodes = (NodeList) xp().evaluate(
+                "//*[local-name()='HOUSING_EXPENSES']/*[local-name()='HOUSING_EXPENSE']",
+                doc, XPathConstants.NODESET);
+        if (nodes.getLength() == 0) return;
+
+        housingExpenseRepository.deleteByApplicationId(la.getId());
+
+        int kept = 0;
+        for (int i = 0; i < nodes.getLength(); i++) {
+            Element e = (Element) nodes.item(i);
+            String type = pluck(e, ".//*[local-name()='HousingExpenseType']");
+            String timing = pluck(e, ".//*[local-name()='HousingExpenseTimingType']");
+            BigDecimal amount = parseDecimal(pluck(e, ".//*[local-name()='HousingExpensePaymentAmount']"));
+            if (type == null && amount == null) continue;
+
+            com.yourcompany.mortgage.model.HousingExpense he = com.yourcompany.mortgage.model.HousingExpense.builder()
+                    .applicationId(la.getId())
+                    .expenseType(type)
+                    .timingType(timing)
+                    .paymentAmount(amount)
+                    .sequenceNumber(i + 1)
+                    .build();
+            housingExpenseRepository.save(he);
+            kept++;
+        }
+        if (kept > 0) {
+            changes.add(new FieldChange("housingExpenses", "<replaced>", kept + " row(s)"));
         }
     }
 

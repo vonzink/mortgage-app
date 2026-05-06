@@ -56,6 +56,22 @@ const dashboardService = {
       `/loan-applications/${loanId}/dashboard/conditions/${conditionId}`,
     );
   },
+
+  /** POST — add a loan note. */
+  createNote: async (loanId, content) => {
+    const { data } = await apiClient.post(
+      `/loan-applications/${loanId}/dashboard/notes`,
+      { content },
+    );
+    return data;
+  },
+
+  /** DELETE — remove a loan note. */
+  deleteNote: async (loanId, noteId) => {
+    await apiClient.delete(
+      `/loan-applications/${loanId}/dashboard/notes/${noteId}`,
+    );
+  },
 };
 
 export default dashboardService;

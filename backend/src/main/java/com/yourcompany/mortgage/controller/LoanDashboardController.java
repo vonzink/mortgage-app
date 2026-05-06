@@ -54,6 +54,7 @@ public class LoanDashboardController {
     private final LoanStatusHistoryRepository loanStatusHistoryRepository;
     private final LoanAgentRepository loanAgentRepository;
     private final ClosingInformationRepository closingInformationRepository;
+    private final LoanNoteRepository loanNoteRepository;
     private final CurrentUserService currentUserService;
 
     // ─── Read aggregated dashboard ──────────────────────────────────────────
@@ -137,6 +138,9 @@ public class LoanDashboardController {
 
         body.put("closingInformation", closingView(
                 closingInformationRepository.findByLoanApplicationId(loanId).orElse(null)));
+
+        body.put("notes", loanNoteRepository.findByApplicationIdOrderByCreatedAtDesc(loanId)
+                .stream().map(LoanDashboardController::noteView).toList());
 
         return ResponseEntity.ok(body);
     }
@@ -270,6 +274,49 @@ public class LoanDashboardController {
             String notes
     ) {}
 
+    // ─── Notes ─────────────────────────────────────────────────────────────
+
+    @GetMapping("/notes")
+    @PreAuthorize("@loanAccessGuard.canAccess(#loanId)")
+    public ResponseEntity<?> getNotes(@PathVariable Long loanId) {
+        return ResponseEntity.ok(
+                loanNoteRepository.findByApplicationIdOrderByCreatedAtDesc(loanId)
+                        .stream().map(LoanDashboardController::noteView).toList());
+    }
+
+    @PostMapping("/notes")
+    @PreAuthorize("@loanAccessGuard.canAccess(#loanId)")
+    @Transactional
+    public ResponseEntity<?> createNote(@PathVariable Long loanId, @RequestBody NoteRequest req) {
+        if (req.content() == null || req.content().isBlank()) {
+            throw new BusinessValidationException("Note content is required");
+        }
+        User author = currentUserService.currentUser().orElse(null);
+        LoanNote note = LoanNote.builder()
+                .applicationId(loanId)
+                .authorId(author != null ? (long) author.getId() : null)
+                .authorName(author != null ? (author.getName() != null ? author.getName() : author.getEmail()) : null)
+                .content(req.content().trim())
+                .build();
+        loanNoteRepository.save(note);
+        return ResponseEntity.ok(noteView(note));
+    }
+
+    @DeleteMapping("/notes/{noteId}")
+    @PreAuthorize("@loanAccessGuard.canAccess(#loanId)")
+    @Transactional
+    public ResponseEntity<?> deleteNote(@PathVariable Long loanId, @PathVariable Long noteId) {
+        LoanNote note = loanNoteRepository.findById(noteId)
+                .orElseThrow(() -> new ResourceNotFoundException("Note " + noteId + " not found"));
+        if (!note.getApplicationId().equals(loanId)) {
+            throw new BusinessValidationException("Note belongs to a different loan");
+        }
+        loanNoteRepository.delete(note);
+        return ResponseEntity.noContent().build();
+    }
+
+    public record NoteRequest(String content) {}
+
     // ─── View shaping ───────────────────────────────────────────────────────
 
     private static Map<String, Object> termsView(LoanTerms t) {
@@ -343,6 +390,16 @@ public class LoanDashboardController {
                             : a.getAgentUser().getEmail());
             m.put("user", u);
         }
+        return m;
+    }
+
+    private static Map<String, Object> noteView(LoanNote n) {
+        Map<String, Object> m = new LinkedHashMap<>();
+        m.put("id", n.getId());
+        m.put("authorId", n.getAuthorId());
+        m.put("authorName", n.getAuthorName());
+        m.put("content", n.getContent());
+        m.put("createdAt", n.getCreatedAt());
         return m;
     }
 

@@ -34,6 +34,7 @@ const ApplicationDetails = () => {
   const [uploading, setUploading] = useState(false);
   const [pendingFiles, setPendingFiles] = useState([]);
   const [showUploadLog, setShowUploadLog] = useState(false);
+  const [statusHistory, setStatusHistory] = useState([]);
 
   const fetchApplication = useCallback(async () => {
     try {
@@ -57,10 +58,20 @@ const ApplicationDetails = () => {
     }
   }, [id]);
 
+  const fetchStatusHistory = useCallback(async () => {
+    try {
+      const data = await mortgageService.getStatusHistory(id);
+      setStatusHistory(data);
+    } catch (error) {
+      console.error('Error fetching status history:', error);
+    }
+  }, [id]);
+
   useEffect(() => {
     fetchApplication();
     fetchDocuments();
-  }, [fetchApplication, fetchDocuments]);
+    fetchStatusHistory();
+  }, [fetchApplication, fetchDocuments, fetchStatusHistory]);
 
   // Refresh after a MISMO import for this loan (fired by Header's upload action)
   useEffect(() => {
@@ -262,14 +273,34 @@ const ApplicationDetails = () => {
 
           <div>
             <h3>Application Timeline</h3>
-            <div style={{ marginBottom: '1rem' }}>
-              <div style={{ marginBottom: '0.5rem' }}>
-                <strong>Created:</strong> {formatDate(application.createdDate || new Date())}
+            {statusHistory.length > 0 ? (
+              <ol style={{ listStyle: 'none', padding: 0, margin: 0 }}>
+                {statusHistory.map((h, i) => (
+                  <li key={h.id || i} style={{ display: 'flex', alignItems: 'baseline', gap: '0.75rem', padding: '0.4rem 0', borderBottom: '1px solid #eee' }}>
+                    <span style={{
+                      display: 'inline-block', padding: '0.15rem 0.5rem',
+                      borderRadius: '4px', fontSize: '0.8rem', fontWeight: 600,
+                      background: '#e0e7ff', color: '#3730a3', whiteSpace: 'nowrap',
+                    }}>
+                      {h.status}
+                    </span>
+                    <span style={{ fontSize: '0.85rem', color: '#6b7280' }}>
+                      {formatDate(h.transitionedAt)}
+                    </span>
+                    {h.note && <span style={{ fontSize: '0.85rem' }}>{h.note}</span>}
+                  </li>
+                ))}
+              </ol>
+            ) : (
+              <div style={{ marginBottom: '1rem' }}>
+                <div style={{ marginBottom: '0.5rem' }}>
+                  <strong>Created:</strong> {formatDate(application.createdDate || new Date())}
+                </div>
+                <div>
+                  <strong>Last Updated:</strong> {formatDate(application.updatedDate || new Date())}
+                </div>
               </div>
-              <div>
-                <strong>Last Updated:</strong> {formatDate(application.updatedDate || new Date())}
-              </div>
-            </div>
+            )}
           </div>
         </div>
       </div>

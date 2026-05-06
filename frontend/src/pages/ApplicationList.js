@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
-import { FaFileAlt, FaEye, FaEdit, FaTrash, FaClock, FaCheckCircle, FaTimesCircle, FaFileDownload, FaCopy, FaFileUpload, FaPlus, FaChartLine } from 'react-icons/fa';
+import { FaFileAlt, FaFolder, FaEdit, FaTrash, FaClock, FaCheckCircle, FaTimesCircle, FaFileDownload, FaCopy, FaFileUpload, FaPlus, FaChartLine } from 'react-icons/fa';
 import mortgageService from '../services/mortgageService';
 
 const ApplicationList = () => {
@@ -269,6 +269,11 @@ const ApplicationList = () => {
                     {getStatusIcon(application.status)}
                     <div>
                       <h3>Application #{application.applicationNumber}</h3>
+                      {application.borrowers?.[0] && (
+                        <p className="borrower-name" style={{ margin: '0.15rem 0', fontWeight: 500 }}>
+                          {[application.borrowers[0].firstName, application.borrowers[0].lastName].filter(Boolean).join(' ')}
+                        </p>
+                      )}
                       <p className="property-address">
                         {application.property?.addressLine || 'N/A'}, {application.property?.city || 'N/A'}, {application.property?.state || 'N/A'}
                       </p>
@@ -314,9 +319,9 @@ const ApplicationList = () => {
                   <Link
                     to={`/applications/${application.id}`}
                     className="btn btn-secondary"
-                    title="View read-only details and upload documents"
+                    title="Upload and manage documents"
                   >
-                    <FaEye /> View / Docs
+                    <FaFolder /> Documents
                   </Link>
                   <Link
                     to={`/loan/${application.id}`}

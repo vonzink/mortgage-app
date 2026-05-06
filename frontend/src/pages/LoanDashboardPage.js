@@ -18,6 +18,7 @@ import {
   FaHandshake,
   FaListUl,
   FaTrash,
+  FaStickyNote,
 } from 'react-icons/fa';
 
 import dashboardService from '../services/dashboardService';
@@ -51,6 +52,7 @@ export default function LoanDashboardPage() {
   const [error, setError] = useState(null);
   const [editingTerms, setEditingTerms] = useState(false);
   const [showAddCondition, setShowAddCondition] = useState(false);
+  const [newNote, setNewNote] = useState('');
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -108,6 +110,26 @@ export default function LoanDashboardPage() {
     if (!window.confirm(`Delete condition: "${cond.conditionText.slice(0, 80)}…"?`)) return;
     try {
       await dashboardService.deleteCondition(loanId, cond.id);
+      await load();
+    } catch (err) {
+      toast.error(`Delete failed: ${err?.response?.data?.message || err.message}`);
+    }
+  };
+
+  const addNote = async () => {
+    if (!newNote.trim()) return;
+    try {
+      await dashboardService.createNote(loanId, newNote.trim());
+      setNewNote('');
+      await load();
+    } catch (err) {
+      toast.error(`Failed to add note: ${err?.response?.data?.message || err.message}`);
+    }
+  };
+
+  const removeNote = async (note) => {
+    try {
+      await dashboardService.deleteNote(loanId, note.id);
       await load();
     } catch (err) {
       toast.error(`Delete failed: ${err?.response?.data?.message || err.message}`);
@@ -294,6 +316,51 @@ export default function LoanDashboardPage() {
               ))}
             </ol>
           ) : <EmptyHint>No status changes recorded yet.</EmptyHint>}
+        </DashCard>
+
+        <DashCard icon={<FaStickyNote />} title="Notes" fullWidth>
+          <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem' }}>
+            <textarea
+              className="form-control"
+              rows={2}
+              placeholder="Add a note…"
+              value={newNote}
+              onChange={(e) => setNewNote(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); addNote(); } }}
+              style={{ flex: 1, resize: 'vertical' }}
+            />
+            <button
+              className="btn btn-primary"
+              onClick={addNote}
+              disabled={!newNote.trim()}
+              style={{ alignSelf: 'flex-end' }}
+            >
+              <FaPlus /> Add
+            </button>
+          </div>
+          {data.notes && data.notes.length > 0 ? (
+            <ul className="dashboard-conditions">
+              {data.notes.map(n => (
+                <li key={n.id} className="dashboard-condition">
+                  <div className="dashboard-condition-body" style={{ flex: 1 }}>
+                    <div style={{ whiteSpace: 'pre-wrap' }}>{n.content}</div>
+                    <div className="dashboard-condition-meta">
+                      {n.authorName && <span>{n.authorName}</span>}
+                      <span>{formatDate(n.createdAt)}</span>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    className="btn-icon btn-icon--danger"
+                    onClick={() => removeNote(n)}
+                    title="Delete note"
+                  >
+                    <FaTrash />
+                  </button>
+                </li>
+              ))}
+            </ul>
+          ) : <EmptyHint>No notes yet. Add one above.</EmptyHint>}
         </DashCard>
 
         <DashCard icon={<FaCalendarAlt />} title="Proposed Housing Expenses" fullWidth>

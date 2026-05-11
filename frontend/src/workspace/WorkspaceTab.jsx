@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'react-toastify';
-import { FaFolderPlus, FaUpload, FaSyncAlt } from 'react-icons/fa';
+import { FaFolderPlus, FaUpload, FaSyncAlt, FaSearch, FaTimes, FaCheck, FaSyncAlt as FaRevise } from 'react-icons/fa';
 
 import workspaceService, { buildFolderTree, pathTo } from '../services/workspaceService';
 import mortgageService from '../services/mortgageService';
@@ -11,7 +11,28 @@ import FileTable from './FileTable';
 import NewFolderModal from './NewFolderModal';
 import DownloadTray from './DownloadTray';
 import EditDocumentModal from './EditDocumentModal';
+import DocumentHistory from './DocumentHistory';
+import DocumentReviewPanel from './DocumentReviewPanel';
+import UploadTypeModal from './UploadTypeModal';
 import './workspace.css';
+
+const STATUS_FILTER_OPTIONS = [
+  { value: '', label: 'All statuses' },
+  { value: 'UPLOADED', label: 'Uploaded' },
+  { value: 'READY_FOR_REVIEW', label: 'Ready for review' },
+  { value: 'NEEDS_BORROWER_ACTION', label: 'Needs borrower action' },
+  { value: 'ACCEPTED', label: 'Accepted' },
+  { value: 'REJECTED', label: 'Rejected' },
+  { value: 'ARCHIVED', label: 'Archived' },
+];
+
+const PARTY_ROLE_OPTIONS = [
+  { value: '', label: 'All uploaders' },
+  { value: 'borrower', label: 'Borrower' },
+  { value: 'agent', label: 'Agent' },
+  { value: 'lo', label: 'LO' },
+  { value: 'system', label: 'System' },
+];
 
 /** How long to trust a cached presigned download URL — backend issues 15-min URLs;
  *  we expire ours a minute early to avoid sending a just-stale URL on the wire. */
@@ -49,6 +70,21 @@ export default function WorkspaceTab({ loanId }) {
   // Combined edit modal state — replaces the older window.prompt rename.
   const [editingDoc, setEditingDoc] = useState(null);
 
+  // Phase 1/2: history + review modals (one at a time).
+  const [historyDoc, setHistoryDoc] = useState(null);
+  const [reviewingDoc, setReviewingDoc] = useState(null);
+
+  // Phase 3: staged files awaiting type selection before the actual upload starts.
+  const [pendingUploadFiles, setPendingUploadFiles] = useState([]);
+
+  // Phase 5: search + filters. When any are set, we hit /documents/search
+  // instead of the folder-scoped listing.
+  const [search, setSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState('');
+  const [typeFilter, setTypeFilter] = useState('');
+  const [partyRoleFilter, setPartyRoleFilter] = useState('');
+  const [docTypes, setDocTypes] = useState([]);
+
   const fileInputRef = useRef(null);
   const downloadUrlCache = useRef(new Map()); // docUuid → { url, expiresAt }
 
@@ -69,29 +105,51 @@ export default function WorkspaceTab({ loanId }) {
 
   useEffect(() => { loadTree(); }, [loadTree]);
 
+  // Doc types — used by the type filter dropdown. Loaded once; falls back to empty
+  // list if the endpoint isn't reachable (filter just hides itself in that case).
+  useEffect(() => {
+    let cancelled = false;
+    workspaceService.listDocumentTypes()
+      .then((list) => { if (!cancelled) setDocTypes(list); })
+      .catch(() => { /* hide the filter silently */ });
+    return () => { cancelled = true; };
+  }, []);
+
   const loadDocs = useCallback(async () => {
     if (!selectedFolderId) return;
     setLoadingDocs(true);
     try {
-      // Clicking the loan root behaves like Dropbox's account root: show every
-      // document on the loan regardless of which subfolder it's filed in (unfiled
-      // legacy uploads included). Subfolders show only their own contents.
-      const docs = (selectedFolderId === rootId)
-        ? await workspaceService.getAllDocuments(loanId)
-        : await workspaceService.getDocumentsInFolder(loanId, { folderId: selectedFolderId });
+      let docs;
+      if (search.trim() || statusFilter || typeFilter || partyRoleFilter) {
+        // Search mode — server-side filter. Scope to folder unless we're at root.
+        const folderScope = (selectedFolderId === rootId) ? undefined : selectedFolderId;
+        const result = await workspaceService.searchDocuments(loanId, {
+          q: search.trim() || undefined,
+          status: statusFilter || undefined,
+          documentTypeId: typeFilter || undefined,
+          partyRole: partyRoleFilter || undefined,
+          folderId: folderScope,
+          size: 200,
+        });
+        docs = result.documents || result.content || [];
+      } else if (selectedFolderId === rootId) {
+        // Clicking the loan root behaves like Dropbox's account root: show every
+        // document on the loan regardless of which subfolder it's filed in.
+        docs = await workspaceService.getAllDocuments(loanId);
+      } else {
+        docs = await workspaceService.getDocumentsInFolder(loanId, { folderId: selectedFolderId });
+      }
       setDocuments(docs);
-      // Clear selection that no longer exists in the new view
       setSelectedDocUuids((prev) => {
         const visible = new Set(docs.map((d) => d.docUuid));
-        const next = new Set([...prev].filter((u) => visible.has(u)));
-        return next;
+        return new Set([...prev].filter((u) => visible.has(u)));
       });
     } catch (err) {
       toast.error(`Failed to load documents: ${err.message || err}`);
     } finally {
       setLoadingDocs(false);
     }
-  }, [loanId, selectedFolderId, rootId]);
+  }, [loanId, selectedFolderId, rootId, search, statusFilter, typeFilter, partyRoleFilter]);
 
   useEffect(() => { loadDocs(); }, [loadDocs]);
 
@@ -232,13 +290,21 @@ export default function WorkspaceTab({ loanId }) {
     fileInputRef.current?.click();
   };
 
-  const handleFilesPicked = async (e) => {
+  const handleFilesPicked = (e) => {
     const files = Array.from(e.target.files || []);
-    e.target.value = ''; // reset so picking the same file twice still fires onChange
+    e.target.value = '';
     if (files.length === 0) return;
+    // Stage files and open the type modal — actual upload kicks off on confirm.
+    setPendingUploadFiles(files);
+  };
 
-    // Don't upload TO the loan root — root is a virtual catch-all view (folderId=null
-    // OR rootId). Force the LO into a real subfolder.
+  const handleUploadConfirm = async ({ documentType, partyRole }) => {
+    const files = pendingUploadFiles;
+    setPendingUploadFiles([]);
+    if (!files || files.length === 0) return;
+
+    // Don't upload TO the loan root — root is a virtual catch-all view.
+    // Force the LO into a real subfolder.
     const targetFolderId = (selectedFolderId === rootId) ? null : selectedFolderId;
 
     setUploadingCount(files.length);
@@ -247,8 +313,8 @@ export default function WorkspaceTab({ loanId }) {
       try {
         await mortgageService.uploadDocument(loanId, {
           file,
-          documentType: 'Other', // Phase 3 adds folder→tag auto-suggestion
-          partyRole: 'lo',
+          documentType,
+          partyRole,
           folderId: targetFolderId,
         });
         ok++;
@@ -274,6 +340,56 @@ export default function WorkspaceTab({ loanId }) {
 
   const atRoot = selectedFolderId === rootId;
   const atDeleteFolder = selectedFolder?.isDeleteFolder === true;
+  const searchActive = !!(search.trim() || statusFilter || typeFilter || partyRoleFilter);
+
+  const handleHistory = useCallback((doc) => setHistoryDoc(doc), []);
+  const handleReview = useCallback((doc) => setReviewingDoc(doc), []);
+  const handleReviewed = useCallback(() => loadDocs(), [loadDocs]);
+  const handleClearSearch = useCallback(() => {
+    setSearch('');
+    setStatusFilter('');
+    setTypeFilter('');
+    setPartyRoleFilter('');
+  }, []);
+
+  /**
+   * Bulk-review entry point. Prompts for notes when required, fires the bulk endpoint,
+   * surfaces a summary toast (succeeded / failed) and reloads the table. Failures from
+   * individual docs (invalid state transitions, etc.) are bundled into the response and
+   * shown inline rather than aborting the whole batch.
+   */
+  const handleBulkReview = useCallback(async (decision) => {
+    const uuids = [...selectedDocUuids];
+    if (uuids.length === 0) return;
+    const requiresNotes = decision === 'REJECTED' || decision === 'NEEDS_BORROWER_ACTION';
+    let notes = null;
+    if (requiresNotes) {
+      // eslint-disable-next-line no-alert
+      notes = window.prompt(
+        decision === 'REJECTED'
+          ? `Reject ${uuids.length} document${uuids.length === 1 ? '' : 's'}. Reason?`
+          : `Request revision on ${uuids.length} document${uuids.length === 1 ? '' : 's'}. What should the borrower fix?`,
+      );
+      if (notes == null) return;
+      if (!notes.trim()) { toast.warn('A note is required'); return; }
+    }
+    try {
+      const result = await workspaceService.bulkReview(loanId, uuids, decision, notes);
+      const verb = decision === 'ACCEPTED' ? 'accepted'
+                 : decision === 'REJECTED' ? 'rejected'
+                 : 'sent back for revision';
+      if (result.succeeded > 0) {
+        toast.success(`${result.succeeded} document${result.succeeded === 1 ? '' : 's'} ${verb}`);
+      }
+      if (result.failed > 0) {
+        toast.warn(`${result.failed} document${result.failed === 1 ? '' : 's'} skipped (invalid state)`);
+      }
+      setSelectedDocUuids(new Set());
+      await loadDocs();
+    } catch (err) {
+      toast.error(err.response?.data?.message || err.message || 'Bulk review failed');
+    }
+  }, [loanId, selectedDocUuids, loadDocs]);
 
   /**
    * Permanent delete — only reachable from inside the Delete folder. Confirms with
@@ -318,12 +434,91 @@ export default function WorkspaceTab({ loanId }) {
         </button>
 
         {selectedDocUuids.size > 0 && (
-          <span className="ws-selection-count">
-            {selectedDocUuids.size} selected
-          </span>
+          <>
+            <span className="ws-selection-count">
+              {selectedDocUuids.size} selected
+            </span>
+            {!atDeleteFolder && (
+              <div className="ws-bulk-actions">
+                <button
+                  type="button"
+                  className="btn btn-secondary btn-bulk"
+                  onClick={() => handleBulkReview('ACCEPTED')}
+                  title="Accept all selected"
+                >
+                  <FaCheck /> Accept
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-secondary btn-bulk"
+                  onClick={() => handleBulkReview('NEEDS_BORROWER_ACTION')}
+                  title="Request borrower revision"
+                >
+                  <FaRevise /> Request revision
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-secondary btn-bulk btn-bulk--danger"
+                  onClick={() => handleBulkReview('REJECTED')}
+                  title="Reject all selected"
+                >
+                  <FaTimes /> Reject
+                </button>
+              </div>
+            )}
+          </>
         )}
 
         <div style={{ flex: 1 }} />
+
+        <div className="ws-search-wrap">
+          <FaSearch className="ws-search-icon" aria-hidden />
+          <input
+            type="search"
+            className="ws-search-input"
+            placeholder="Search by file name…"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
+        </div>
+        <select
+          className="ws-status-filter"
+          value={statusFilter}
+          onChange={(e) => setStatusFilter(e.target.value)}
+          title="Filter by status"
+        >
+          {STATUS_FILTER_OPTIONS.map((o) => (
+            <option key={o.value} value={o.value}>{o.label}</option>
+          ))}
+        </select>
+        {docTypes.length > 0 && (
+          <select
+            className="ws-status-filter"
+            value={typeFilter}
+            onChange={(e) => setTypeFilter(e.target.value)}
+            title="Filter by document type"
+          >
+            <option value="">All types</option>
+            {docTypes.map((t) => (
+              <option key={t.id} value={t.id}>{t.name}</option>
+            ))}
+          </select>
+        )}
+        <select
+          className="ws-status-filter"
+          value={partyRoleFilter}
+          onChange={(e) => setPartyRoleFilter(e.target.value)}
+          title="Filter by who uploaded"
+        >
+          {PARTY_ROLE_OPTIONS.map((o) => (
+            <option key={o.value} value={o.value}>{o.label}</option>
+          ))}
+        </select>
+        {searchActive && (
+          <button type="button" className="btn btn-secondary btn-icon" onClick={handleClearSearch} title="Clear search">
+            <FaTimes />
+          </button>
+        )}
       </div>
 
       <div className="ws-body">
@@ -362,8 +557,10 @@ export default function WorkspaceTab({ loanId }) {
             getDownloadUrl={getCachedDownloadUrl}
             onDownload={handleDownload}
             onRename={atDeleteFolder ? null : handleEditDoc}
+            onReview={atDeleteFolder ? null : handleReview}
+            onHistory={handleHistory}
             onDelete={atDeleteFolder ? handlePermanentDelete : null}
-            showFolder={atRoot}
+            showFolder={atRoot || searchActive}
             folderNameFor={folderNameFor}
           />
 
@@ -421,6 +618,31 @@ export default function WorkspaceTab({ loanId }) {
           rootId={rootId}
           onClose={() => setEditingDoc(null)}
           onSave={handleSaveDocEdit}
+        />
+      )}
+
+      {historyDoc && (
+        <DocumentHistory
+          loanId={loanId}
+          doc={historyDoc}
+          onClose={() => setHistoryDoc(null)}
+        />
+      )}
+
+      {reviewingDoc && (
+        <DocumentReviewPanel
+          loanId={loanId}
+          doc={reviewingDoc}
+          onClose={() => setReviewingDoc(null)}
+          onReviewed={handleReviewed}
+        />
+      )}
+
+      {pendingUploadFiles.length > 0 && (
+        <UploadTypeModal
+          files={pendingUploadFiles}
+          onCancel={() => setPendingUploadFiles([])}
+          onConfirm={handleUploadConfirm}
         />
       )}
     </div>

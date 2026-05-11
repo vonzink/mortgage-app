@@ -106,6 +106,72 @@ const workspaceService = {
     const { data } = await apiClient.get(`/loan-applications/${loanId}/documents`);
     return Array.isArray(data) ? data : (data.documents || []);
   },
+
+  // ── Phase 2: status transitions / review workflow ─────────────────────────
+  /** Generic status transition. Backend validates allowed source→target moves. */
+  transitionStatus: async (loanId, docUuid, status, note) => {
+    const { data } = await apiClient.put(
+      `/loan-applications/${loanId}/documents/${docUuid}/status`,
+      { status, note },
+    );
+    return data;
+  },
+  acceptDocument: async (loanId, docUuid, notes) => {
+    const { data } = await apiClient.post(
+      `/loan-applications/${loanId}/documents/${docUuid}/accept`,
+      { notes },
+    );
+    return data;
+  },
+  rejectDocument: async (loanId, docUuid, notes) => {
+    const { data } = await apiClient.post(
+      `/loan-applications/${loanId}/documents/${docUuid}/reject`,
+      { notes },
+    );
+    return data;
+  },
+  requestRevision: async (loanId, docUuid, notes) => {
+    const { data } = await apiClient.post(
+      `/loan-applications/${loanId}/documents/${docUuid}/request-revision`,
+      { notes },
+    );
+    return data;
+  },
+  getStatusHistory: async (loanId, docUuid) => {
+    const { data } = await apiClient.get(
+      `/loan-applications/${loanId}/documents/${docUuid}/status-history`,
+    );
+    return data;
+  },
+
+  // ── Phase 3: structured document types ────────────────────────────────────
+  /** Public — fetch active document types for upload / edit dropdowns. */
+  listDocumentTypes: async () => {
+    const { data } = await apiClient.get('/document-types');
+    return data.documentTypes || [];
+  },
+
+  /** Apply the same review decision to N documents. decision = ACCEPTED | REJECTED | NEEDS_BORROWER_ACTION. */
+  bulkReview: async (loanId, docUuids, decision, notes) => {
+    const { data } = await apiClient.post(
+      `/loan-applications/${loanId}/documents/bulk-review`,
+      { docUuids, decision, notes },
+    );
+    return data;
+  },
+
+  // ── Phase 5: search with filters ──────────────────────────────────────────
+  searchDocuments: async (loanId, { status, documentTypeId, folderId, uploadedBy, partyRole, q, page = 0, size = 50 } = {}) => {
+    const params = { page, size };
+    if (status) params.status = status;
+    if (documentTypeId) params.documentTypeId = documentTypeId;
+    if (folderId != null) params.folderId = folderId;
+    if (uploadedBy) params.uploadedBy = uploadedBy;
+    if (partyRole) params.partyRole = partyRole;
+    if (q) params.q = q;
+    const { data } = await apiClient.get(`/loan-applications/${loanId}/documents/search`, { params });
+    return data;
+  },
 };
 
 /** Reconstructs a tree (root → [children]) from a flat list with parentId. */

@@ -27,7 +27,7 @@ import { debug } from '../../utils/debug';
 
 // Components
 import StepNavigation from '../shared/StepNavigation';
-import { ApplyHero, ApplyProgressStrip, ApplySidebar, APPLY_STEPS } from '../design/ApplyChrome';
+import { ApplyHero, ApplyProgressStrip } from '../design/ApplyChrome';
 import LoanInformationStep from './LoanInformationStep';
 import BorrowerInformationStep from './BorrowerInformationStep';
 import PropertyDetailsStep from './PropertyDetailsStep';
@@ -538,12 +538,6 @@ const ApplicationForm = () => {
         }
     };
 
-  // Watch a few fields for the live sidebar quote. Light footprint — no perf concerns.
-  const watchedLoanAmount = watch('loanAmount');
-  const watchedPropertyValue = watch('propertyValue');
-  const watchedLoanType = watch('loanType');
-  const watchedLoanTerm = watch('loanTerm');
-
   // Strip-level applicationNumber for the eyebrow — pulled out of carry-over / loaded data.
   const applicationNumber = getValues('applicationNumber') || null;
 
@@ -572,34 +566,24 @@ const ApplicationForm = () => {
         />
 
         <form onSubmit={handleSubmit(onSubmit)} className="apply-form">
-          <div className="apply-grid">
-            <div className="card apply-form-card">
-              <fieldset disabled={isViewing} style={{ border: 'none', padding: 0, margin: 0 }}>
-                {renderStepContent()}
-              </fieldset>
+          <div className="card apply-form-card">
+            <fieldset disabled={isViewing} style={{ border: 'none', padding: 0, margin: 0 }}>
+              {renderStepContent()}
+            </fieldset>
 
-              {!isLastStep && (
-                <div className="apply-form-footer">
-                  <StepNavigation
-                      currentStep={currentStep}
-                      totalSteps={totalSteps}
-                      onPrev={handlePrevStep}
-                      onNext={handleNextStep}
-                      canGoNext={canGoNext}
-                      canGoPrev={canGoPrev}
-                      isSubmitting={isSubmitting}
-                  />
-                </div>
-              )}
-            </div>
-
-            <ApplySidebar
-              loanAmount={watchedLoanAmount}
-              propertyValue={watchedPropertyValue}
-              loanType={watchedLoanType}
-              loanTerm={watchedLoanTerm}
-              loanOfficer={null}
-            />
+            {!isLastStep && (
+              <div className="apply-form-footer">
+                <StepNavigation
+                    currentStep={currentStep}
+                    totalSteps={totalSteps}
+                    onPrev={handlePrevStep}
+                    onNext={handleNextStep}
+                    canGoNext={canGoNext}
+                    canGoPrev={canGoPrev}
+                    isSubmitting={isSubmitting}
+                />
+              </div>
+            )}
           </div>
         </form>
       </div>

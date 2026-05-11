@@ -83,18 +83,13 @@
   .apply-progress-grid { grid-template-columns: repeat(2, 1fr); }
 }
 
-/* Two-column body --------------------------------------------------------- */
-.apply-grid {
-  display: grid;
-  grid-template-columns: 1fr 340px;
-  gap: 20px;
-  align-items: start;
+/* Full-width form body ---------------------------------------------------- */
+.apply-form-card {
+  padding: 24px 28px 0;
+  /* Sidebar removed — let the form breathe but keep readability cap */
+  max-width: 1080px;
+  margin: 0 auto;
 }
-@media (max-width: 1100px) {
-  .apply-grid { grid-template-columns: 1fr; }
-}
-
-.apply-form-card { padding: 24px 28px 0; }
 .apply-form-footer {
   border-top: 1px solid var(--ink-line-soft);
   padding: 18px 0 24px;

@@ -15,14 +15,22 @@ const DeclarationsStep = ({
 }) => {
   const [activeBorrowerTab, setActiveBorrowerTab] = useState(0);
   
-  // Clamp active borrower tab and show max 4 borrowers
+  // Only show tabs for borrowers that actually have data. Mirror of the logic
+  // in EmploymentStep.
+  const visibleBorrowers = borrowerFields.slice(0, 4).filter((b, i) => {
+    if (i === 0) return true;
+    if (i === activeBorrowerTab) return true;
+    const fn = watch(`borrowers.${i}.firstName`);
+    const ln = watch(`borrowers.${i}.lastName`);
+    return !!(fn || ln);
+  });
+
   useEffect(() => {
-    const maxIndex = Math.min(borrowerFields.length, 4) - 1;
+    const maxIndex = visibleBorrowers.length - 1;
     if (activeBorrowerTab > maxIndex) {
       setActiveBorrowerTab(Math.max(0, maxIndex));
     }
-  }, [borrowerFields.length, activeBorrowerTab]);
-  const visibleBorrowers = borrowerFields.slice(0, 4);
+  }, [visibleBorrowers.length, activeBorrowerTab]);
 
   const getBorrowerName = (index) => {
     const firstName = watch(`borrowers.${index}.firstName`);
@@ -69,10 +77,11 @@ const DeclarationsStep = ({
       icon={<FaFileAlt />}
       description="Please answer all declaration questions accurately."
     >
-      {/* Borrower Tabs */}
-      <div className="borrower-tabs" style={{ 
-        display: 'flex', 
-        gap: '0.5rem', 
+      {/* Borrower Tabs — hidden when only one borrower exists */}
+      {visibleBorrowers.length > 1 && (
+      <div className="borrower-tabs" style={{
+        display: 'flex',
+        gap: '0.5rem',
         marginBottom: '2rem',
         borderBottom: '2px solid var(--border-color)',
         flexWrap: 'wrap'
@@ -100,6 +109,7 @@ const DeclarationsStep = ({
           </button>
         ))}
       </div>
+      )}
 
       {visibleBorrowers.map((borrowerField, borrowerIndex) => {
         // Only show the active borrower tab

@@ -34,14 +34,25 @@ const EmploymentStep = ({
     return `Borrower ${index + 1}`;
   };
 
-  // Clamp active borrower tab and limit visible borrowers to 4
+  // Only show tabs for borrowers that actually have data (a first or last name).
+  // Borrower 1 is always visible; the rest only appear once they've been claimed
+  // in the Borrower Information step. The currently-active tab is also kept
+  // visible so a user mid-edit doesn't lose their tab when fields are blank.
+  const visibleBorrowers = borrowerFields.slice(0, 4).filter((b, i) => {
+    if (i === 0) return true;
+    if (i === activeBorrowerTab) return true;
+    const fn = watch(`borrowers.${i}.firstName`);
+    const ln = watch(`borrowers.${i}.lastName`);
+    return !!(fn || ln);
+  });
+
+  // Clamp active tab if borrowers vanished
   useEffect(() => {
-    const maxIndex = Math.min(borrowerFields.length, 4) - 1;
+    const maxIndex = visibleBorrowers.length - 1;
     if (activeBorrowerTab > maxIndex) {
       setActiveBorrowerTab(Math.max(0, maxIndex));
     }
-  }, [borrowerFields.length, activeBorrowerTab]);
-  const visibleBorrowers = borrowerFields.slice(0, 4);
+  }, [visibleBorrowers.length, activeBorrowerTab]);
 
   // Bubble tab styles
   const bubbleTabStyle = (isActive) => ({
@@ -69,9 +80,10 @@ const EmploymentStep = ({
       icon={<FaBriefcase />}
       description="Employment history and income details for all borrowers."
     >
-      {/* Borrower Tabs */}
-      <div className="borrower-tabs" style={{ 
-        display: 'flex', 
+      {/* Borrower Tabs — hidden when only one borrower exists */}
+      {visibleBorrowers.length > 1 && (
+      <div className="borrower-tabs" style={{
+        display: 'flex',
         flexWrap: 'wrap',
         marginBottom: '2rem',
         marginTop: '1rem'
@@ -99,6 +111,7 @@ const EmploymentStep = ({
           </button>
         ))}
       </div>
+      )}
 
       {visibleBorrowers.map((borrowerField, borrowerIndex) => {
         // Only show the active borrower tab

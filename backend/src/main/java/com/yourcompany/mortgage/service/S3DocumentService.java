@@ -19,6 +19,7 @@ import software.amazon.awssdk.services.s3.presigner.model.PresignedGetObjectRequ
 import software.amazon.awssdk.services.s3.presigner.model.PresignedPutObjectRequest;
 import software.amazon.awssdk.services.s3.presigner.model.PutObjectPresignRequest;
 
+import java.security.MessageDigest;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
@@ -172,6 +173,36 @@ public class S3DocumentService {
             return head.contentLength();
         } catch (NoSuchKeyException e) {
             return -1L;
+        }
+    }
+
+    /**
+     * Stream the object through a SHA-256 digester. Used at confirm time so the file_hash
+     * column can serve as a tamper-detection / dedup signal. S3 ETag isn't a reliable
+     * content hash for multipart uploads, so we hash the bytes ourselves.
+     *
+     * Returns null if the object isn't there or any I/O step fails — callers should treat
+     * the hash as opportunistic, not load-bearing.
+     */
+    public String computeSha256(String key) {
+        try (var stream = s3Client.getObject(GetObjectRequest.builder()
+                .bucket(bucket).key(key).build())) {
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            byte[] buf = new byte[8192];
+            int n;
+            while ((n = stream.read(buf)) != -1) {
+                digest.update(buf, 0, n);
+            }
+            byte[] hash = digest.digest();
+            StringBuilder sb = new StringBuilder(hash.length * 2);
+            for (byte b : hash) sb.append(String.format("%02x", b));
+            return sb.toString();
+        } catch (NoSuchKeyException e) {
+            log.warn("computeSha256: object missing at key={}", key);
+            return null;
+        } catch (Exception e) {
+            log.warn("computeSha256 failed for key={}: {}", key, e.getMessage());
+            return null;
         }
     }
 

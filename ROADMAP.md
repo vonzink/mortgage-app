@@ -21,7 +21,7 @@ Goal: take document handling from "MVP upload + folders" to production-grade wit
 - [x] Frontend `workspace/DocumentHistory.jsx` modal
 - [x] Frontend: "History" action in `FileTable.jsx` row menu
 - [x] Frontend: description field in `EditDocumentModal.jsx`
-- [ ] SHA-256 hash computation in `S3DocumentService.verifyUpload` (deferred — backlog)
+- [x] SHA-256 hash computation in `S3DocumentService` (computed on confirmUpload, stored on `file_hash`, included in audit metadata)
 
 ### Phase 2 — Document Status / Review Workflow ✅
 - [x] V18 migration: `document_status`, `reviewer_*` columns, `document_status_history` table
@@ -40,7 +40,7 @@ Goal: take document handling from "MVP upload + folders" to production-grade wit
 - [x] Upload validation: MIME type + file size against `DocumentType` rules
 - [x] Auto-route uploads to `defaultFolderName`
 - [x] Frontend: tag picker in `EditDocumentModal` reads from `/document-types` (free-text fallback)
-- [ ] Frontend: upload-form doc type dropdown (currently still defaults to "Other" — backlog)
+- [x] Frontend: `UploadTypeModal` — LO picks doc type before files go up (replaces hardcoded "Other")
 
 ### Phase 4 — Admin Configuration ✅ (branch `phase-4-admin-config`, not yet merged)
 - [x] `AdminDocumentTypeController` — CRUD for doc types (Admin-only)
@@ -53,7 +53,16 @@ Goal: take document handling from "MVP upload + folders" to production-grade wit
 - [x] `GET .../documents/search` endpoint (paginated, multi-filter)
 - [x] Frontend: search bar in `WorkspaceTab.jsx`
 - [x] Frontend: status filter dropdown
-- [ ] Frontend: type / uploader / date-range filters (backlog)
+- [x] Frontend: document-type filter dropdown
+- [x] Frontend: party-role filter (Borrower / Agent / LO / System)
+- [x] Backend: `partyRole` query param on `/documents/search`
+- [ ] Frontend: date-range filter (backlog)
+
+### Phase 6 — Bulk Review ✅
+- [x] Backend: `POST /documents/bulk-review` — single decision (ACCEPTED / REJECTED / NEEDS_BORROWER_ACTION) applied to N docs, per-doc failures collected not aborted
+- [x] `DocumentService.bulkReview` reuses single-doc review path so audit + status-history stay consistent
+- [x] Frontend: bulk-action bar in `WorkspaceTab` toolbar (Accept / Request revision / Reject)
+- [x] Frontend: prompt for required notes on reject / revision
 
 ---
 
@@ -67,15 +76,13 @@ Goal: take document handling from "MVP upload + folders" to production-grade wit
 ## Backlog (not yet scheduled)
 
 - Virus scanning hook on `confirmUpload` (ClamAV / S3 scan integration)
-- Bulk operations (accept/reject multiple docs)
 - Document versioning (replace file, keep history)
 - Email notifications on `NEEDS_BORROWER_ACTION`
 - Borrower portal: surface review status + reviewer notes
 - Required-document checklist driven by `DocumentType.requiredForMilestones`
 - Deprecate legacy `upload_status` field once frontend fully migrated
-- Upload-flow doc type dropdown (Phase 3 — currently still defaults to "Other")
-- Additional search filters (document type, uploader, date range)
-- SHA-256 hash on upload confirm (Phase 1 deferred item)
+- Date-range filter on `/documents/search`
+- Loan-participant `uploadedBy` user picker (currently filtered by party role)
 
 ---
 

@@ -145,6 +145,11 @@ public class DocumentService {
         doc.setFileSize(size);
         doc.setUploadStatus("uploaded");
         doc.setDocumentStatus(DocumentStatus.UPLOADED.name());
+
+        // Compute SHA-256 best-effort. Null on failure (don't block confirm).
+        String hash = s3.computeSha256(doc.getFilePath());
+        if (hash != null) doc.setFileHash(hash);
+
         Document saved = documentRepository.save(doc);
 
         recordStatusTransition(doc.getId(), DocumentStatus.UPLOADED.name(), null, null);
@@ -153,10 +158,13 @@ public class DocumentService {
                 S3DocumentService.tagsForBorrowerUpload(doc.getApplication().getId(), null));
 
         Integer userId = currentUserService.currentUser().map(User::getId).orElse(null);
+        Map<String, Object> auditMeta = new java.util.LinkedHashMap<>();
+        auditMeta.put("fileName", doc.getFileName());
+        auditMeta.put("fileSize", size);
+        auditMeta.put("docUuid", docUuid);
+        if (hash != null) auditMeta.put("sha256", hash);
         auditService.logDocumentAction(loanId, doc.getId(), "UPLOAD",
-                userId, doc.getPartyRole(),
-                Map.of("fileName", doc.getFileName(), "fileSize", size, "docUuid", docUuid),
-                request);
+                userId, doc.getPartyRole(), auditMeta, request);
 
         return toView(saved, false);
     }
@@ -366,6 +374,14 @@ public class DocumentService {
     public Map<String, Object> searchDocuments(Long loanId, String status, Long documentTypeId,
                                                  Long folderId, Integer uploadedByUserId,
                                                  String fileName, int page, int size) {
+        return searchDocuments(loanId, status, documentTypeId, folderId, uploadedByUserId,
+                null, fileName, page, size);
+    }
+
+    public Map<String, Object> searchDocuments(Long loanId, String status, Long documentTypeId,
+                                                 Long folderId, Integer uploadedByUserId,
+                                                 String partyRole,
+                                                 String fileName, int page, int size) {
         List<Document> all = documentRepository.findUploadedByApplicationId(loanId);
 
         // Apply filters
@@ -382,6 +398,10 @@ public class DocumentService {
         }
         if (uploadedByUserId != null) {
             stream = stream.filter(d -> uploadedByUserId.equals(d.getUploadedByUserId()));
+        }
+        if (partyRole != null && !partyRole.isBlank()) {
+            String pr = partyRole.toLowerCase();
+            stream = stream.filter(d -> pr.equalsIgnoreCase(d.getPartyRole()));
         }
         if (fileName != null && !fileName.isBlank()) {
             String q = fileName.toLowerCase();
@@ -489,6 +509,49 @@ public class DocumentService {
                 request);
 
         return toView(doc, false);
+    }
+
+    /**
+     * Apply the same review decision (accept / reject / request-revision) to multiple
+     * documents at once. Each transition runs through {@link #reviewDocument} so
+     * source-state validation and audit logging stay consistent with the single-doc
+     * path. Per-doc failures are collected; the whole call returns a summary instead
+     * of failing the batch on the first bad transition.
+     */
+    @Transactional
+    public Map<String, Object> bulkReview(Long loanId, List<String> docUuids,
+                                            DocumentStatus targetStatus, String notes,
+                                            HttpServletRequest request) {
+        if (docUuids == null || docUuids.isEmpty()) {
+            throw new BusinessValidationException("docUuids is required");
+        }
+        if ((targetStatus == DocumentStatus.REJECTED
+                || targetStatus == DocumentStatus.NEEDS_BORROWER_ACTION)
+                && (notes == null || notes.isBlank())) {
+            throw new BusinessValidationException(
+                    "A note is required for " + targetStatus.name().toLowerCase());
+        }
+
+        int succeeded = 0;
+        List<Map<String, Object>> failures = new java.util.ArrayList<>();
+        for (String uuid : docUuids) {
+            try {
+                reviewDocument(loanId, uuid, targetStatus, notes, request);
+                succeeded++;
+            } catch (Exception e) {
+                Map<String, Object> f = new LinkedHashMap<>();
+                f.put("docUuid", uuid);
+                f.put("error", e.getMessage());
+                failures.add(f);
+            }
+        }
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("requested", docUuids.size());
+        result.put("succeeded", succeeded);
+        result.put("failed", failures.size());
+        result.put("decision", targetStatus.name());
+        result.put("failures", failures);
+        return result;
     }
 
     public List<Map<String, Object>> getStatusHistory(Long loanId, String docUuid) {

@@ -151,13 +151,23 @@ const workspaceService = {
     return data.documentTypes || [];
   },
 
+  /** Apply the same review decision to N documents. decision = ACCEPTED | REJECTED | NEEDS_BORROWER_ACTION. */
+  bulkReview: async (loanId, docUuids, decision, notes) => {
+    const { data } = await apiClient.post(
+      `/loan-applications/${loanId}/documents/bulk-review`,
+      { docUuids, decision, notes },
+    );
+    return data;
+  },
+
   // ── Phase 5: search with filters ──────────────────────────────────────────
-  searchDocuments: async (loanId, { status, documentTypeId, folderId, uploadedBy, q, page = 0, size = 50 } = {}) => {
+  searchDocuments: async (loanId, { status, documentTypeId, folderId, uploadedBy, partyRole, q, page = 0, size = 50 } = {}) => {
     const params = { page, size };
     if (status) params.status = status;
     if (documentTypeId) params.documentTypeId = documentTypeId;
     if (folderId != null) params.folderId = folderId;
     if (uploadedBy) params.uploadedBy = uploadedBy;
+    if (partyRole) params.partyRole = partyRole;
     if (q) params.q = q;
     const { data } = await apiClient.get(`/loan-applications/${loanId}/documents/search`, { params });
     return data;

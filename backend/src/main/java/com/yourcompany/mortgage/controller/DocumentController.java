@@ -62,13 +62,14 @@ public class DocumentController {
             @RequestParam(value = "documentTypeId", required = false) Long documentTypeId,
             @RequestParam(value = "folderId", required = false) Long folderId,
             @RequestParam(value = "uploadedBy", required = false) Integer uploadedByUserId,
+            @RequestParam(value = "partyRole", required = false) String partyRole,
             @RequestParam(value = "q", required = false) String fileName,
             @RequestParam(value = "page", defaultValue = "0") int page,
             @RequestParam(value = "size", defaultValue = "50") int size
     ) {
         return ResponseEntity.ok(documentService.searchDocuments(
                 loanId, status, documentTypeId, folderId, uploadedByUserId,
-                fileName, page, Math.min(size, 200)));
+                partyRole, fileName, page, Math.min(size, 200)));
     }
 
     @GetMapping("/{docUuid}/download-url")
@@ -157,6 +158,19 @@ public class DocumentController {
                 loanId, docUuid, req.notes(), httpRequest));
     }
 
+    @PostMapping("/bulk-review")
+    @PreAuthorize("hasAnyRole('LO','Processor','Admin','Manager') and @loanAccessGuard.canAccess(#loanId)")
+    public ResponseEntity<?> bulkReview(
+            @PathVariable Long loanId,
+            @RequestBody BulkReviewRequest req,
+            HttpServletRequest httpRequest
+    ) {
+        com.yourcompany.mortgage.model.DocumentStatus status =
+                com.yourcompany.mortgage.model.DocumentStatus.fromString(req.decision());
+        return ResponseEntity.ok(documentService.bulkReview(
+                loanId, req.docUuids(), status, req.notes(), httpRequest));
+    }
+
     @GetMapping("/{docUuid}/status-history")
     @PreAuthorize("@loanAccessGuard.canAccess(#loanId)")
     public ResponseEntity<?> getStatusHistory(
@@ -195,4 +209,11 @@ public class DocumentController {
     public record StatusTransitionRequest(String status, String note) {}
 
     public record ReviewRequest(String notes) {}
+
+    /** Decision: ACCEPTED | REJECTED | NEEDS_BORROWER_ACTION (case-insensitive). */
+    public record BulkReviewRequest(
+            @NotBlank String decision,
+            List<String> docUuids,
+            String notes
+    ) {}
 }

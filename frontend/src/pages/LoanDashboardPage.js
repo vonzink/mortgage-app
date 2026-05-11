@@ -3,7 +3,6 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import {
   FaArrowLeft,
-  FaChartLine,
   FaHome,
   FaUser,
   FaFileSignature,
@@ -22,7 +21,9 @@ import {
 } from 'react-icons/fa';
 
 import dashboardService from '../services/dashboardService';
+import mortgageService from '../services/mortgageService';
 import './loanDashboard.css';
+import './LoanDashboardPage.design.css';
 
 import { DashCard, DefinitionList, EmptyHint } from './loanDashboard/DashCard';
 import { EditTermsModal } from './loanDashboard/EditTermsModal';
@@ -31,6 +32,9 @@ import {
   formatMoney, formatRate, formatDate,
   hasAnyIdentifier, sumExpenses, sumCredits, prettyEnum,
 } from './loanDashboard/format';
+import {
+  DashboardHero, NoteAmountCard, DashboardKpis, MilestoneTimeline,
+} from '../components/design/DashboardChrome';
 
 /** Status workflow that drives the status dropdown order. Mirrors LoanStatus.java. */
 const STATUS_ORDER = [
@@ -38,6 +42,73 @@ const STATUS_ORDER = [
   'UNDERWRITING', 'APPROVED', 'APPRAISAL', 'INSURANCE',
   'CTC', 'DOCS_OUT', 'FUNDED', 'DISPOSITIONED',
 ];
+
+/** The 8 milestones drawn in the new timeline strip. Maps from LoanStatus values. */
+const MILESTONE_DEFS = [
+  { key: 'APPLICATION',         label: 'Application' },
+  { key: 'DISCLOSURES_SIGNED',  label: 'Disclosures' },
+  { key: 'UNDERWRITING',        label: 'Underwriting' },
+  { key: 'APPRAISAL',           label: 'Appraisal' },
+  { key: 'INSURANCE',           label: 'Insurance' },
+  { key: 'CTC',                 label: 'Clear to close' },
+  { key: 'DOCS_OUT',            label: 'Docs out' },
+  { key: 'FUNDED',              label: 'Funded' },
+];
+
+function statusReachedIndex(status) {
+  if (!status) return -1;
+  // Map each LoanStatus to its corresponding milestone index, treating
+  // intermediate states as "still on the previous milestone."
+  const ord = STATUS_ORDER.indexOf(status);
+  if (ord < 0) return -1;
+  const milestoneOrdinals = MILESTONE_DEFS.map((m) => STATUS_ORDER.indexOf(m.key));
+  let reached = -1;
+  milestoneOrdinals.forEach((o, i) => { if (ord >= o) reached = i; });
+  return reached;
+}
+
+function buildMilestones(currentStatus, history) {
+  const reached = statusReachedIndex(currentStatus);
+  const histByKey = new Map();
+  (history || []).forEach((h) => {
+    // Capture the earliest occurrence of each status — the milestone "date" should
+    // reflect when we first hit it, not the most recent revisit.
+    if (!histByKey.has(h.status)) histByKey.set(h.status, h.transitionedAt);
+  });
+  return MILESTONE_DEFS.map((m, i) => {
+    const date = histByKey.get(m.key);
+    const formatted = date ? new Date(date).toLocaleDateString('en-US', { month: 'short', day: '2-digit' }) : '—';
+    const state = i < reached ? 'done' : i === reached ? 'current' : 'todo';
+    return { label: m.label, date: formatted, state };
+  });
+}
+
+function buildStatusLabel(status, history) {
+  if (!status) return null;
+  const pretty = status.charAt(0) + status.slice(1).toLowerCase().replace(/_/g, ' ');
+  // Find when we entered this status to compute "day N"
+  const entry = (history || []).find((h) => h.status === status);
+  if (!entry?.transitionedAt) return pretty;
+  const days = Math.max(1, Math.round((Date.now() - new Date(entry.transitionedAt).getTime()) / 86_400_000));
+  return `${pretty} · day ${days}`;
+}
+
+function computeDaysElapsed(history) {
+  if (!history || history.length === 0) return null;
+  const first = history.reduce((earliest, h) => {
+    if (!h.transitionedAt) return earliest;
+    if (!earliest) return h.transitionedAt;
+    return new Date(h.transitionedAt) < new Date(earliest) ? h.transitionedAt : earliest;
+  }, null);
+  if (!first) return null;
+  return Math.max(0, Math.round((Date.now() - new Date(first).getTime()) / 86_400_000));
+}
+
+function findProcessor(loanAgents) {
+  const p = (loanAgents || []).find((a) => /processor/i.test(a.agentRole || ''));
+  if (!p) return null;
+  return p.user?.displayName || p.user?.email || null;
+}
 
 /**
  * Loan Dashboard — LO-side view of a single loan in flight. Read-only fields
@@ -154,42 +225,85 @@ export default function LoanDashboardPage() {
 
   const outstandingCount = (data.conditions || []).filter(c => c.status === 'Outstanding').length;
 
+  // Derive a friendly status label (e.g. UNDERWRITING → "Underwriting · day 3")
+  const statusLabel = buildStatusLabel(data.status, data.statusHistory);
+  const milestones = buildMilestones(data.status, data.statusHistory);
+  const daysElapsed = computeDaysElapsed(data.statusHistory);
+
+  // Light financials for the KPI strip
+  const purchasePrice = data.property?.purchasePrice;
+  const propertyValue = data.property?.propertyValue;
+  const baseLoan = data.loanTerms?.baseLoanAmount;
+  const ltv = (purchasePrice && baseLoan) ? (Number(baseLoan) / Number(purchasePrice)) * 100 : null;
+
+  const subline = [
+    data.applicationNumber ? <span key="apn" className="mono">#APP{data.applicationNumber}</span> : null,
+    data.loanTerms?.amortizationTermMonths ? `${Math.round(data.loanTerms.amortizationTermMonths / 12)}-yr ${(data.loanTerms.amortizationType || 'Fixed').toLowerCase()}` : null,
+    data.closingInformation?.closingDate ? `Est. close ${formatDate(data.closingInformation.closingDate)}` : null,
+    findProcessor(data.loanAgents) ? `Processor: ${findProcessor(data.loanAgents)}` : null,
+  ].filter(Boolean);
+
+  const handleExportMismo = async () => {
+    try {
+      const filename = await mortgageService.exportMismo(loanId);
+      toast.success(`Downloaded ${filename}`);
+    } catch (e) {
+      toast.error(`MISMO export failed: ${e.message || e}`);
+    }
+  };
+
   return (
-    <div className="dashboard-root">
-      <div className="card dashboard-header">
-        <div>
-          <h1 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <FaChartLine /> Loan Dashboard
-          </h1>
-          <div className="dashboard-subhead">
-            <span>{borrowerName || 'Unnamed borrower'}</span>
-            <span className="dashboard-sep">·</span>
-            <span>App #{data.applicationNumber || '—'}</span>
-            <span className="dashboard-sep">·</span>
-            <select
-              className={`status-pill status-${(data.status || 'unknown').toLowerCase()} status-select`}
-              value={data.status || ''}
-              onChange={(e) => handleStatusChange(e.target.value)}
-              title="Change loan status"
-            >
-              {STATUS_ORDER.map(s => <option key={s} value={s}>{s}</option>)}
-            </select>
-            {outstandingCount > 0 && (
-              <>
-                <span className="dashboard-sep">·</span>
-                <span className="dashboard-warning-pill">{outstandingCount} outstanding</span>
-              </>
-            )}
-          </div>
-        </div>
-        <div className="dashboard-actions">
-          <button className="btn btn-secondary" onClick={() => navigate(`/applications/${loanId}`)}>
-            View application
-          </button>
-          <button className="btn btn-secondary" onClick={() => navigate('/applications')}>
-            <FaArrowLeft /> All loans
-          </button>
-        </div>
+    <div className="page dash-page">
+      <DashboardHero
+        applicationNumber={data.applicationNumber}
+        borrowerName={borrowerName}
+        status={data.status}
+        statusLabel={statusLabel}
+        subline={subline.length > 0 ? (
+          <span className="dash-subline-row">
+            {subline.map((s, i) => (
+              <React.Fragment key={i}>{i > 0 && <span className="dash-subline-sep">·</span>}<span>{s}</span></React.Fragment>
+            ))}
+          </span>
+        ) : null}
+        onAllLoans={() => navigate('/applications')}
+        onExportMismo={handleExportMismo}
+        onViewApplication={() => navigate(`/applications/${loanId}`)}
+        onUpdateStatus={null /* status changes via the in-grid select below */}
+      />
+
+      <div className="dash-stat-row">
+        <NoteAmountCard
+          noteAmount={data.loanTerms?.noteAmount}
+          noteRate={data.loanTerms?.noteRatePercent}
+          termMonths={data.loanTerms?.amortizationTermMonths}
+          amortizationType={data.loanTerms?.amortizationType}
+          lienPriority={data.loanTerms?.lienPriorityType}
+        />
+        <DashboardKpis
+          baseLoanAmount={baseLoan}
+          purchasePrice={purchasePrice}
+          propertyValue={propertyValue}
+          ltv={ltv}
+        />
+      </div>
+
+      <MilestoneTimeline milestones={milestones} daysElapsed={daysElapsed} daysTarget={60} />
+
+      {/* Inline status dropdown (functional — the design's "Update status"
+          opens a modal; we keep the dropdown for now). */}
+      <div className="dash-status-row">
+        <label className="muted" style={{ fontSize: 13 }}>Update status</label>
+        <select
+          className={`status-pill status-${(data.status || 'unknown').toLowerCase()} status-select`}
+          value={data.status || ''}
+          onChange={(e) => handleStatusChange(e.target.value)}
+        >
+          {STATUS_ORDER.map(s => <option key={s} value={s}>{s}</option>)}
+        </select>
+        {outstandingCount > 0 && (
+          <span className="dashboard-warning-pill">{outstandingCount} outstanding</span>
+        )}
       </div>
 
       <div className="dashboard-grid">

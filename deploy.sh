@@ -22,18 +22,6 @@ EC2_HOST="${EC2_HOST:-ubuntu@52.203.186.217}"
 EC2_KEY="${EC2_KEY:-/Users/zacharyzink/MSFG/Security/msfg-mortgage-key.pem}"
 EC2_PROJECT_DIR="/home/ubuntu/apps/mortgage-app"
 
-# Prod Cognito + API config baked into the CRA bundle at build time.
-# Mirror these in deploy/README.md if they ever change.
-FRONTEND_ENV='
-  REACT_APP_API_URL=https://app.msfgco.com/api
-  REACT_APP_COGNITO_AUTHORITY=https://cognito-idp.us-west-1.amazonaws.com/us-west-1_S6iE2uego
-  REACT_APP_COGNITO_REDIRECT_URI=https://app.msfgco.com/auth/callback
-  REACT_APP_COGNITO_POST_LOGOUT_REDIRECT_URI=https://app.msfgco.com/
-  REACT_APP_COGNITO_USER_POOL_ID=us-west-1_S6iE2uego
-  REACT_APP_COGNITO_CLIENT_ID=34rg0vqoobfv8hhvg8kunkd738
-  REACT_APP_COGNITO_DOMAIN=https://us-west-1s6ie2uego.auth.us-west-1.amazoncognito.com
-'
-
 # ── Colors ──────────────────────────────────────────────────────────────────
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
@@ -97,17 +85,29 @@ echo -e "${GREEN}✓ SSH OK${NC}"
 echo ""
 
 # ── Run the deploy on the remote box ───────────────────────────────────────
-# Pass flags into the remote shell via environment variables — easier than
-# building a heredoc that interpolates correctly.
-ssh -i "$EC2_KEY" "$EC2_HOST" \
-  DEPLOY_FRONTEND="$DEPLOY_FRONTEND" \
-  DEPLOY_BACKEND="$DEPLOY_BACKEND" \
-  DO_REPAIR="$DO_REPAIR" \
-  TAIL_LOGS="$TAIL_LOGS" \
-  PROJECT_DIR="$EC2_PROJECT_DIR" \
-  FRONTEND_ENV="$FRONTEND_ENV" \
-  bash -s <<'REMOTE'
+# Pass flags as positional args to `bash -s` (SSH doesn't forward env vars
+# without server-side AcceptEnv). The heredoc body picks them up as $1..$5.
+ssh -i "$EC2_KEY" "$EC2_HOST" bash -s -- \
+  "$DEPLOY_FRONTEND" "$DEPLOY_BACKEND" "$DO_REPAIR" "$TAIL_LOGS" "$EC2_PROJECT_DIR" <<'REMOTE'
 set -euo pipefail
+
+DEPLOY_FRONTEND="$1"
+DEPLOY_BACKEND="$2"
+DO_REPAIR="$3"
+TAIL_LOGS="$4"
+PROJECT_DIR="$5"
+
+# Frontend env vars baked into the CRA bundle at build time. Hardcoded here
+# rather than passed from the laptop — they never change between deploys.
+FRONTEND_ENV='
+  REACT_APP_API_URL=https://app.msfgco.com/api
+  REACT_APP_COGNITO_AUTHORITY=https://cognito-idp.us-west-1.amazonaws.com/us-west-1_S6iE2uego
+  REACT_APP_COGNITO_REDIRECT_URI=https://app.msfgco.com/auth/callback
+  REACT_APP_COGNITO_POST_LOGOUT_REDIRECT_URI=https://app.msfgco.com/
+  REACT_APP_COGNITO_USER_POOL_ID=us-west-1_S6iE2uego
+  REACT_APP_COGNITO_CLIENT_ID=34rg0vqoobfv8hhvg8kunkd738
+  REACT_APP_COGNITO_DOMAIN=https://us-west-1s6ie2uego.auth.us-west-1.amazoncognito.com
+'
 
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'

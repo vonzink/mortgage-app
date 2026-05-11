@@ -43,3 +43,21 @@ export function buildCognitoLogoutUrl() {
   const logoutUri = process.env.REACT_APP_COGNITO_POST_LOGOUT_REDIRECT_URI;
   return `${domain}/logout?client_id=${encodeURIComponent(clientId)}&logout_uri=${encodeURIComponent(logoutUri)}`;
 }
+
+/**
+ * Cognito Hosted UI sign-up direct entry. {DOMAIN}/signup with the same params
+ * react-oidc-context would send to /login. Lands the user on the "Create
+ * account" tab instead of the default "Sign in" tab.
+ */
+export function buildCognitoSignupUrl() {
+  const domain = process.env.REACT_APP_COGNITO_DOMAIN;
+  const clientId = process.env.REACT_APP_COGNITO_CLIENT_ID;
+  const redirect = process.env.REACT_APP_COGNITO_REDIRECT_URI;
+  const params = new URLSearchParams({
+    client_id: clientId,
+    response_type: 'code',
+    scope: 'openid email profile',
+    redirect_uri: redirect,
+  });
+  return `${domain}/signup?${params.toString()}`;
+}

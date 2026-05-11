@@ -9,6 +9,8 @@ import TopBar from './components/design/TopBar';
 import RequireAuth from './auth/RequireAuth';
 
 // Pages
+import LandingPage from './pages/LandingPage';
+import AuthRedirect from './pages/AuthRedirect';
 import ApplicationForm from './pages/ApplicationForm';
 import ApplicationList from './pages/ApplicationList';
 import ApplicationDetails from './pages/ApplicationDetails';
@@ -75,10 +77,11 @@ function App() {
           <Routes>
             <Route path="/auth/callback" element={<AuthCallback />} />
 
-            {/* Marketing/landing route is the apply form (no auth required to start filling out;
-                the gate kicks in when the user tries to save). Phase 2D will replace this with a
-                proper public landing page that funnels into Cognito sign-up. */}
-            <Route path="/" element={<ApplicationForm />} />
+            {/* Public marketing landing — sign in / create account CTAs.
+                Authenticated users get bounced to /applications by LandingPage itself. */}
+            <Route path="/" element={<LandingPage />} />
+            <Route path="/login"  element={<AuthRedirect mode="login" />} />
+            <Route path="/signup" element={<AuthRedirect mode="signup" />} />
 
             <Route
               path="/apply"

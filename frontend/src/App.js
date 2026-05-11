@@ -5,7 +5,7 @@ import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 
 // Components
-import Header from './components/Header';
+import TopBar from './components/design/TopBar';
 import RequireAuth from './auth/RequireAuth';
 
 // Pages
@@ -69,8 +69,8 @@ function App() {
   return (
     <Router future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
       <AuthExpiredListener />
-      <div className="App">
-        <Header />
+      <div className="App msfg">
+        <TopBar />
         <main className="main-content">
           <Routes>
             <Route path="/auth/callback" element={<AuthCallback />} />

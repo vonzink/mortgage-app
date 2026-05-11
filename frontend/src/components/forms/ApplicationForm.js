@@ -26,8 +26,8 @@ import { formatSSN, formatPhone } from '../../utils/formHelpers';
 import { debug } from '../../utils/debug';
 
 // Components
-import ProgressIndicator from '../shared/ProgressIndicator';
 import StepNavigation from '../shared/StepNavigation';
+import { ApplyHero, ApplyProgressStrip, ApplySidebar, APPLY_STEPS } from '../design/ApplyChrome';
 import LoanInformationStep from './LoanInformationStep';
 import BorrowerInformationStep from './BorrowerInformationStep';
 import PropertyDetailsStep from './PropertyDetailsStep';
@@ -51,6 +51,7 @@ const ApplicationForm = () => {
   const isViewing = searchParams.get('view') === '1';
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
+  const [lastSavedAt, setLastSavedAt] = useState(null);
 
   // Form setup
   const { register, handleSubmit, control, formState: { errors }, trigger, getValues, watch, setValue, reset } = useForm({
@@ -67,6 +68,19 @@ const ApplicationForm = () => {
     storageKey: draftKey,
     enabled: !isViewing,
   });
+
+  // Mirror the autosave for the "Auto-saved N sec ago" pill in the hero. We debounce
+  // on the same cadence as the hook so the pill updates roughly in sync with each
+  // sessionStorage write.
+  useEffect(() => {
+    if (isViewing) return;
+    const subscription = watch(() => {
+      // setTimeout matches useDraftAutosave's debounce window (1000ms default)
+      const id = setTimeout(() => setLastSavedAt(Date.now()), 1100);
+      return () => clearTimeout(id);
+    });
+    return () => subscription.unsubscribe();
+  }, [watch, isViewing]);
 
   // Load carry-over data if available
   useEffect(() => {
@@ -524,35 +538,69 @@ const ApplicationForm = () => {
         }
     };
 
+  // Watch a few fields for the live sidebar quote. Light footprint — no perf concerns.
+  const watchedLoanAmount = watch('loanAmount');
+  const watchedPropertyValue = watch('propertyValue');
+  const watchedLoanType = watch('loanType');
+  const watchedLoanTerm = watch('loanTerm');
+
+  // Strip-level applicationNumber for the eyebrow — pulled out of carry-over / loaded data.
+  const applicationNumber = getValues('applicationNumber') || null;
+
+  const handleSaveAndExit = () => {
+    // useDraftAutosave already wrote to sessionStorage; bounce to the list.
+    toast.info('Draft saved. Pick up where you left off any time.');
+    navigate('/applications');
+  };
+
   return (
-      <div className="application-form-container">
-        <form onSubmit={handleSubmit(onSubmit)}>
-          <ProgressIndicator
-              steps={steps}
-              currentStep={currentStep}
-              onStepClick={handleStepClick}
-              clickableSteps={true}
-              isEditing={isEditing}
-              visitedSteps={visitedSteps}
-          />
+      <div className="page apply-page">
+        <ApplyHero
+          applicationNumber={applicationNumber}
+          isEditing={isEditing}
+          lastSavedAt={lastSavedAt}
+          onSaveAndExit={isViewing ? null : handleSaveAndExit}
+          onContinue={!isLastStep && !isViewing ? handleNextStep : null}
+          continueLabel={currentStep === totalSteps - 1 ? 'Continue to review' : 'Continue'}
+        />
 
-          <div className="step-content-container">
-            <fieldset disabled={isViewing} style={{ border: 'none', padding: 0, margin: 0 }}>
-              {renderStepContent()}
-            </fieldset>
+        <ApplyProgressStrip
+          currentStep={currentStep}
+          visitedSteps={visitedSteps}
+          onStepClick={handleStepClick}
+          estTimeRemaining={null}
+        />
+
+        <form onSubmit={handleSubmit(onSubmit)} className="apply-form">
+          <div className="apply-grid">
+            <div className="card apply-form-card">
+              <fieldset disabled={isViewing} style={{ border: 'none', padding: 0, margin: 0 }}>
+                {renderStepContent()}
+              </fieldset>
+
+              {!isLastStep && (
+                <div className="apply-form-footer">
+                  <StepNavigation
+                      currentStep={currentStep}
+                      totalSteps={totalSteps}
+                      onPrev={handlePrevStep}
+                      onNext={handleNextStep}
+                      canGoNext={canGoNext}
+                      canGoPrev={canGoPrev}
+                      isSubmitting={isSubmitting}
+                  />
+                </div>
+              )}
+            </div>
+
+            <ApplySidebar
+              loanAmount={watchedLoanAmount}
+              propertyValue={watchedPropertyValue}
+              loanType={watchedLoanType}
+              loanTerm={watchedLoanTerm}
+              loanOfficer={null}
+            />
           </div>
-
-          {!isLastStep && (
-              <StepNavigation
-                  currentStep={currentStep}
-                  totalSteps={totalSteps}
-                  onPrev={handlePrevStep}
-                  onNext={handleNextStep}
-                  canGoNext={canGoNext}
-                  canGoPrev={canGoPrev}
-                  isSubmitting={isSubmitting}
-              />
-          )}
         </form>
       </div>
   );

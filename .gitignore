@@ -161,3 +161,6 @@ local.properties
 /nbdist/
 /.nb-gradle/
 
+
+# Design handoff reference (extracted zip, not source of truth)
+.design-import/

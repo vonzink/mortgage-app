@@ -1,0 +1,127 @@
+/* Loan Dashboard — design chrome layered above the existing DashCard grid. */
+
+.dash-page { /* uses .page from design-system.css */ }
+
+/* Hero --------------------------------------------------------------------- */
+.dash-hero {
+  display: flex; justify-content: space-between; align-items: flex-start;
+  flex-wrap: wrap; gap: 16px;
+  margin-bottom: 22px;
+}
+.dash-hero-text { min-width: 0; }
+.dash-breadcrumb {
+  display: flex; gap: 6px; align-items: center; margin-bottom: 8px;
+  text-transform: none; letter-spacing: 0; font-size: 12px;
+  color: var(--ink-500);
+}
+.dash-title-row {
+  display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+}
+.dash-h1 { font-size: 30px; }
+.dash-subline { margin-top: 6px; font-size: 14px; }
+.dash-subline-row { display: inline-flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.dash-subline-sep { color: var(--ink-400); }
+.dash-hero-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+
+/* Top stat row ------------------------------------------------------------- */
+.dash-stat-row {
+  display: grid;
+  grid-template-columns: 1.4fr 1fr 1fr 1fr;
+  gap: 14px; margin-bottom: 20px;
+}
+@media (max-width: 1100px) {
+  .dash-stat-row { grid-template-columns: 1fr 1fr; }
+}
+@media (max-width: 700px) {
+  .dash-stat-row { grid-template-columns: 1fr; }
+}
+
+/* Dark note-amount card */
+.dash-note-card {
+  background: linear-gradient(160deg, var(--forest-800), var(--forest-900));
+  color: #f1ede0;
+  border: 0;
+}
+.dash-note-eyebrow {
+  font-size: 11px; text-transform: uppercase; letter-spacing: .12em;
+  opacity: .6;
+}
+.dash-note-value {
+  font-size: 42px; font-weight: 600; letter-spacing: -0.03em;
+  margin-top: 6px; line-height: 1;
+}
+.dash-note-value-cents { font-size: 24px; opacity: .6; }
+.dash-note-stats {
+  display: flex; gap: 22px; margin-top: 16px; font-size: 12.5px;
+  flex-wrap: wrap;
+}
+.dash-note-stat-label { opacity: .6; font-size: 11px; }
+.dash-note-stat-value { font-size: 16px; font-weight: 600; margin-top: 2px; }
+
+/* Light KPI tiles */
+.dash-kpi { display: flex; flex-direction: column; }
+.dash-kpi-label { margin-bottom: 10px; }
+.dash-kpi-value {
+  font-size: 28px; font-weight: 600; letter-spacing: -0.02em;
+  color: var(--ink-900);
+}
+.dash-kpi-sub { font-size: 12px; margin-top: 4px; }
+
+/* Status timeline ---------------------------------------------------------- */
+.dash-timeline-card { margin-bottom: 20px; }
+.dash-timeline-meta { font-size: 12px; }
+.dash-timeline-body { padding: 22px 28px 24px; }
+.dash-timeline-grid {
+  position: relative;
+  display: grid; gap: 12px;
+}
+.dash-timeline-track {
+  position: absolute; left: 6%; right: 6%; top: 13px;
+  height: 2px; background: var(--ink-line);
+}
+.dash-timeline-track-fill {
+  position: absolute; left: 6%; top: 13px;
+  height: 2px; background: var(--forest-700);
+}
+.dash-timeline-cell {
+  position: relative;
+  display: flex; flex-direction: column; align-items: center; text-align: center;
+}
+.dash-timeline-node {
+  width: 16px; height: 16px; border-radius: 999px;
+  background: #fff; border: 2px solid var(--ink-line);
+  display: grid; place-items: center;
+  z-index: 1;
+}
+.dash-timeline-node--done {
+  background: var(--forest-700); border: 0; color: #fff;
+}
+.dash-timeline-node--current {
+  width: 28px; height: 28px;
+  background: #fff;
+  border: 3px solid var(--copper);
+  box-shadow: 0 0 0 6px rgba(177,107,58,.12);
+  margin-top: -6px;
+}
+.dash-timeline-current-dot {
+  width: 8px; height: 8px; border-radius: 999px;
+  background: var(--copper);
+}
+.dash-timeline-label {
+  margin-top: 12px;
+  font-size: 12px; font-weight: 600;
+  color: var(--ink-900);
+  white-space: nowrap;
+}
+.dash-timeline-label.dim { color: var(--ink-400); }
+.dash-timeline-date { font-size: 11px; margin-top: 2px; }
+
+@media (max-width: 900px) {
+  .dash-timeline-label { font-size: 10.5px; white-space: normal; }
+}
+
+/* In-grid status dropdown (kept functional) ------------------------------- */
+.dash-status-row {
+  display: flex; align-items: center; gap: 12px;
+  margin-bottom: 20px; flex-wrap: wrap;
+}

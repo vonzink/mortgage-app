@@ -1,10 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { FaTimes, FaCheck } from 'react-icons/fa';
+import workspaceService from '../services/workspaceService';
 
-/** Tag options offered to the LO. Matches the auto-route mapping in
- *  DocumentController.findDefaultFolderForTag — picking one of these will
- *  align the doc with its default folder. Free-text isn't blocked, so the LO
- *  can also type something else (the field is data-driven, not enum-locked). */
+/** Fallback common tags shown if the structured document_types endpoint fails to load. */
 const COMMON_TAGS = [
   'Submission', 'Borrower', 'Income', 'Assets', 'Credit',
   'Property', 'Title', 'Insurance', 'Disclosures', 'Conditions',
@@ -13,27 +11,35 @@ const COMMON_TAGS = [
 ];
 
 /**
- * Combined rename + retag + move modal. Replaces the older window.prompt rename.
- * Renders three controls — file name, tag, target folder — and saves changes
- * via the onSave callback (which the parent builds from dashboardService /
- * mortgageService PATCHes). Empty string fields are stripped before save so the
- * server treats them as "leave alone".
+ * Combined rename + retag + description + move modal. Pulls structured document types
+ * from the backend so the LO picks from a managed list; falls back to free-text tags
+ * if the endpoint isn't reachable. Adds a description field (Phase 1).
  */
 export default function EditDocumentModal({
   doc,
-  folders,           // flat folder list (for the move dropdown). May be []; "no change" is always available.
+  folders,
   rootId,
   onClose,
-  onSave,            // (patch: { fileName?, documentType?, folderId? }) => Promise
+  onSave,
 }) {
   const [fileName, setFileName] = useState(doc.fileName || '');
   const [documentType, setDocumentType] = useState(doc.documentType || 'Other');
   const [folderId, setFolderId] = useState(doc.folderId ?? '');
+  const [description, setDescription] = useState(doc.description || '');
+  const [types, setTypes] = useState([]);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
   const inputRef = useRef(null);
 
   useEffect(() => { inputRef.current?.focus(); inputRef.current?.select(); }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    workspaceService.listDocumentTypes()
+      .then((list) => { if (!cancelled) setTypes(list); })
+      .catch(() => { /* keep COMMON_TAGS fallback */ });
+    return () => { cancelled = true; };
+  }, []);
 
   const submit = async (e) => {
     e?.preventDefault?.();
@@ -44,7 +50,7 @@ export default function EditDocumentModal({
     const patch = {};
     if (fileName.trim() !== (doc.fileName || '')) patch.fileName = fileName.trim();
     if ((documentType || '') !== (doc.documentType || '')) patch.documentType = documentType;
-    // folderId: '' = no folder (root); a number = a real folder id. Only patch if changed.
+    if ((description || '') !== (doc.description || '')) patch.description = description;
     const newFolder = folderId === '' ? null : Number(folderId);
     if (newFolder !== (doc.folderId ?? null)) patch.folderId = newFolder;
 
@@ -60,13 +66,15 @@ export default function EditDocumentModal({
     }
   };
 
-  // Build the folder dropdown — flat list, alphabetic by display name, with the
-  // root folder presented as "(root — unfiled)" since selecting it places the
-  // doc above the seeded subfolders.
   const folderOptions = (folders || [])
-    .filter(f => f.id !== rootId)            // root is "" instead, below
+    .filter(f => f.id !== rootId)
     .slice()
     .sort((a, b) => a.displayName.localeCompare(b.displayName));
+
+  // Prefer the structured list when available, otherwise fall back to common tag strings.
+  const tagOptions = types.length > 0
+    ? types.map((t) => ({ value: t.name, label: t.name }))
+    : COMMON_TAGS.map((t) => ({ value: t, label: t }));
 
   return (
     <div className="ws-modal-backdrop" onClick={onClose}>
@@ -98,8 +106,19 @@ export default function EditDocumentModal({
               placeholder="e.g. Income, Title, Underwriting"
             />
             <datalist id="ws-tag-suggestions">
-              {COMMON_TAGS.map(t => <option key={t} value={t} />)}
+              {tagOptions.map(t => <option key={t.value} value={t.value} />)}
             </datalist>
+          </label>
+          <label className="ws-form-row">
+            <span>Description</span>
+            <textarea
+              rows={2}
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              maxLength={1000}
+              disabled={saving}
+              placeholder="Optional notes about this document"
+            />
           </label>
           <label className="ws-form-row">
             <span>Folder</span>

@@ -17,42 +17,43 @@ Goal: take document handling from "MVP upload + folders" to production-grade wit
 - [x] `DocumentService` extracted from 458-line `DocumentController` (now ~120 lines)
 - [x] `DocumentRepository` filters `deleted_at IS NULL`
 - [x] `AuditLogController`: `GET /loan-applications/{loanId}/audit-log`, `.../documents/{docUuid}/history`
-- [ ] Frontend `services/auditService.js`
-- [ ] Frontend `workspace/DocumentHistory.jsx` modal
-- [ ] Frontend: "History" action in `FileTable.jsx` row menu
-- [ ] Frontend: description field in `EditDocumentModal.jsx`
-- [ ] SHA-256 hash computation in `S3DocumentService.verifyUpload`
+- [x] Frontend `services/auditService.js`
+- [x] Frontend `workspace/DocumentHistory.jsx` modal
+- [x] Frontend: "History" action in `FileTable.jsx` row menu
+- [x] Frontend: description field in `EditDocumentModal.jsx`
+- [ ] SHA-256 hash computation in `S3DocumentService.verifyUpload` (deferred — backlog)
 
-### Phase 2 — Document Status / Review Workflow ✅ (backend)
+### Phase 2 — Document Status / Review Workflow ✅
 - [x] V18 migration: `document_status`, `reviewer_*` columns, `document_status_history` table
 - [x] `DocumentStatus` enum (10 states, validated transitions)
 - [x] `DocumentStatusHistory` entity + repository
 - [x] Endpoints: `PUT /{docUuid}/status`, `POST /accept`, `POST /reject`, `POST /request-revision`, `GET /status-history`
-- [ ] Frontend: status badge column in `FileTable.jsx`
-- [ ] Frontend: `workspace/DocumentReviewPanel.jsx` slide-out
-- [ ] Frontend: status filter dropdown in `WorkspaceTab.jsx`
-- [ ] Frontend: wire review actions in `services/workspaceService.js`
+- [x] Frontend: status badge column in `FileTable.jsx`
+- [x] Frontend: `workspace/DocumentReviewPanel.jsx` slide-out
+- [x] Frontend: status filter dropdown in `WorkspaceTab.jsx`
+- [x] Frontend: review/transition actions wired in `services/workspaceService.js`
 
-### Phase 3 — Document Type Classification ✅ (backend)
+### Phase 3 — Document Type Classification ✅
 - [x] V19 migration: `document_types` table + `document_type_id` on documents
 - [x] 16 mortgage doc types seeded (W-2, Pay Stub, Bank Statement, …)
 - [x] `DocumentType` entity, repository, `DocumentTypeController`
 - [x] Upload validation: MIME type + file size against `DocumentType` rules
 - [x] Auto-route uploads to `defaultFolderName`
-- [ ] Frontend: replace free-text doc type input with dropdown from `/document-types`
-- [ ] Frontend: show type badge in `FileTable.jsx`
+- [x] Frontend: tag picker in `EditDocumentModal` reads from `/document-types` (free-text fallback)
+- [ ] Frontend: upload-form doc type dropdown (currently still defaults to "Other" — backlog)
 
-### Phase 4 — Admin Configuration ⏸ (deferred)
-- [ ] `AdminDocumentTypeController` — CRUD for doc types (Admin-only)
-- [ ] `AdminFolderTemplateController` — manage default folder set
-- [ ] `pages/admin/DocumentTypesAdmin.jsx`
-- [ ] `pages/admin/FolderTemplatesAdmin.jsx`
+### Phase 4 — Admin Configuration ✅ (branch `phase-4-admin-config`, not yet merged)
+- [x] `AdminDocumentTypeController` — CRUD for doc types (Admin-only)
+- [x] V21 migration + `FolderTemplate` entity/repo + `AdminFolderTemplateController`
+- [x] `FolderService` reads from DB instead of hardcoded list
+- [x] `pages/admin/{AdminHome,DocumentTypesAdmin,FolderTemplatesAdmin}.js` + `useRoles` hook
 
-### Phase 5 — Search & Filtering ✅ (backend)
+### Phase 5 — Search & Filtering ✅
 - [x] V20 migration: composite indexes on documents
 - [x] `GET .../documents/search` endpoint (paginated, multi-filter)
-- [ ] Frontend: search bar in `WorkspaceTab.jsx`
-- [ ] Frontend: filter dropdowns (status, type, uploader, date range)
+- [x] Frontend: search bar in `WorkspaceTab.jsx`
+- [x] Frontend: status filter dropdown
+- [ ] Frontend: type / uploader / date-range filters (backlog)
 
 ---
 
@@ -72,6 +73,9 @@ Goal: take document handling from "MVP upload + folders" to production-grade wit
 - Borrower portal: surface review status + reviewer notes
 - Required-document checklist driven by `DocumentType.requiredForMilestones`
 - Deprecate legacy `upload_status` field once frontend fully migrated
+- Upload-flow doc type dropdown (Phase 3 — currently still defaults to "Other")
+- Additional search filters (document type, uploader, date range)
+- SHA-256 hash on upload confirm (Phase 1 deferred item)
 
 ---
 

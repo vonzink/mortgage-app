@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'react-toastify';
-import { FaFolderPlus, FaUpload, FaSyncAlt } from 'react-icons/fa';
+import { FaFolderPlus, FaUpload, FaSyncAlt, FaSearch, FaTimes } from 'react-icons/fa';
 
 import workspaceService, { buildFolderTree, pathTo } from '../services/workspaceService';
 import mortgageService from '../services/mortgageService';
@@ -11,7 +11,19 @@ import FileTable from './FileTable';
 import NewFolderModal from './NewFolderModal';
 import DownloadTray from './DownloadTray';
 import EditDocumentModal from './EditDocumentModal';
+import DocumentHistory from './DocumentHistory';
+import DocumentReviewPanel from './DocumentReviewPanel';
 import './workspace.css';
+
+const STATUS_FILTER_OPTIONS = [
+  { value: '', label: 'All statuses' },
+  { value: 'UPLOADED', label: 'Uploaded' },
+  { value: 'READY_FOR_REVIEW', label: 'Ready for review' },
+  { value: 'NEEDS_BORROWER_ACTION', label: 'Needs borrower action' },
+  { value: 'ACCEPTED', label: 'Accepted' },
+  { value: 'REJECTED', label: 'Rejected' },
+  { value: 'ARCHIVED', label: 'Archived' },
+];
 
 /** How long to trust a cached presigned download URL — backend issues 15-min URLs;
  *  we expire ours a minute early to avoid sending a just-stale URL on the wire. */
@@ -49,6 +61,15 @@ export default function WorkspaceTab({ loanId }) {
   // Combined edit modal state — replaces the older window.prompt rename.
   const [editingDoc, setEditingDoc] = useState(null);
 
+  // Phase 1/2: history + review modals (one at a time).
+  const [historyDoc, setHistoryDoc] = useState(null);
+  const [reviewingDoc, setReviewingDoc] = useState(null);
+
+  // Phase 5: search + status filter. When either is set, we hit /documents/search
+  // instead of the folder-scoped listing.
+  const [search, setSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState('');
+
   const fileInputRef = useRef(null);
   const downloadUrlCache = useRef(new Map()); // docUuid → { url, expiresAt }
 
@@ -73,25 +94,35 @@ export default function WorkspaceTab({ loanId }) {
     if (!selectedFolderId) return;
     setLoadingDocs(true);
     try {
-      // Clicking the loan root behaves like Dropbox's account root: show every
-      // document on the loan regardless of which subfolder it's filed in (unfiled
-      // legacy uploads included). Subfolders show only their own contents.
-      const docs = (selectedFolderId === rootId)
-        ? await workspaceService.getAllDocuments(loanId)
-        : await workspaceService.getDocumentsInFolder(loanId, { folderId: selectedFolderId });
+      let docs;
+      if (search.trim() || statusFilter) {
+        // Search mode — server-side filter. Scope to folder unless we're at root.
+        const folderScope = (selectedFolderId === rootId) ? undefined : selectedFolderId;
+        const result = await workspaceService.searchDocuments(loanId, {
+          q: search.trim() || undefined,
+          status: statusFilter || undefined,
+          folderId: folderScope,
+          size: 200,
+        });
+        docs = result.documents || result.content || [];
+      } else if (selectedFolderId === rootId) {
+        // Clicking the loan root behaves like Dropbox's account root: show every
+        // document on the loan regardless of which subfolder it's filed in.
+        docs = await workspaceService.getAllDocuments(loanId);
+      } else {
+        docs = await workspaceService.getDocumentsInFolder(loanId, { folderId: selectedFolderId });
+      }
       setDocuments(docs);
-      // Clear selection that no longer exists in the new view
       setSelectedDocUuids((prev) => {
         const visible = new Set(docs.map((d) => d.docUuid));
-        const next = new Set([...prev].filter((u) => visible.has(u)));
-        return next;
+        return new Set([...prev].filter((u) => visible.has(u)));
       });
     } catch (err) {
       toast.error(`Failed to load documents: ${err.message || err}`);
     } finally {
       setLoadingDocs(false);
     }
-  }, [loanId, selectedFolderId, rootId]);
+  }, [loanId, selectedFolderId, rootId, search, statusFilter]);
 
   useEffect(() => { loadDocs(); }, [loadDocs]);
 
@@ -274,6 +305,12 @@ export default function WorkspaceTab({ loanId }) {
 
   const atRoot = selectedFolderId === rootId;
   const atDeleteFolder = selectedFolder?.isDeleteFolder === true;
+  const searchActive = !!(search.trim() || statusFilter);
+
+  const handleHistory = useCallback((doc) => setHistoryDoc(doc), []);
+  const handleReview = useCallback((doc) => setReviewingDoc(doc), []);
+  const handleReviewed = useCallback(() => loadDocs(), [loadDocs]);
+  const handleClearSearch = useCallback(() => { setSearch(''); setStatusFilter(''); }, []);
 
   /**
    * Permanent delete — only reachable from inside the Delete folder. Confirms with
@@ -324,6 +361,32 @@ export default function WorkspaceTab({ loanId }) {
         )}
 
         <div style={{ flex: 1 }} />
+
+        <div className="ws-search-wrap">
+          <FaSearch className="ws-search-icon" aria-hidden />
+          <input
+            type="search"
+            className="ws-search-input"
+            placeholder="Search by file name…"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
+        </div>
+        <select
+          className="ws-status-filter"
+          value={statusFilter}
+          onChange={(e) => setStatusFilter(e.target.value)}
+          title="Filter by status"
+        >
+          {STATUS_FILTER_OPTIONS.map((o) => (
+            <option key={o.value} value={o.value}>{o.label}</option>
+          ))}
+        </select>
+        {searchActive && (
+          <button type="button" className="btn btn-secondary btn-icon" onClick={handleClearSearch} title="Clear search">
+            <FaTimes />
+          </button>
+        )}
       </div>
 
       <div className="ws-body">
@@ -362,8 +425,10 @@ export default function WorkspaceTab({ loanId }) {
             getDownloadUrl={getCachedDownloadUrl}
             onDownload={handleDownload}
             onRename={atDeleteFolder ? null : handleEditDoc}
+            onReview={atDeleteFolder ? null : handleReview}
+            onHistory={handleHistory}
             onDelete={atDeleteFolder ? handlePermanentDelete : null}
-            showFolder={atRoot}
+            showFolder={atRoot || searchActive}
             folderNameFor={folderNameFor}
           />
 
@@ -421,6 +486,23 @@ export default function WorkspaceTab({ loanId }) {
           rootId={rootId}
           onClose={() => setEditingDoc(null)}
           onSave={handleSaveDocEdit}
+        />
+      )}
+
+      {historyDoc && (
+        <DocumentHistory
+          loanId={loanId}
+          doc={historyDoc}
+          onClose={() => setHistoryDoc(null)}
+        />
+      )}
+
+      {reviewingDoc && (
+        <DocumentReviewPanel
+          loanId={loanId}
+          doc={reviewingDoc}
+          onClose={() => setReviewingDoc(null)}
+          onReviewed={handleReviewed}
         />
       )}
     </div>

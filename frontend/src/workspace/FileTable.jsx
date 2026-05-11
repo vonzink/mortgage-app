@@ -1,5 +1,5 @@
 import React, { useCallback } from 'react';
-import { FaFileAlt, FaDownload, FaTrash, FaPencilAlt } from 'react-icons/fa';
+import { FaFileAlt, FaDownload, FaTrash, FaPencilAlt, FaHistory, FaClipboardCheck } from 'react-icons/fa';
 
 /** MIME tag we use to recognize internal (within-app) drags from external (OS file) drops. */
 export const INTERNAL_DRAG_MIME = 'application/x-mortgage-docs';
@@ -37,6 +37,10 @@ export default function FileTable({
   onDownload,
   onRename,
   onDelete,
+  /** (doc) => void; opens audit history modal. Null to hide button. */
+  onHistory,
+  /** (doc) => void; opens review panel. Null to hide button. */
+  onReview,
   /** When true, the table includes a "Folder" column. Used for the root view
    *  where files come from any folder so the LO needs to see where each lives. */
   showFolder = false,
@@ -141,6 +145,7 @@ export default function FileTable({
           </th>
           <th>Name</th>
           <th>Tag</th>
+          <th>Status</th>
           {showFolder && <th>Folder</th>}
           <th>Size</th>
           <th>Uploaded</th>
@@ -172,6 +177,7 @@ export default function FileTable({
                 <span className="ws-file-name" title={doc.fileName}>{doc.fileName}</span>
               </td>
               <td><span className="ws-tag">{doc.documentType || 'Other'}</span></td>
+              <td><StatusBadge status={doc.documentStatus} /></td>
               {showFolder && (
                 <td>
                   <span className="ws-folder-chip">
@@ -183,13 +189,23 @@ export default function FileTable({
               <td>{formatDate(doc.uploadedAt)}</td>
               <td className="ws-file-actions">
                 {onRename && (
-                  <button type="button" className="btn-icon" onClick={() => onRename(doc)} title="Rename">
+                  <button type="button" className="btn-icon" onClick={() => onRename(doc)} title="Rename / edit">
                     <FaPencilAlt />
+                  </button>
+                )}
+                {onReview && (
+                  <button type="button" className="btn-icon" onClick={() => onReview(doc)} title="Review">
+                    <FaClipboardCheck />
                   </button>
                 )}
                 {onDownload && (
                   <button type="button" className="btn-icon" onClick={() => onDownload(doc)} title="Download">
                     <FaDownload />
+                  </button>
+                )}
+                {onHistory && (
+                  <button type="button" className="btn-icon" onClick={() => onHistory(doc)} title="History">
+                    <FaHistory />
                   </button>
                 )}
                 {onDelete && (
@@ -205,6 +221,39 @@ export default function FileTable({
     </table>
   );
 }
+
+/** Maps a DocumentStatus enum value to a colored pill. Unknown/null → muted "—". */
+function StatusBadge({ status }) {
+  if (!status) return <span className="ws-status-badge ws-status-badge--muted">—</span>;
+  const cls = STATUS_CLASS[status] || 'ws-status-badge--muted';
+  return <span className={`ws-status-badge ${cls}`}>{STATUS_LABEL[status] || status}</span>;
+}
+
+const STATUS_LABEL = {
+  PENDING_UPLOAD: 'Pending',
+  UPLOADED: 'Uploaded',
+  SCAN_PENDING: 'Scanning',
+  SCAN_FAILED: 'Scan failed',
+  READY_FOR_REVIEW: 'Review',
+  NEEDS_BORROWER_ACTION: 'Borrower action',
+  ACCEPTED: 'Accepted',
+  REJECTED: 'Rejected',
+  ARCHIVED: 'Archived',
+  DELETED_SOFT: 'Deleted',
+};
+
+const STATUS_CLASS = {
+  PENDING_UPLOAD: 'ws-status-badge--muted',
+  UPLOADED: 'ws-status-badge--neutral',
+  SCAN_PENDING: 'ws-status-badge--neutral',
+  SCAN_FAILED: 'ws-status-badge--danger',
+  READY_FOR_REVIEW: 'ws-status-badge--warn',
+  NEEDS_BORROWER_ACTION: 'ws-status-badge--warn',
+  ACCEPTED: 'ws-status-badge--ok',
+  REJECTED: 'ws-status-badge--danger',
+  ARCHIVED: 'ws-status-badge--muted',
+  DELETED_SOFT: 'ws-status-badge--muted',
+};
 
 function formatSize(bytes) {
   if (!bytes && bytes !== 0) return '—';

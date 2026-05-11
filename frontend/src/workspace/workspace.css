@@ -439,3 +439,106 @@
   gap: 0.5rem;
   margin-top: 0.5rem;
 }
+
+/* ── Phase 5: search + status filter in toolbar ──────────────────────────── */
+.ws-search-wrap { position: relative; display: flex; align-items: center; }
+.ws-search-icon { position: absolute; left: 0.6rem; color: #999; pointer-events: none; font-size: 0.85rem; }
+.ws-search-input {
+  padding: 0.4rem 0.6rem 0.4rem 1.8rem;
+  border: 1px solid var(--border-color, #d1d5db);
+  border-radius: 4px;
+  font-size: 0.9rem;
+  width: 220px;
+}
+.ws-status-filter {
+  padding: 0.4rem 0.6rem;
+  border: 1px solid var(--border-color, #d1d5db);
+  border-radius: 4px;
+  font-size: 0.9rem;
+  background: white;
+}
+
+/* ── Phase 2: status badges ──────────────────────────────────────────────── */
+.ws-status-badge {
+  display: inline-block;
+  padding: 0.15rem 0.5rem;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  white-space: nowrap;
+  background: #f1f5f9;
+  color: #475569;
+  border: 1px solid #e2e8f0;
+}
+.ws-status-badge--inline { padding: 0.1rem 0.4rem; font-size: 0.7rem; }
+.ws-status-badge--muted   { background: #f1f5f9; color: #64748b; border-color: #e2e8f0; }
+.ws-status-badge--neutral { background: #e0f2fe; color: #075985; border-color: #bae6fd; }
+.ws-status-badge--ok      { background: #dcfce7; color: #166534; border-color: #bbf7d0; }
+.ws-status-badge--warn    { background: #fef3c7; color: #92400e; border-color: #fde68a; }
+.ws-status-badge--danger  { background: #fee2e2; color: #991b1b; border-color: #fecaca; }
+
+/* ── Phase 2: review slide-out ───────────────────────────────────────────── */
+.ws-review-backdrop {
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,0.35);
+  z-index: 1000;
+  display: flex; justify-content: flex-end;
+}
+.ws-review-panel {
+  width: 420px; max-width: 90vw;
+  background: white; height: 100%;
+  display: flex; flex-direction: column;
+  box-shadow: -4px 0 16px rgba(0,0,0,0.1);
+  animation: ws-slide-in 0.18s ease-out;
+}
+@keyframes ws-slide-in { from { transform: translateX(100%); } to { transform: translateX(0); } }
+.ws-review-actions {
+  display: grid; grid-template-columns: 1fr; gap: 0.5rem;
+}
+.ws-review-action-btn {
+  display: flex; align-items: center; gap: 0.5rem;
+  padding: 0.6rem 0.85rem;
+  border: 1px solid var(--border-color, #d1d5db);
+  border-radius: 6px;
+  background: white;
+  cursor: pointer;
+  font-size: 0.9rem;
+  transition: background 0.15s, border-color 0.15s;
+}
+.ws-review-action-btn:hover { background: #f9fafb; }
+.ws-modal-body textarea {
+  width: 100%;
+  padding: 0.5rem 0.6rem;
+  border: 1px solid var(--border-color, #d1d5db);
+  border-radius: 4px;
+  font-size: 0.9rem;
+  font-family: inherit;
+  resize: vertical;
+}
+
+/* ── Phase 1: document history modal ─────────────────────────────────────── */
+.ws-modal--wide { max-width: 640px; width: 90%; }
+.ws-history-list {
+  list-style: none; padding: 0; margin: 0;
+  display: flex; flex-direction: column; gap: 0.6rem;
+}
+.ws-history-row {
+  padding: 0.6rem 0.75rem;
+  border: 1px solid var(--border-color, #e5e7eb);
+  border-radius: 6px;
+  background: #fafafa;
+}
+.ws-history-action { font-weight: 600; font-size: 0.9rem; }
+.ws-history-meta { color: #6b7280; font-size: 0.8rem; margin-top: 0.2rem; }
+.ws-history-meta-extra {
+  display: flex; flex-wrap: wrap; gap: 0.4rem; margin-top: 0.4rem;
+}
+.ws-history-pill {
+  display: inline-block;
+  padding: 0.15rem 0.5rem;
+  border-radius: 3px;
+  background: white;
+  border: 1px solid #e5e7eb;
+  font-size: 0.75rem;
+  color: #4b5563;
+}

@@ -1,0 +1,304 @@
+/* ============================================================================
+ * MSFG Mortgage Suite — Design System
+ * Ported from the design handoff in .design-import/.
+ * Token + primitive classes scoped to `.msfg` so they don't leak into legacy UI.
+ * ============================================================================ */
+
+@import url('https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&family=Geist+Mono:wght@400;500;600&display=swap');
+
+:root {
+  /* Brand */
+  --forest-900: #0a2a20;
+  --forest-800: #0e3a2e;
+  --forest-700: #154d3d;
+  --forest-600: #1e6650;
+  --forest-500: #2a8268;
+  --forest-50:  #e8f0ec;
+  --forest-25:  #f1f6f2;
+
+  /* Surfaces */
+  --parchment: #f6f2e8;
+  --parchment-soft: #faf7ef;
+  --cream: #fbf9f3;
+  --paper: #ffffff;
+  --ink-line: #e8e3d4;
+  --ink-line-soft: #efeadb;
+
+  /* Text */
+  --ink-900: #131815;
+  --ink-700: #2b332e;
+  --ink-500: #5a625b;
+  --ink-400: #828a83;
+  --ink-300: #a8aea7;
+
+  /* Accents (status) */
+  --copper: #b16b3a;
+  --copper-bg: #f6e9dc;
+  --amber: #c08527;
+  --amber-bg: #faecd0;
+  --rose:   #a8423a;
+  --rose-bg: #f6dfdd;
+  --azure:  #2e5d8a;
+  --azure-bg: #dee9f4;
+  --moss:   #3f7553;
+  --moss-bg: #dde9df;
+
+  /* Shadows */
+  --sh-1: 0 1px 0 rgba(15, 40, 30, .04), 0 1px 2px rgba(15, 40, 30, .04);
+  --sh-2: 0 1px 0 rgba(15, 40, 30, .04), 0 4px 14px rgba(15, 40, 30, .06);
+  --sh-3: 0 1px 0 rgba(15, 40, 30, .04), 0 18px 40px -18px rgba(15, 40, 30, .25);
+
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --radius-xl: 20px;
+}
+
+/* `.msfg` is the design-system scope. Apply it to a wrapper to opt in. */
+.msfg {
+  font-family: 'Geist', -apple-system, system-ui, sans-serif;
+  color: var(--ink-900);
+  font-feature-settings: 'ss01', 'ss02', 'cv11';
+  -webkit-font-smoothing: antialiased;
+  letter-spacing: -0.005em;
+}
+.msfg *,
+.msfg *::before,
+.msfg *::after { box-sizing: border-box; }
+.msfg .mono { font-family: 'Geist Mono', ui-monospace, monospace; font-feature-settings: 'tnum' on; }
+
+/* Typography ---------------------------------------------------------------- */
+.msfg h1, .msfg h2, .msfg h3, .msfg h4 {
+  font-weight: 600; letter-spacing: -0.02em; margin: 0; color: var(--ink-900);
+}
+.msfg .eyebrow {
+  font-size: 11px; text-transform: uppercase; letter-spacing: .12em;
+  color: var(--ink-400); font-weight: 500;
+}
+.msfg .muted { color: var(--ink-500); }
+.msfg .dim { color: var(--ink-400); }
+
+/* Top bar ------------------------------------------------------------------- */
+.msfg .topbar {
+  height: 64px;
+  background: linear-gradient(180deg, var(--forest-800) 0%, var(--forest-900) 100%);
+  color: #f1ede0;
+  display: flex; align-items: center; padding: 0 28px;
+  border-bottom: 1px solid rgba(255,255,255,.05);
+  position: relative;
+}
+.msfg .topbar::after {
+  content: "";
+  position: absolute; inset: 0;
+  background:
+    radial-gradient(700px 200px at 12% 120%, rgba(255,255,255,.04), transparent 60%),
+    radial-gradient(800px 240px at 100% -60%, rgba(255,255,255,.06), transparent 60%);
+  pointer-events: none;
+}
+.msfg .topbar > * { position: relative; z-index: 1; }
+.msfg .brand {
+  display: flex; align-items: center; gap: 10px;
+  font-weight: 600; letter-spacing: -0.01em; font-size: 16px;
+  color: #f1ede0; text-decoration: none;
+}
+.msfg .brand-mark {
+  width: 28px; height: 28px; border-radius: 7px;
+  background: linear-gradient(135deg, #cfa15b 0%, #8d5a26 100%);
+  display: grid; place-items: center; color: var(--forest-900);
+  font-weight: 700; font-size: 13px; letter-spacing: .02em;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.3);
+}
+.msfg .brand small {
+  font-weight: 400; opacity: .55; letter-spacing: .04em; font-size: 11px;
+  text-transform: uppercase; margin-left: 4px;
+}
+.msfg .topnav { display: flex; gap: 4px; margin-left: 36px; }
+.msfg .topnav a {
+  color: rgba(241,237,224,.7); text-decoration: none;
+  padding: 8px 14px; border-radius: 8px; font-size: 13.5px; font-weight: 500;
+  display: inline-flex; align-items: center; gap: 8px;
+  transition: background .15s, color .15s;
+}
+.msfg .topnav a:hover { background: rgba(255,255,255,.06); color: #fff; }
+.msfg .topnav a.active { background: rgba(255,255,255,.09); color: #fff; }
+.msfg .topnav a.active::before {
+  content: ""; width: 4px; height: 4px; border-radius: 50%; background: #cfa15b;
+}
+.msfg .top-right { margin-left: auto; display: flex; gap: 10px; align-items: center; }
+.msfg .top-user {
+  display: flex; align-items: center; gap: 10px;
+  padding: 5px 10px 5px 5px; border-radius: 999px;
+  background: rgba(255,255,255,.06); color: #f1ede0; font-size: 13px;
+}
+.msfg .top-user .av {
+  width: 28px; height: 28px; border-radius: 999px;
+  background: linear-gradient(135deg, #d8b878, #8d5a26);
+  display: grid; place-items: center; color: var(--forest-900); font-weight: 600; font-size: 12px;
+}
+.msfg .top-icon-btn {
+  width: 36px; height: 36px; border-radius: 10px;
+  background: rgba(255,255,255,.06); display: grid; place-items: center;
+  color: rgba(241,237,224,.7); cursor: pointer; border: 0;
+  position: relative;
+}
+.msfg .top-icon-btn:hover { background: rgba(255,255,255,.1); color: #fff; }
+
+/* Top-bar settings dropdown ------------------------------------------------- */
+.msfg .topbar-menu {
+  position: absolute; top: calc(100% + 8px); right: 0;
+  min-width: 220px;
+  background: var(--paper);
+  border: 1px solid var(--ink-line);
+  border-radius: var(--radius-md);
+  box-shadow: var(--sh-3);
+  padding: 6px;
+  z-index: 1000;
+}
+.msfg .topbar-menu-item {
+  display: flex; align-items: center; gap: 8px;
+  width: 100%; padding: 8px 10px;
+  background: transparent; border: 0; border-radius: 7px;
+  font-family: inherit; font-size: 13px; color: var(--ink-900);
+  text-align: left; cursor: pointer;
+}
+.msfg .topbar-menu-item:hover { background: var(--cream); }
+.msfg .topbar-menu-item:disabled { color: var(--ink-400); cursor: not-allowed; }
+.msfg .topbar-menu-divider { height: 1px; background: var(--ink-line-soft); margin: 4px 0; }
+.msfg .topbar-menu-hint { padding: 6px 10px; font-size: 11.5px; color: var(--ink-400); }
+
+/* Page shell ---------------------------------------------------------------- */
+.msfg .page {
+  background:
+    radial-gradient(800px 400px at 0% 0%, rgba(14,58,46,.04), transparent 60%),
+    radial-gradient(900px 500px at 100% 100%, rgba(177,107,58,.04), transparent 60%),
+    var(--parchment-soft);
+  min-height: calc(100vh - 64px);
+  padding: 28px 32px 40px;
+}
+
+/* Buttons ------------------------------------------------------------------- */
+.msfg .btn {
+  display: inline-flex; align-items: center; gap: 8px;
+  height: 38px; padding: 0 16px; border-radius: 9px;
+  font-family: inherit; font-weight: 500; font-size: 13.5px;
+  border: 1px solid var(--ink-line); background: var(--paper);
+  color: var(--ink-900); cursor: pointer; text-decoration: none;
+  transition: background .15s, border-color .15s, transform .05s;
+  box-shadow: var(--sh-1);
+}
+.msfg .btn:hover { background: var(--cream); color: var(--ink-900); }
+.msfg .btn:active { transform: translateY(0.5px); }
+.msfg .btn:disabled { opacity: .55; cursor: not-allowed; }
+.msfg .btn-primary {
+  background: var(--forest-800); color: #fff; border-color: var(--forest-800);
+  box-shadow: 0 1px 0 rgba(0,0,0,.05), inset 0 1px 0 rgba(255,255,255,.08);
+}
+.msfg .btn-primary:hover { background: var(--forest-700); color: #fff; }
+.msfg .btn-ghost { background: transparent; border-color: transparent; box-shadow: none; color: var(--ink-700); }
+.msfg .btn-ghost:hover { background: rgba(14,58,46,.05); color: var(--ink-900); }
+.msfg .btn-danger { color: var(--rose); border-color: #ecd6d3; background: #fbf1f0; }
+.msfg .btn-danger:hover { background: #f6e3e1; color: var(--rose); }
+.msfg .btn-sm { height: 30px; padding: 0 11px; font-size: 12.5px; border-radius: 7px; }
+.msfg .btn-lg { height: 44px; padding: 0 20px; font-size: 14px; border-radius: 10px; }
+
+/* Pills --------------------------------------------------------------------- */
+.msfg .pill {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 3px 9px; border-radius: 999px;
+  font-size: 11.5px; font-weight: 500;
+  background: var(--ink-line-soft); color: var(--ink-700);
+  border: 1px solid rgba(0,0,0,.04);
+}
+.msfg .pill .dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+.msfg .pill.draft   { background: var(--amber-bg); color: var(--amber); }
+.msfg .pill.review  { background: var(--azure-bg); color: var(--azure); }
+.msfg .pill.active  { background: var(--moss-bg);  color: var(--moss); }
+.msfg .pill.warn    { background: var(--copper-bg); color: var(--copper); }
+.msfg .pill.danger  { background: var(--rose-bg);  color: var(--rose); }
+.msfg .pill.muted   { background: #ece8da; color: var(--ink-500); }
+
+/* Cards --------------------------------------------------------------------- */
+.msfg .card {
+  background: var(--paper);
+  border: 1px solid var(--ink-line);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--sh-1);
+}
+.msfg .card-pad { padding: 22px; }
+.msfg .card-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 16px 22px; border-bottom: 1px solid var(--ink-line-soft);
+}
+.msfg .card-title {
+  font-size: 14px; font-weight: 600; letter-spacing: -0.01em;
+  display: flex; align-items: center; gap: 9px;
+}
+
+/* Form controls ------------------------------------------------------------- */
+.msfg .field { display: flex; flex-direction: column; gap: 6px; }
+.msfg .label {
+  font-size: 12.5px; font-weight: 500; color: var(--ink-700);
+  display: flex; align-items: center; gap: 6px;
+}
+.msfg .label .req { color: var(--copper); }
+.msfg .hint { font-size: 11.5px; color: var(--ink-400); }
+.msfg .input, .msfg .select, .msfg .textarea {
+  height: 42px; padding: 0 12px;
+  background: #fff; border: 1px solid var(--ink-line);
+  border-radius: 9px; font-family: inherit; font-size: 13.5px;
+  color: var(--ink-900);
+  transition: border-color .15s, box-shadow .15s;
+  width: 100%;
+}
+.msfg .input:focus, .msfg .select:focus, .msfg .textarea:focus {
+  outline: 0; border-color: var(--forest-600);
+  box-shadow: 0 0 0 4px rgba(30,102,80,.08);
+}
+.msfg .input.with-prefix { padding-left: 36px; }
+.msfg .input-wrap { position: relative; }
+.msfg .input-wrap .prefix {
+  position: absolute; left: 12px; top: 50%; transform: translateY(-50%);
+  color: var(--ink-400); pointer-events: none; line-height: 0;
+}
+.msfg .input-wrap .suffix {
+  position: absolute; right: 12px; top: 50%; transform: translateY(-50%);
+  color: var(--ink-400); font-size: 11.5px; pointer-events: none;
+}
+
+/* Key/Value ----------------------------------------------------------------- */
+.msfg .kv { display: grid; grid-template-columns: 1fr auto; gap: 10px 18px; font-size: 13.5px; }
+.msfg .kv .k { color: var(--ink-500); }
+.msfg .kv .v { color: var(--ink-900); font-weight: 500; text-align: right; }
+.msfg .kv .v.mono { font-family: 'Geist Mono', monospace; font-feature-settings: 'tnum'; }
+
+/* Avatars ------------------------------------------------------------------- */
+.msfg .av-brand {
+  background: linear-gradient(135deg, var(--forest-700), var(--forest-900));
+  color: #f1ede0;
+  display: grid; place-items: center;
+  font-weight: 600;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.1);
+}
+.msfg .av-copper {
+  background: linear-gradient(135deg, #d8b878, #8d5a26);
+  color: var(--forest-900);
+  display: grid; place-items: center;
+  font-weight: 600;
+}
+
+/* Utilities ----------------------------------------------------------------- */
+.msfg .row { display: flex; gap: 12px; }
+.msfg .col { display: flex; flex-direction: column; gap: 12px; }
+.msfg .hr { height: 1px; background: var(--ink-line-soft); }
+
+/* Striped placeholder ------------------------------------------------------- */
+.msfg .ph {
+  background:
+    repeating-linear-gradient(135deg, rgba(14,58,46,.05) 0 6px, transparent 6px 14px),
+    var(--cream);
+  border: 1px dashed var(--ink-line);
+  color: var(--ink-400);
+  display: grid; place-items: center;
+  font-family: 'Geist Mono', monospace; font-size: 11px;
+  border-radius: var(--radius-md);
+}

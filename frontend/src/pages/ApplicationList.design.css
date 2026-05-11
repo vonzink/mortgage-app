@@ -1,0 +1,96 @@
+/* ApplicationList — design-handoff layout. Page is wrapped in `.msfg` via App.js. */
+
+.apps-hero {
+  display: flex; align-items: flex-end; justify-content: space-between;
+  flex-wrap: wrap; gap: 16px;
+  margin-bottom: 22px;
+}
+.apps-h1 { font-size: 30px; margin-top: 8px; }
+.apps-subtitle { margin-top: 6px; font-size: 14px; }
+.apps-hero-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+
+.apps-kpis {
+  display: grid; grid-template-columns: repeat(4, 1fr);
+  gap: 14px; margin-bottom: 22px;
+}
+@media (max-width: 900px) {
+  .apps-kpis { grid-template-columns: repeat(2, 1fr); }
+}
+.apps-kpi-label { margin-bottom: 10px; }
+.apps-kpi-value { font-size: 26px; font-weight: 600; letter-spacing: -0.02em; }
+.apps-kpi-sub { font-size: 12px; margin-top: 4px; }
+
+.apps-toolbar {
+  display: flex; gap: 10px; align-items: center;
+  margin-bottom: 14px; flex-wrap: wrap;
+}
+.apps-search { flex: 1; max-width: 380px; min-width: 240px; }
+.apps-filter-pills { display: flex; gap: 6px; flex-wrap: wrap; }
+.apps-filter--active {
+  background: var(--forest-800) !important;
+  color: #fff !important;
+  border-color: var(--forest-800) !important;
+  font-weight: 600;
+}
+
+/* ── Application card ────────────────────────────────────────────────────── */
+.app-card { overflow: hidden; }
+.app-card-head {
+  display: grid; grid-template-columns: 1fr auto; gap: 16px;
+  padding: 20px 24px 18px;
+}
+.app-card-id { display: flex; gap: 14px; min-width: 0; }
+.app-card-title-row {
+  display: flex; align-items: center; gap: 10px;
+  margin-bottom: 4px; flex-wrap: wrap;
+}
+.app-card-name { font-weight: 600; font-size: 16px; }
+.app-card-id-num { font-size: 12px; }
+.app-card-addr { font-size: 13.5px; }
+.app-card-actions { display: flex; gap: 8px; flex-wrap: wrap; align-items: flex-start; }
+
+.app-card-stage { padding: 0 24px 16px; }
+
+.stage-bar {
+  display: flex; align-items: center; gap: 6px; margin-top: 4px;
+}
+.stage-cell { flex: 1; display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.stage-bar-track { height: 6px; border-radius: 4px; }
+.stage-label {
+  font-size: 10.5px;
+  letter-spacing: .02em;
+  color: var(--ink-900);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.stage-label.dim { color: var(--ink-400); }
+
+.app-card-footer {
+  display: grid; grid-template-columns: repeat(6, 1fr);
+  border-top: 1px solid var(--ink-line-soft);
+  background: var(--cream);
+}
+@media (max-width: 900px) {
+  .app-card-footer { grid-template-columns: repeat(3, 1fr); }
+  .app-card-footer > div:nth-child(3n) { border-right: 0 !important; }
+}
+@media (max-width: 600px) {
+  .app-card-footer { grid-template-columns: repeat(2, 1fr); }
+  .app-card-footer > div:nth-child(2n) { border-right: 0 !important; }
+}
+.app-card-stat { padding: 12px 16px; }
+.app-card-stat-label { font-size: 10.5px; margin-bottom: 4px; }
+
+.app-card-overflow {
+  display: flex; gap: 4px; padding: 8px 16px;
+  border-top: 1px solid var(--ink-line-soft);
+  flex-wrap: wrap;
+}
+.app-card-delete { margin-left: auto; }
+
+/* ── Empty state ─────────────────────────────────────────────────────────── */
+.apps-empty {
+  display: flex; flex-direction: column; align-items: center;
+  text-align: center; padding: 24px 0;
+  color: var(--ink-500);
+}
+.apps-empty > svg { color: var(--ink-400); }

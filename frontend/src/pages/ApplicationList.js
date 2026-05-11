@@ -1,21 +1,223 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
-import { FaFileAlt, FaFolder, FaEdit, FaTrash, FaClock, FaCheckCircle, FaTimesCircle, FaFileDownload, FaCopy, FaFileUpload, FaPlus, FaChartLine } from 'react-icons/fa';
 import mortgageService from '../services/mortgageService';
+import Icon from '../components/design/Icon';
+import Pill from '../components/design/Pill';
+import Button from '../components/design/Button';
+import Card from '../components/design/Card';
+import Avatar from '../components/design/Avatar';
+import './ApplicationList.design.css';
 
-const ApplicationList = () => {
+/* ─── Status → pill tone mapping ──────────────────────────────────────────
+ * Backend `status` strings are loose (Draft / In Review / Approved / Rejected
+ * / Funded / etc.). Bucket each one into a design-system tone + display label.
+ */
+const STATUS_BUCKETS = [
+  { test: (s) => /draft/i.test(s),                                 tone: 'draft',  label: 'Draft' },
+  { test: (s) => /review|processing|underwriting|condition/i.test(s), tone: 'review', label: 'In review' },
+  { test: (s) => /clear to close|approved/i.test(s),               tone: 'active', label: 'Clear to close' },
+  { test: (s) => /fund/i.test(s),                                  tone: 'active', label: 'Funded' },
+  { test: (s) => /reject|denied/i.test(s),                         tone: 'danger', label: 'Rejected' },
+];
+function bucketize(status) {
+  const s = status || 'Draft';
+  const hit = STATUS_BUCKETS.find((b) => b.test(s));
+  return hit ? { ...hit, raw: s } : { tone: 'muted', label: s, raw: s };
+}
+
+/** Map a status → 0-indexed stage on the 7-step bar (Application → Funded). */
+const STAGE_NAMES = ['Application', 'Document review', 'Processing', 'Underwriting', 'Conditional', 'Clear to close', 'Funded'];
+function stageFor(status) {
+  const s = (status || '').toLowerCase();
+  if (/fund/.test(s)) return 6;
+  if (/clear to close/.test(s)) return 5;
+  if (/condition/.test(s)) return 4;
+  if (/underwriting/.test(s)) return 3;
+  if (/process/.test(s)) return 2;
+  if (/review|document/.test(s)) return 1;
+  return 0; // default = Application
+}
+
+const StageBar = ({ stage }) => (
+  <div className="stage-bar">
+    {STAGE_NAMES.map((s, i) => {
+      const done = i < stage;
+      const current = i === stage;
+      const bg = done
+        ? 'var(--forest-700)'
+        : current
+          ? 'linear-gradient(90deg, var(--forest-700) 60%, var(--ink-line) 60%)'
+          : 'var(--ink-line-soft)';
+      const labelClass = done || current ? '' : 'dim';
+      return (
+        <div key={s} className="stage-cell">
+          <div className="stage-bar-track" style={{ background: bg }} />
+          <div className={`stage-label ${labelClass}`} style={{ fontWeight: current ? 600 : 500 }}>{s}</div>
+        </div>
+      );
+    })}
+  </div>
+);
+
+function fmtCurrency(n) {
+  if (n == null) return '—';
+  try { return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(n); }
+  catch { return String(n); }
+}
+function fmtCurrencyCompact(n) {
+  if (!n || n < 1) return '$0';
+  if (n >= 1_000_000) return `$${(n / 1_000_000).toFixed(2)}M`;
+  if (n >= 1_000) return `$${Math.round(n / 1_000)}K`;
+  return fmtCurrency(n);
+}
+function fmtDate(d) {
+  if (!d) return '—';
+  try { return new Date(d).toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' }); }
+  catch { return String(d); }
+}
+function initialsFor(app) {
+  const b = app.borrowers?.[0];
+  if (!b) return 'AP';
+  return ((b.firstName?.[0] || '') + (b.lastName?.[0] || '')).toUpperCase() || 'AP';
+}
+function borrowerName(app) {
+  const b = app.borrowers?.[0];
+  if (!b) return `Application ${app.applicationNumber || `#${app.id}`}`;
+  return [b.firstName, b.lastName].filter(Boolean).join(' ') || `Application ${app.applicationNumber || `#${app.id}`}`;
+}
+
+/* ─── Filter pills (segmented) ──────────────────────────────────────────── */
+const FILTERS = [
+  { value: 'all',        label: 'All' },
+  { value: 'draft',      label: 'Draft' },
+  { value: 'review',     label: 'In review' },
+  { value: 'active',     label: 'Clear to close' },
+  { value: 'funded',     label: 'Funded' },
+];
+function matchesFilter(app, filter) {
+  if (filter === 'all') return true;
+  const b = bucketize(app.status);
+  if (filter === 'funded') return /fund/i.test(b.raw);
+  if (filter === 'active') return b.tone === 'active' && !/fund/i.test(b.raw);
+  return b.tone === filter;
+}
+
+/* ─── KPI strip ─────────────────────────────────────────────────────────── */
+function computeKpis(apps) {
+  const active = apps.filter((a) => !/reject|denied|fund/i.test(a.status || ''));
+  const totalPipeline = active.reduce((sum, a) => sum + (Number(a.loanAmount) || 0), 0);
+  const ratedApps = apps.filter((a) => a.interestRate);
+  const avgRate = ratedApps.length
+    ? ratedApps.reduce((s, a) => s + Number(a.interestRate || 0), 0) / ratedApps.length
+    : null;
+  const needsAction = apps.filter((a) => /needs|action|condition/i.test(a.status || '')).length;
+  return [
+    { label: 'Total in pipeline', value: fmtCurrencyCompact(totalPipeline), sub: `across ${active.length} application${active.length === 1 ? '' : 's'}`, color: 'var(--forest-800)' },
+    { label: 'Avg. rate', value: avgRate != null ? `${avgRate.toFixed(2)}%` : '—', sub: 'across rate-locked apps', color: 'var(--moss)' },
+    { label: 'Applications', value: String(apps.length), sub: `${active.length} active`, color: 'var(--azure)' },
+    { label: 'Action needed', value: String(needsAction), sub: needsAction === 0 ? 'all caught up' : 'items waiting on you', color: needsAction > 0 ? 'var(--copper)' : 'var(--ink-500)' },
+  ];
+}
+
+/* ─── Application card ─────────────────────────────────────────────────── */
+function AppCard({ app, isLatest, onMismo, onCopy, onDelete }) {
+  const bucket = bucketize(app.status);
+  const stage = stageFor(app.status);
+  const initials = initialsFor(app);
+  const name = borrowerName(app);
+  const addrLine1 = app.property?.addressLine || '';
+  const city = [app.property?.city, app.property?.state].filter(Boolean).join(', ');
+
+  return (
+    <div className="card app-card">
+      <div className="app-card-head">
+        <div className="app-card-id">
+          <Avatar initials={initials} size={56} variant="brand" />
+          <div>
+            <div className="app-card-title-row">
+              <div className="app-card-name">{name}</div>
+              <Pill tone={bucket.tone} dot>{bucket.label}</Pill>
+              <span className="dim mono app-card-id-num">#{app.applicationNumber || app.id}</span>
+            </div>
+            <div className="muted app-card-addr">
+              {addrLine1 || <span className="dim">No address yet</span>}
+              {addrLine1 && city && <> · <span className="dim">{city}</span></>}
+            </div>
+          </div>
+        </div>
+        <div className="app-card-actions">
+          <Button size="sm" to={`/applications/${app.id}`} title="Open document workspace">
+            <Icon name="folder" size={12} /> Documents
+          </Button>
+          <Button size="sm" to={`/loan/${app.id}`} title="LO dashboard">
+            <Icon name="chart" size={12} /> Dashboard
+          </Button>
+          <Button size="sm" variant="primary" to={`/apply?edit=${app.id}`} title="Edit this application">
+            <Icon name="edit" size={12} /> Continue
+          </Button>
+        </div>
+      </div>
+
+      <div className="app-card-stage">
+        <StageBar stage={stage} />
+      </div>
+
+      <div className="app-card-footer">
+        {[
+          ['Loan amount',  fmtCurrency(app.loanAmount), true],
+          ['Property value', fmtCurrency(app.propertyValue), true],
+          ['Rate', app.interestRate ? `${Number(app.interestRate).toFixed(3)}%` : '—', true],
+          ['Type', app.loanType ? `${app.loanType}${app.loanTerm ? ` · ${app.loanTerm}` : ''}` : '—', false],
+          ['Applied', fmtDate(app.createdDate), false],
+          ['Est. close', fmtDate(app.estimatedClosingDate), false],
+        ].map(([k, v, mono], i) => (
+          <div key={k} className="app-card-stat" style={{ borderRight: i < 5 ? '1px solid var(--ink-line-soft)' : 0 }}>
+            <div className="eyebrow app-card-stat-label">{k}</div>
+            <div className={mono ? 'mono' : ''} style={{ fontSize: 13.5, fontWeight: 600 }}>{v}</div>
+          </div>
+        ))}
+      </div>
+
+      <div className="app-card-overflow">
+        <Button size="sm" variant="ghost" onClick={() => onMismo(app.id)} title="Download a MISMO 3.4 XML of this application">
+          <Icon name="download" size={12} /> MISMO
+        </Button>
+        {isLatest && (
+          <Button size="sm" variant="ghost" onClick={() => onCopy(app.id)} title="Start a new application with Assets / Liabilities / REO from this one">
+            <Icon name="doc" size={12} /> Copy to new
+          </Button>
+        )}
+        <Button size="sm" variant="danger" onClick={() => onDelete(app.id, app.applicationNumber)} className="app-card-delete" title="Delete this application permanently">
+          <Icon name="trash" size={12} /> Delete
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+/* ─── Page ─────────────────────────────────────────────────────────────── */
+export default function ApplicationList() {
   const navigate = useNavigate();
   const [applications, setApplications] = useState([]);
   const [loading, setLoading] = useState(true);
   const [importingMismo, setImportingMismo] = useState(false);
+  const [search, setSearch] = useState('');
+  const [filter, setFilter] = useState('all');
   const mismoInputRef = useRef(null);
 
-  /**
-   * Start a fresh application by importing a MISMO XML file. The backend creates an empty
-   * application, runs the importer to populate it, auto-assigns the calling LO if applicable,
-   * and returns the new ID — we navigate the user straight into the editor.
-   */
+  useEffect(() => { fetchApplications(); }, []);
+  const fetchApplications = async () => {
+    try {
+      const data = await mortgageService.getApplications();
+      setApplications(data);
+    } catch {
+      toast.error('Failed to load applications');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleStartFromMismo = () => mismoInputRef.current?.click();
   const handleMismoFileSelected = async (e) => {
     const file = e.target.files?.[0];
@@ -33,163 +235,31 @@ const ApplicationList = () => {
     }
   };
 
-  useEffect(() => {
-    fetchApplications();
-  }, []);
-
-  const fetchApplications = async () => {
+  const handleDownloadMismo = async (id) => {
     try {
-      const data = await mortgageService.getApplications();
-      setApplications(data);
-    } catch (error) {
-      toast.error('Failed to load applications');
-      console.error('Error fetching applications:', error);
-    } finally {
-      setLoading(false);
+      const filename = await mortgageService.exportMismo(id);
+      toast.success(`Downloaded ${filename}`);
+    } catch (e) {
+      toast.error(`MISMO export failed: ${e.message || e}`);
     }
   };
 
   const handleCopyToNewApplication = async (applicationId) => {
     try {
-      // Load the application data
-      const applicationData = await mortgageService.getApplication(applicationId);
-      
-      // Map backend data to form structure (same as edit mode)
+      const data = await mortgageService.getApplication(applicationId);
+      // Carry over the structural data only — addresses / dates / SSNs stay per-applicant.
       const formData = {
-        loanPurpose: applicationData.loanPurpose,
-        loanType: applicationData.loanType,
-        loanAmount: applicationData.loanAmount,
-        propertyValue: applicationData.propertyValue,
-        downPayment: applicationData.downPayment,
-        downPaymentSource: applicationData.downPaymentSource,
-        propertyUse: applicationData.propertyUse,
-        propertyType: applicationData.propertyType,
-        occupancy: applicationData.occupancy,
-        
-        // Property fields
-        property: applicationData.property,
-        yearBuilt: applicationData.property?.yearBuilt,
-        unitsCount: applicationData.property?.unitsCount,
-        constructionType: applicationData.property?.constructionType,
-        
-        // Borrowers with all nested data
-        borrowers: (applicationData.borrowers || []).map(borrower => ({
-          firstName: borrower.firstName,
-          lastName: borrower.lastName,
-          middleName: borrower.middleName,
-          ssn: borrower.ssn,
-          dateOfBirth: borrower.birthDate,
-          maritalStatus: borrower.maritalStatus,
-          email: borrower.email,
-          phone: borrower.phone,
-          citizenshipType: borrower.citizenshipType,
-          dependents: borrower.dependentsCount,
-          
-          // Employment history
-          employmentHistory: borrower.employmentHistory || [],
-          
-          // Income sources
-          incomeSources: borrower.incomeSources || [],
-          
-          // Residences
-          residences: borrower.residences || [],
-          
-          // Assets
-          assets: borrower.assets || [],
-          
-          // Liabilities
-          liabilities: borrower.liabilities || [],
-          
-          // REO Properties
-          reoProperties: borrower.reoProperties || [],
-          
-          // Declaration (flatten the nested object structure)
-          ...((borrower.declaration) ? {
-            usCitizen: borrower.declaration.usCitizen,
-            permanentResident: borrower.declaration.permanentResident,
-            intentToOccupy: borrower.declaration.intentToOccupy,
-            borrowingDownPayment: borrower.declaration.borrowingDownPayment,
-            downPaymentGift: borrower.declaration.downPaymentGift,
-            giftSource: borrower.declaration.giftSource,
-            giftAmount: borrower.declaration.giftAmount,
-            comakerEndorser: borrower.declaration.comakerEndorser,
-            outstandingJudgments: borrower.declaration.outstandingJudgments,
-            lawsuit: borrower.declaration.lawsuit,
-            foreclosure: borrower.declaration.foreclosure,
-            bankruptcy: borrower.declaration.bankruptcy,
-            alimonyChildSupport: borrower.declaration.alimonyChildSupport,
-            coSignerObligation: borrower.declaration.coSignerObligation,
-            presentlyDelinquent: borrower.declaration.presentlyDelinquent,
-            loanForeclosure: borrower.declaration.loanForeclosure,
-            pendingCreditInquiry: borrower.declaration.pendingCreditInquiry,
-            propertyInsuranceRequired: borrower.declaration.propertyInsuranceRequired,
-            floodInsuranceRequired: borrower.declaration.floodInsuranceRequired,
-            creditReportConsent: borrower.declaration.creditReportConsent,
-            incomeVerificationConsent: borrower.declaration.incomeVerificationConsent,
-            creditExplanation: borrower.declaration.creditExplanation,
-            employmentGapExplanation: borrower.declaration.employmentGapExplanation
-          } : {})
-        }))
+        loanPurpose: data.loanPurpose,
+        loanType: data.loanType,
+        assets: data.assets || [],
+        liabilities: data.liabilities || [],
+        realEstateOwned: data.realEstateOwned || [],
       };
-      
       sessionStorage.setItem('carryOverData', JSON.stringify(formData));
-      
-      // Navigate to new application form
       navigate('/apply');
-      toast.success('Starting new application with all data from previous application');
-    } catch (error) {
+      toast.success('Starting new application with carried-over data');
+    } catch {
       toast.error('Failed to copy application data');
-      console.error('Error copying application:', error);
-    }
-  };
-
-  const formatCurrency = (amount) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD'
-    }).format(amount);
-  };
-
-  const formatDate = (dateString) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric'
-    });
-  };
-
-  const getStatusClass = (status) => {
-    switch (status.toLowerCase()) {
-      case 'approved':
-        return 'status-approved';
-      case 'rejected':
-        return 'status-rejected';
-      default:
-        return 'status-pending';
-    }
-  };
-
-  const getStatusIcon = (status) => {
-    switch (status?.toLowerCase()) {
-      case 'approved':
-        return <FaCheckCircle className="status-icon approved" />;
-      case 'rejected':
-        return <FaTimesCircle className="status-icon rejected" />;
-      default:
-        return <FaClock className="status-icon pending" />;
-    }
-  };
-
-  /**
-   * Download a MISMO XML for the loan via the backend exporter (richer output than the
-   * legacy frontend-only generator: SSN, DOB, marital status, full BORROWER_DETAIL, etc.).
-   */
-  const handleDownloadMismo = async (applicationId) => {
-    try {
-      const filename = await mortgageService.exportMismo(applicationId);
-      toast.success(`Downloaded ${filename}`);
-    } catch (e) {
-      toast.error(`MISMO export failed: ${e.message || e}`);
     }
   };
 
@@ -198,175 +268,139 @@ const ApplicationList = () => {
       `Delete application ${applicationNumber || `#${applicationId}`}?\n\n` +
       `This permanently removes the application and all of its borrowers, employment, ` +
       `income, residences, assets, REOs, liabilities, and document records.\n\n` +
-      `This cannot be undone.`
+      `This cannot be undone.`,
     );
     if (!ok) return;
     try {
       await mortgageService.deleteApplication(applicationId);
       toast.success(`Deleted ${applicationNumber || `application #${applicationId}`}`);
-      // Refresh the list
       fetchApplications();
     } catch (e) {
       toast.error(`Delete failed: ${e.message || e}`);
     }
   };
 
-  if (loading) {
-    return (
-      <div className="applications-container">
-        <div className="card">
-          <h2><FaFileAlt /> My Applications</h2>
-          <p>Loading applications...</p>
-        </div>
-      </div>
-    );
-  }
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return applications
+      .filter((a) => matchesFilter(a, filter))
+      .filter((a) => {
+        if (!q) return true;
+        const name = borrowerName(a).toLowerCase();
+        const addr = (a.property?.addressLine || '').toLowerCase();
+        const num = String(a.applicationNumber || a.id).toLowerCase();
+        return name.includes(q) || addr.includes(q) || num.includes(q);
+      })
+      .sort((a, b) => new Date(b.createdDate || 0) - new Date(a.createdDate || 0));
+  }, [applications, search, filter]);
+
+  const kpis = useMemo(() => computeKpis(applications), [applications]);
+  const latestId = useMemo(() => {
+    if (!applications.length) return null;
+    const latest = [...applications].sort((a, b) => new Date(b.createdDate || 0) - new Date(a.createdDate || 0))[0];
+    return latest?.id;
+  }, [applications]);
 
   return (
-    <div className="applications-container">
-      <div className="card">
-        <div className="applications-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.75rem' }}>
-          <h2 style={{ margin: 0 }}><FaFileAlt /> My Applications</h2>
-          <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-            <Link to="/apply" className="btn btn-primary">
-              <FaPlus /> Start New Application
-            </Link>
-            <button
-              type="button"
-              onClick={handleStartFromMismo}
-              disabled={importingMismo}
-              className="btn btn-secondary"
-              title="Upload a MISMO 3.4 XML file to start a new application pre-populated with its data"
-            >
-              <FaFileUpload /> {importingMismo ? 'Importing…' : 'Start from MISMO'}
-            </button>
-            <input
-              ref={mismoInputRef}
-              type="file"
-              accept=".xml,application/xml,text/xml"
-              style={{ display: 'none' }}
-              onChange={handleMismoFileSelected}
-            />
+    <div className="page">
+      {/* Hero */}
+      <div className="apps-hero">
+        <div>
+          <div className="eyebrow">Borrower portal</div>
+          <h1 className="apps-h1">My applications</h1>
+          <div className="muted apps-subtitle">
+            {loading
+              ? 'Loading…'
+              : `${applications.length} total · welcome back.`}
           </div>
         </div>
-
-        {applications.length === 0 ? (
-          <div className="empty-state">
-            <FaFileAlt className="empty-icon" />
-            <h3>No Applications Yet</h3>
-            <p>Use the buttons above to start a fresh application or import a MISMO file from another system.</p>
-          </div>
-        ) : (
-          <div className="applications-grid">
-            {applications
-              .sort((a, b) => new Date(a.createdDate) - new Date(b.createdDate)) // Sort by date, oldest first
-              .map((application, index) => {
-                const isLatest = index === applications.length - 1; // Last item is the most recent
-                return (
-              <div key={application.id} className="application-card">
-                <div className="application-header">
-                  <div className="application-title">
-                    {getStatusIcon(application.status)}
-                    <div>
-                      <h3>Application #{application.applicationNumber}</h3>
-                      {application.borrowers?.[0] && (
-                        <p className="borrower-name" style={{ margin: '0.15rem 0', fontWeight: 500 }}>
-                          {[application.borrowers[0].firstName, application.borrowers[0].lastName].filter(Boolean).join(' ')}
-                        </p>
-                      )}
-                      <p className="property-address">
-                        {application.property?.addressLine || 'N/A'}, {application.property?.city || 'N/A'}, {application.property?.state || 'N/A'}
-                      </p>
-                    </div>
-                  </div>
-                  <span className={`status ${getStatusClass(application.status)}`}>
-                    {application.status || 'DRAFT'}
-                  </span>
-                </div>
-                
-                <div className="application-details">
-                  <div className="detail-row">
-                    <div className="detail-item">
-                      <span className="label">Loan Amount</span>
-                      <span className="value">{formatCurrency(application.loanAmount || 0)}</span>
-                    </div>
-                    <div className="detail-item">
-                      <span className="label">Property Value</span>
-                      <span className="value">{formatCurrency(application.propertyValue || 0)}</span>
-                    </div>
-                  </div>
-                  
-                  <div className="detail-row">
-                    <div className="detail-item">
-                      <span className="label">Loan Type</span>
-                      <span className="value">{application.loanType || 'N/A'}</span>
-                    </div>
-                    <div className="detail-item">
-                      <span className="label">Applied</span>
-                      <span className="value">{formatDate(application.createdDate || new Date())}</span>
-                    </div>
-                  </div>
-                </div>
-                
-                <div className="application-actions" style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-                  <Link
-                    to={`/apply?edit=${application.id}`}
-                    className="btn btn-primary"
-                    title="Edit this application"
-                  >
-                    <FaEdit /> Edit
-                  </Link>
-                  <Link
-                    to={`/applications/${application.id}`}
-                    className="btn btn-secondary"
-                    title="Upload and manage documents"
-                  >
-                    <FaFolder /> Documents
-                  </Link>
-                  <Link
-                    to={`/loan/${application.id}`}
-                    className="btn btn-outline-primary"
-                    title="LO view: terms, housing expenses, milestones"
-                  >
-                    <FaChartLine /> Dashboard
-                  </Link>
-                  <button
-                    type="button"
-                    onClick={() => handleDownloadMismo(application.id)}
-                    className="btn btn-outline-primary"
-                    title="Download a MISMO 3.4 XML of this application"
-                  >
-                    <FaFileDownload /> MISMO
-                  </button>
-                  {isLatest && (
-                    <button
-                      type="button"
-                      onClick={() => handleCopyToNewApplication(application.id)}
-                      className="btn btn-secondary"
-                      title="Start a new application with Assets, Liabilities, and REO from this one"
-                    >
-                      <FaCopy /> Copy to New
-                    </button>
-                  )}
-                  <button
-                    type="button"
-                    onClick={() => handleDeleteApplication(application.id, application.applicationNumber)}
-                    className="btn btn-outline-danger"
-                    title="Delete this application permanently"
-                    style={{ marginLeft: 'auto' }}
-                  >
-                    <FaTrash /> Delete
-                  </button>
-                </div>
-              </div>
-                );
-              })}
-          </div>
-        )}
+        <div className="apps-hero-actions">
+          <Button onClick={handleStartFromMismo} disabled={importingMismo} title="Upload a MISMO 3.4 XML to start a new application pre-populated with its data">
+            <Icon name="upload" size={14} /> {importingMismo ? 'Importing…' : 'Import MISMO 3.4'}
+          </Button>
+          <Button variant="primary" to="/apply">
+            <Icon name="plus" size={14} /> Start new application
+          </Button>
+          <input
+            ref={mismoInputRef}
+            type="file"
+            accept=".xml,application/xml,text/xml"
+            style={{ display: 'none' }}
+            onChange={handleMismoFileSelected}
+          />
+        </div>
       </div>
-      
+
+      {/* KPI strip */}
+      <div className="apps-kpis">
+        {kpis.map((k) => (
+          <Card key={k.label} pad>
+            <div className="eyebrow apps-kpi-label">{k.label}</div>
+            <div className="mono apps-kpi-value" style={{ color: k.color }}>{k.value}</div>
+            <div className="dim apps-kpi-sub">{k.sub}</div>
+          </Card>
+        ))}
+      </div>
+
+      {/* Toolbar */}
+      <div className="apps-toolbar">
+        <div className="input-wrap apps-search">
+          <span className="prefix"><Icon name="search" size={14} /></span>
+          <input
+            className="input with-prefix"
+            placeholder="Search by borrower, address, or application #"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
+        </div>
+        <div className="apps-filter-pills">
+          {FILTERS.map((f) => (
+            <button
+              type="button"
+              key={f.value}
+              className={`btn btn-sm ${filter === f.value ? 'apps-filter--active' : ''}`}
+              onClick={() => setFilter(f.value)}
+            >
+              {f.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Cards */}
+      {loading ? (
+        <Card pad><div className="muted">Loading applications…</div></Card>
+      ) : filtered.length === 0 ? (
+        <Card pad>
+          <div className="apps-empty">
+            <Icon name="folder" size={28} />
+            <h3 style={{ marginTop: 12 }}>
+              {applications.length === 0 ? 'No applications yet' : 'No applications match your search'}
+            </h3>
+            <p className="muted" style={{ marginTop: 6, marginBottom: 16 }}>
+              {applications.length === 0
+                ? 'Start a fresh application or import a MISMO file from another system.'
+                : 'Try clearing the filter or adjusting your search query.'}
+            </p>
+            {applications.length === 0 && (
+              <Button variant="primary" to="/apply"><Icon name="plus" size={14} /> Start new application</Button>
+            )}
+          </div>
+        </Card>
+      ) : (
+        <div className="col" style={{ gap: 14 }}>
+          {filtered.map((app) => (
+            <AppCard
+              key={app.id}
+              app={app}
+              isLatest={app.id === latestId}
+              onMismo={handleDownloadMismo}
+              onCopy={handleCopyToNewApplication}
+              onDelete={handleDeleteApplication}
+            />
+          ))}
+        </div>
+      )}
     </div>
   );
-};
-
-export default ApplicationList;
+}

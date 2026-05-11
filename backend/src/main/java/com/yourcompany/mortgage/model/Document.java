@@ -40,6 +40,9 @@ public class Document {
     @Column(name = "document_type")
     private String documentType;
 
+    @Column(name = "document_type_id")
+    private Long documentTypeId;
+
     @Column(name = "file_name")
     private String fileName;
 
@@ -98,8 +101,44 @@ public class Document {
     @Column(name = "folder_id")
     private Long folderId;
 
+    @Column(name = "created_at", nullable = false)
+    private LocalDateTime createdAt;
+
+    @Column(name = "updated_at", nullable = false)
+    private LocalDateTime updatedAt;
+
+    @Column(name = "deleted_at")
+    private LocalDateTime deletedAt;
+
+    @Column(name = "file_hash", length = 64)
+    private String fileHash;
+
+    @Column(name = "description", length = 1000)
+    private String description;
+
+    @Column(name = "document_status", nullable = false, length = 30)
+    @Builder.Default
+    private String documentStatus = "PENDING_UPLOAD";
+
+    @Column(name = "reviewed_by_user_id")
+    private Integer reviewedByUserId;
+
+    @Column(name = "reviewer_notes", length = 2000)
+    private String reviewerNotes;
+
+    @Column(name = "reviewed_at")
+    private LocalDateTime reviewedAt;
+
     @PrePersist
     protected void onCreate() {
-        if (uploadedAt == null) uploadedAt = LocalDateTime.now();
+        LocalDateTime now = LocalDateTime.now();
+        if (uploadedAt == null) uploadedAt = now;
+        if (createdAt == null) createdAt = now;
+        if (updatedAt == null) updatedAt = now;
+    }
+
+    @PreUpdate
+    protected void onUpdate() {
+        updatedAt = LocalDateTime.now();
     }
 }

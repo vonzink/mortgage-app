@@ -1,151 +1,46 @@
 package com.yourcompany.mortgage.controller;
 
-import com.yourcompany.mortgage.exception.ResourceNotFoundException;
-import com.yourcompany.mortgage.model.Document;
-import com.yourcompany.mortgage.model.LoanApplication;
-import com.yourcompany.mortgage.model.User;
-import com.yourcompany.mortgage.repository.DocumentRepository;
-import com.yourcompany.mortgage.repository.LoanApplicationRepository;
-import com.yourcompany.mortgage.security.CurrentUserService;
-import com.yourcompany.mortgage.service.S3DocumentService;
+import com.yourcompany.mortgage.service.DocumentService;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.constraints.NotBlank;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.UUID;
 
-/**
- * Document upload + listing for a single loan application.
- *
- * <p>Flow (matches the agreed S3 architecture):
- * <ol>
- *   <li>{@code POST /loan-applications/{id}/documents/upload-url} — frontend asks for an
- *       upload slot. Backend creates a {@code Document} row with {@code upload_status='pending'},
- *       generates a fresh UUID for the key, returns the presigned PUT URL.</li>
- *   <li>Frontend PUTs the file directly to S3 using the URL.</li>
- *   <li>{@code PUT /loan-applications/{id}/documents/{docUuid}/confirm} — frontend reports
- *       upload finished. Backend HEADs S3 to verify, fills in file_size, applies tags,
- *       flips status to {@code uploaded}.</li>
- *   <li>{@code GET /loan-applications/{id}/documents} — borrower or LO lists docs (filtered
- *       by visibility flags for non-LO callers).</li>
- *   <li>{@code GET /loan-applications/{id}/documents/{docUuid}/download-url} — presigned GET.</li>
- * </ol>
- *
- * <p>All endpoints are gated by {@code LoanAccessGuard} for per-loan ownership.
- */
 @RestController
 @RequestMapping("/loan-applications/{loanId}/documents")
 @RequiredArgsConstructor
-@Slf4j
 public class DocumentController {
 
-    private final DocumentRepository documentRepository;
-    private final LoanApplicationRepository loanApplicationRepository;
-    private final S3DocumentService s3;
-    private final CurrentUserService currentUserService;
-    private final com.yourcompany.mortgage.repository.FolderRepository folderRepository;
-    private final com.yourcompany.mortgage.security.LoanAccessGuard loanAccessGuard;
-    private final com.yourcompany.mortgage.service.FolderService folderService;
-
-    // ─────────────────────────────────── Step 1: presigned upload ────────────────────
+    private final DocumentService documentService;
 
     @PostMapping("/upload-url")
     @PreAuthorize("@loanAccessGuard.canAccess(#loanId)")
     public ResponseEntity<?> issueUploadUrl(
             @PathVariable Long loanId,
-            @RequestBody UploadUrlRequest req
+            @RequestBody UploadUrlRequest req,
+            HttpServletRequest httpRequest
     ) {
-        LoanApplication la = loanApplicationRepository.findById(loanId)
-                .orElseThrow(() -> new ResourceNotFoundException("Loan application " + loanId + " not found"));
-
-        String partyRole = S3DocumentService.requireValidPartyRole(req.partyRole());
-        String docType = req.documentType() == null ? "Other" : req.documentType().trim();
-        String safeName = S3DocumentService.sanitizeFilename(req.fileName());
-        String docUuid = UUID.randomUUID().toString();
-
-        // Application-stage vs loan-stage: today everything is application-stage
-        // (the loan_id IS the application_id while there's only one loan per app);
-        // when the model splits, switch on la.getLoanNumber() != null.
-        String key = s3.buildApplicationKey(la.getId(), partyRole, docType, docUuid, safeName);
-
-        Long folderId = resolveFolderId(loanId, req.folderId());
-        // Auto-route by tag when the LO didn't explicitly pick a folder. Maps the
-        // documentType (e.g. "Income", "Underwriting") to the matching seeded default
-        // folder. The LO can still drag the file elsewhere afterwards.
-        if (folderId == null && req.documentType() != null) {
-            folderId = findDefaultFolderForTag(loanId, req.documentType()).orElse(null);
-        }
-
-        Document doc = Document.builder()
-                .application(la)
-                .documentType(docType)
-                .fileName(req.fileName())
-                .safeFilename(safeName)
-                .docUuid(docUuid)
-                .filePath(key)
-                .contentType(req.contentType())
-                .uploadStatus("pending")
-                .partyRole(partyRole)
-                .addedByRole(partyRole)
-                .uploadedByUserId(currentUserService.currentUser().map(User::getId).orElse(null))
-                .visibleToBorrower(true)
-                .visibleToAgent("agent".equals(partyRole))
-                .folderId(folderId)
-                .build();
-        doc = documentRepository.save(doc);
-
-        String uploadUrl = s3.presignUpload(key, req.contentType());
-
-        Map<String, Object> body = new LinkedHashMap<>();
-        body.put("documentId", doc.getId());
-        body.put("docUuid", docUuid);
-        body.put("s3Key", key);
-        body.put("bucket", s3.getBucket());
-        body.put("uploadUrl", uploadUrl);
-        body.put("contentType", req.contentType());
-        body.put("expiresInSeconds", 900);
-        return ResponseEntity.ok(body);
+        Map<String, Object> result = documentService.issueUploadUrl(
+                loanId, req.fileName(), req.documentType(),
+                req.partyRole(), req.contentType(), req.folderId(),
+                req.documentTypeId(), httpRequest);
+        return ResponseEntity.ok(result);
     }
-
-    // ─────────────────────────────────── Step 2: confirm upload ─────────────────────
 
     @PutMapping("/{docUuid}/confirm")
     @PreAuthorize("@loanAccessGuard.canAccess(#loanId)")
     public ResponseEntity<?> confirmUpload(
             @PathVariable Long loanId,
-            @PathVariable String docUuid
+            @PathVariable String docUuid,
+            HttpServletRequest httpRequest
     ) {
-        Document doc = documentRepository.findByDocUuid(docUuid)
-                .orElseThrow(() -> new ResourceNotFoundException("Document " + docUuid + " not found"));
-        if (!doc.getApplication().getId().equals(loanId)) {
-            return ResponseEntity.badRequest().body(Map.of("error", "doc/loan mismatch"));
-        }
-
-        long size = s3.verifyUpload(doc.getFilePath());
-        if (size < 0) {
-            log.warn("Confirm requested for {} but S3 HEAD returned NoSuchKey", doc.getFilePath());
-            return ResponseEntity.unprocessableEntity()
-                    .body(Map.of("error", "no_object_at_key", "key", doc.getFilePath()));
-        }
-
-        doc.setFileSize(size);
-        doc.setUploadStatus("uploaded");
-        Document saved = documentRepository.save(doc);
-
-        // Apply tags now that the object exists
-        s3.applyTags(doc.getFilePath(),
-                S3DocumentService.tagsForBorrowerUpload(doc.getApplication().getId(), null));
-
-        return ResponseEntity.ok(toView(saved, /*withDownloadUrl*/ false));
+        return ResponseEntity.ok(documentService.confirmUpload(loanId, docUuid, httpRequest));
     }
-
-    // ─────────────────────────────────── Step 3: list ────────────────────────────────
 
     @GetMapping
     @PreAuthorize("@loanAccessGuard.canAccess(#loanId)")
@@ -155,304 +50,149 @@ public class DocumentController {
             @RequestParam(value = "unfiled", required = false, defaultValue = "false") boolean unfiled,
             @RequestParam(value = "atRoot", required = false, defaultValue = "false") boolean atRoot
     ) {
-        List<Document> docs = documentRepository.findUploadedByApplicationId(loanId);
-
-        // Folder filter:
-        //   atRoot=true       → docs filed at the loan's root folder OR unfiled (legacy null)
-        //   unfiled=true      → only docs with folder_id IS NULL
-        //   folderId=N        → only docs with that folder_id
-        //   (none)            → everything (used for cross-folder views and search later)
-        if (atRoot) {
-            Long rootId = folderRepository.findRootByApplicationId(loanId)
-                    .map(com.yourcompany.mortgage.model.Folder::getId)
-                    .orElse(null);
-            docs = docs.stream()
-                    .filter(d -> d.getFolderId() == null
-                            || (rootId != null && rootId.equals(d.getFolderId())))
-                    .toList();
-        } else if (unfiled) {
-            docs = docs.stream().filter(d -> d.getFolderId() == null).toList();
-        } else if (folderId != null) {
-            docs = docs.stream()
-                    .filter(d -> folderId.equals(d.getFolderId()))
-                    .toList();
-        }
-
-        // Filter for non-LO callers based on the visibility flags. Authority comes from
-        // the JWT (Cognito groups), not the local users.role column — the latter is a
-        // first-sign-in snapshot and can drift if a user's group membership changes.
-        if (!loanAccessGuard.isInternal()) {
-            boolean asAgent = hasAuthority("ROLE_RealEstateAgent");
-            docs = docs.stream()
-                    .filter(d -> asAgent ? Boolean.TRUE.equals(d.getVisibleToAgent())
-                                         : Boolean.TRUE.equals(d.getVisibleToBorrower()))
-                    .toList();
-        }
-
-        List<Map<String, Object>> items = docs.stream().map(d -> toView(d, /*withDownloadUrl*/ false)).toList();
+        List<Map<String, Object>> items = documentService.listDocuments(loanId, folderId, unfiled, atRoot);
         return ResponseEntity.ok(Map.of("count", items.size(), "documents", items));
     }
 
-    /**
-     * Single-word tag → seeded default folder. The user-facing dropdown uses the
-     * folder's display name suffix ("Income", "Assets", "Underwriting", etc.); we
-     * match against the folder name's tail so a tag like "Income" lands a doc in
-     * "03 Income". Case-insensitive. Returns empty when no match — caller leaves
-     * folderId null and the doc shows up at root for the LO to file manually.
-     */
-    private java.util.Optional<Long> findDefaultFolderForTag(Long loanId, String tag) {
-        if (tag == null || tag.isBlank()) return java.util.Optional.empty();
-        String t = tag.trim().toLowerCase();
-        // Common synonyms that don't textually match a folder name.
-        switch (t) {
-            case "borrower":     t = "borrower documents";  break;
-            case "postclosing":
-            case "post closing": t = "post closing";        break;
-            case "correspondence": t = "correspondence";    break;
-            case "invoice":      t = "invoices";            break;
-            default: /* fall through */
-        }
-        String wanted = t;
-        return folderRepository.findLiveByApplicationId(loanId).stream()
-                .filter(f -> f.getParentId() != null) // skip the loan root itself
-                .filter(f -> {
-                    String name = f.getDisplayName().toLowerCase();
-                    // Match either the tail ("01 income" → "income") or whole-name.
-                    return name.endsWith(" " + wanted) || name.equals(wanted);
-                })
-                .map(com.yourcompany.mortgage.model.Folder::getId)
-                .findFirst();
+    @GetMapping("/search")
+    @PreAuthorize("@loanAccessGuard.canAccess(#loanId)")
+    public ResponseEntity<?> search(
+            @PathVariable Long loanId,
+            @RequestParam(value = "status", required = false) String status,
+            @RequestParam(value = "documentTypeId", required = false) Long documentTypeId,
+            @RequestParam(value = "folderId", required = false) Long folderId,
+            @RequestParam(value = "uploadedBy", required = false) Integer uploadedByUserId,
+            @RequestParam(value = "q", required = false) String fileName,
+            @RequestParam(value = "page", defaultValue = "0") int page,
+            @RequestParam(value = "size", defaultValue = "50") int size
+    ) {
+        return ResponseEntity.ok(documentService.searchDocuments(
+                loanId, status, documentTypeId, folderId, uploadedByUserId,
+                fileName, page, Math.min(size, 200)));
     }
-
-    /**
-     * Validates that the requested folder belongs to this loan and isn't deleted.
-     * Returns null if the caller didn't supply a folderId (legacy borrower uploads).
-     */
-    private Long resolveFolderId(Long loanId, Long requestedFolderId) {
-        if (requestedFolderId == null) return null;
-        com.yourcompany.mortgage.model.Folder f = folderRepository.findActiveById(requestedFolderId)
-                .orElseThrow(() -> new com.yourcompany.mortgage.exception.ResourceNotFoundException(
-                        "Folder " + requestedFolderId + " not found"));
-        if (!f.getApplicationId().equals(loanId)) {
-            throw new com.yourcompany.mortgage.exception.BusinessValidationException(
-                    "Folder belongs to a different loan");
-        }
-        return f.getId();
-    }
-
-    // ─────────────────────────────────── Step 4: download URL ────────────────────────
 
     @GetMapping("/{docUuid}/download-url")
     @PreAuthorize("@loanAccessGuard.canAccess(#loanId)")
     public ResponseEntity<?> issueDownloadUrl(
             @PathVariable Long loanId,
-            @PathVariable String docUuid
+            @PathVariable String docUuid,
+            HttpServletRequest httpRequest
     ) {
-        Document doc = documentRepository.findByDocUuid(docUuid)
-                .orElseThrow(() -> new ResourceNotFoundException("Document " + docUuid + " not found"));
-        if (!doc.getApplication().getId().equals(loanId)) {
-            return ResponseEntity.badRequest().body(Map.of("error", "doc/loan mismatch"));
-        }
-        if (!"uploaded".equals(doc.getUploadStatus())) {
-            return ResponseEntity.badRequest().body(Map.of("error", "upload_not_confirmed"));
-        }
-        String url = s3.presignDownload(doc.getFilePath(), doc.getFileName());
-        return ResponseEntity.ok(Map.of("downloadUrl", url, "expiresInSeconds", 900));
+        return ResponseEntity.ok(documentService.issueDownloadUrl(loanId, docUuid, httpRequest));
     }
 
-    // ─────────────────────────────────── Rename ─────────────────────────────────────
-
-    /**
-     * Rename a document (changes the user-visible {@code fileName}). The S3 key, original
-     * upload metadata, and {@code safeFilename} are immutable — rename only affects what
-     * the workspace and download link show.
-     */
     @PatchMapping("/{docUuid}")
     @PreAuthorize("@loanAccessGuard.canAccess(#loanId)")
     public ResponseEntity<?> patch(
             @PathVariable Long loanId,
             @PathVariable String docUuid,
-            @RequestBody PatchDocumentRequest req
+            @RequestBody PatchDocumentRequest req,
+            HttpServletRequest httpRequest
     ) {
-        Document doc = documentRepository.findByDocUuid(docUuid)
-                .orElseThrow(() -> new ResourceNotFoundException("Document " + docUuid + " not found"));
-        if (!doc.getApplication().getId().equals(loanId)) {
-            return ResponseEntity.badRequest().body(Map.of("error", "doc/loan mismatch"));
-        }
-
-        if (req != null && req.fileName() != null) {
-            String trimmed = req.fileName().trim();
-            if (trimmed.isEmpty()) {
-                throw new com.yourcompany.mortgage.exception.BusinessValidationException(
-                        "fileName must not be empty");
-            }
-            if (trimmed.length() > 255) {
-                throw new com.yourcompany.mortgage.exception.BusinessValidationException(
-                        "fileName must be 255 characters or fewer");
-            }
-            doc.setFileName(trimmed);
-        }
-        if (req != null && req.folderId() != null) {
-            doc.setFolderId(resolveFolderId(loanId, req.folderId()));
-        }
-        if (req != null && req.documentType() != null) {
-            String dt = req.documentType().trim();
-            if (dt.isEmpty()) {
-                throw new com.yourcompany.mortgage.exception.BusinessValidationException(
-                        "documentType must not be empty");
-            }
-            doc.setDocumentType(dt);
-        }
-        Document saved = documentRepository.save(doc);
-        return ResponseEntity.ok(toView(saved, /*withDownloadUrl*/ false));
+        return ResponseEntity.ok(documentService.patchDocument(
+                loanId, docUuid,
+                req != null ? req.fileName() : null,
+                req != null ? req.folderId() : null,
+                req != null ? req.documentType() : null,
+                req != null ? req.description() : null,
+                httpRequest));
     }
 
-    public record PatchDocumentRequest(String fileName, Long folderId, String documentType) {}
-
-    // ─────────────────────────────────── Move (drag-drop / bulk) ────────────────────
-
-    /**
-     * Move one or more documents into a folder. Used by the workspace's drag-drop
-     * (single doc) and the future bulk-action bar (multiple docs).
-     *
-     * <p>{@code toFolderId == null} means "unfile" — sets folder_id back to NULL.
-     * The frontend uses this implicitly when a drop target is the loan root and
-     * the LO wants legacy borrower-uploads to remain at root.
-     *
-     * <p>Per-doc validation: each doc must belong to {@code loanId}. The whole
-     * request is rejected on the first mismatch — partial moves would leave the
-     * UI in an ambiguous state.
-     */
     @PostMapping("/move")
     @PreAuthorize("@loanAccessGuard.canAccess(#loanId)")
     public ResponseEntity<?> moveDocuments(
             @PathVariable Long loanId,
-            @RequestBody MoveDocumentsRequest req
+            @RequestBody MoveDocumentsRequest req,
+            HttpServletRequest httpRequest
     ) {
-        if (req == null || req.docUuids() == null || req.docUuids().isEmpty()) {
-            return ResponseEntity.badRequest().body(Map.of("error", "docUuids required"));
-        }
-
-        Long target = (req.toFolderId() == null) ? null
-                : resolveFolderId(loanId, req.toFolderId());
-
-        int moved = 0;
-        for (String uuid : req.docUuids()) {
-            Document doc = documentRepository.findByDocUuid(uuid)
-                    .orElseThrow(() -> new ResourceNotFoundException("Document " + uuid + " not found"));
-            if (!doc.getApplication().getId().equals(loanId)) {
-                throw new com.yourcompany.mortgage.exception.BusinessValidationException(
-                        "Document " + uuid + " belongs to a different loan");
-            }
-            // No-op if it's already there — saves a write and lets the UI fire
-            // optimistic moves without worrying about idempotency.
-            Long current = doc.getFolderId();
-            if ((current == null && target == null) || (current != null && current.equals(target))) {
-                continue;
-            }
-            doc.setFolderId(target);
-            documentRepository.save(doc);
-            moved++;
-        }
-
-        return ResponseEntity.ok(Map.of(
-                "requested", req.docUuids().size(),
-                "moved", moved,
-                "toFolderId", target
-        ));
+        return ResponseEntity.ok(documentService.moveDocuments(
+                loanId, req.docUuids(), req.toFolderId(), httpRequest));
     }
 
-    public record MoveDocumentsRequest(List<String> docUuids, Long toFolderId) {}
+    @PutMapping("/{docUuid}/status")
+    @PreAuthorize("hasAnyRole('LO','Processor','Admin','Manager') and @loanAccessGuard.canAccess(#loanId)")
+    public ResponseEntity<?> transitionStatus(
+            @PathVariable Long loanId,
+            @PathVariable String docUuid,
+            @RequestBody StatusTransitionRequest req,
+            HttpServletRequest httpRequest
+    ) {
+        return ResponseEntity.ok(documentService.transitionStatus(
+                loanId, docUuid, req.status(), req.note(), httpRequest));
+    }
 
-    // ─────────────────────────────────── Permanent delete ──────────────────────────
+    @PostMapping("/{docUuid}/accept")
+    @PreAuthorize("hasAnyRole('LO','Processor','Admin','Manager') and @loanAccessGuard.canAccess(#loanId)")
+    public ResponseEntity<?> accept(
+            @PathVariable Long loanId,
+            @PathVariable String docUuid,
+            @RequestBody(required = false) ReviewRequest req,
+            HttpServletRequest httpRequest
+    ) {
+        return ResponseEntity.ok(documentService.acceptDocument(
+                loanId, docUuid, req != null ? req.notes() : null, httpRequest));
+    }
 
-    /**
-     * Hard-delete a document. The only path to remove a document from a loan: drag it
-     * into the loan's Delete folder, then call this endpoint from inside that folder.
-     * Rejects with 400 if the document isn't in the Delete folder. Removes the S3
-     * object and the {@code documents} row.
-     *
-     * <p>Auditing: a row of MISMO/document audit logging would be nice eventually
-     * but the user's spec is "permanent" so we don't keep a tombstone today.
-     */
+    @PostMapping("/{docUuid}/reject")
+    @PreAuthorize("hasAnyRole('LO','Processor','Admin','Manager') and @loanAccessGuard.canAccess(#loanId)")
+    public ResponseEntity<?> reject(
+            @PathVariable Long loanId,
+            @PathVariable String docUuid,
+            @RequestBody ReviewRequest req,
+            HttpServletRequest httpRequest
+    ) {
+        return ResponseEntity.ok(documentService.rejectDocument(
+                loanId, docUuid, req.notes(), httpRequest));
+    }
+
+    @PostMapping("/{docUuid}/request-revision")
+    @PreAuthorize("hasAnyRole('LO','Processor','Admin','Manager') and @loanAccessGuard.canAccess(#loanId)")
+    public ResponseEntity<?> requestRevision(
+            @PathVariable Long loanId,
+            @PathVariable String docUuid,
+            @RequestBody ReviewRequest req,
+            HttpServletRequest httpRequest
+    ) {
+        return ResponseEntity.ok(documentService.requestRevision(
+                loanId, docUuid, req.notes(), httpRequest));
+    }
+
+    @GetMapping("/{docUuid}/status-history")
+    @PreAuthorize("@loanAccessGuard.canAccess(#loanId)")
+    public ResponseEntity<?> getStatusHistory(
+            @PathVariable Long loanId,
+            @PathVariable String docUuid
+    ) {
+        return ResponseEntity.ok(Map.of(
+                "docUuid", docUuid,
+                "history", documentService.getStatusHistory(loanId, docUuid)));
+    }
+
     @DeleteMapping("/{docUuid}/permanent")
     @PreAuthorize("hasAnyRole('LO','Processor','Admin','Manager') and @loanAccessGuard.canAccess(#loanId)")
     public ResponseEntity<?> permanentDelete(
             @PathVariable Long loanId,
-            @PathVariable String docUuid
+            @PathVariable String docUuid,
+            HttpServletRequest httpRequest
     ) {
-        Document doc = documentRepository.findByDocUuid(docUuid)
-                .orElseThrow(() -> new ResourceNotFoundException("Document " + docUuid + " not found"));
-        if (!doc.getApplication().getId().equals(loanId)) {
-            return ResponseEntity.badRequest().body(Map.of("error", "doc/loan mismatch"));
-        }
-
-        Long deleteFolderId = folderService.findDeleteFolder(loanId)
-                .map(com.yourcompany.mortgage.model.Folder::getId)
-                .orElse(null);
-        if (deleteFolderId == null) {
-            return ResponseEntity.status(409).body(Map.of(
-                    "error", "delete_folder_missing",
-                    "message", "This loan has no Delete folder yet. Open the workspace once to seed it."));
-        }
-        if (!deleteFolderId.equals(doc.getFolderId())) {
-            return ResponseEntity.badRequest().body(Map.of(
-                    "error", "not_in_delete_folder",
-                    "message", "Move the document into the Delete folder before permanently removing it."));
-        }
-
-        // Best-effort S3 delete first; if it fails (object-locked, network), we
-        // surface the error and leave the DB row intact so the LO can retry.
-        try {
-            if (doc.getFilePath() != null && !doc.getFilePath().isBlank()) {
-                s3.deleteObject(doc.getFilePath());
-            }
-        } catch (Exception e) {
-            log.warn("Permanent delete failed at S3 for {}: {}", doc.getFilePath(), e.getMessage());
-            return ResponseEntity.status(502).body(Map.of(
-                    "error", "s3_delete_failed",
-                    "message", e.getMessage()));
-        }
-
-        documentRepository.delete(doc);
+        documentService.permanentDelete(loanId, docUuid, httpRequest);
         return ResponseEntity.ok(Map.of("ok", true, "docUuid", docUuid));
     }
 
-    // ─────────────────────────────────── helpers ─────────────────────────────────────
-
-    private static boolean hasAuthority(String role) {
-        var auth = org.springframework.security.core.context.SecurityContextHolder
-                .getContext().getAuthentication();
-        if (auth == null) return false;
-        for (var ga : auth.getAuthorities()) {
-            if (role.equals(ga.getAuthority())) return true;
-        }
-        return false;
-    }
-
-    private static Map<String, Object> toView(Document d, boolean withDownloadUrl) {
-        Map<String, Object> v = new LinkedHashMap<>();
-        v.put("id", d.getId());
-        v.put("docUuid", d.getDocUuid());
-        v.put("documentType", d.getDocumentType());
-        v.put("fileName", d.getFileName());
-        v.put("fileSize", d.getFileSize());
-        v.put("contentType", d.getContentType());
-        v.put("partyRole", d.getPartyRole());
-        v.put("uploadStatus", d.getUploadStatus());
-        v.put("uploadedAt", d.getUploadedAt());
-        v.put("folderId", d.getFolderId());
-        return v;
-    }
-
-    /** Request body for {@code POST /upload-url}. */
     public record UploadUrlRequest(
             @NotBlank String fileName,
-            @NotBlank String documentType,
+            String documentType,
             @NotBlank String partyRole,
             String contentType,
-            /** Optional. When supplied, the document is filed in this folder of the loan's
-             *  workspace tree. The folder must belong to the same loan. Null = unfiled / root. */
-            Long folderId
+            Long folderId,
+            Long documentTypeId
     ) {}
+
+    public record PatchDocumentRequest(String fileName, Long folderId, String documentType, String description) {}
+
+    public record MoveDocumentsRequest(List<String> docUuids, Long toFolderId) {}
+
+    public record StatusTransitionRequest(String status, String note) {}
+
+    public record ReviewRequest(String notes) {}
 }

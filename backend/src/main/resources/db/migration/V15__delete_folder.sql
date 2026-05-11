@@ -12,7 +12,6 @@ ALTER TABLE folders
     ADD COLUMN is_delete_folder BOOLEAN NOT NULL DEFAULT FALSE;
 
 -- Helps the permanent-delete endpoint resolve "this loan's delete folder"
--- without scanning the tree.
+-- without scanning the tree. Regular index (not partial) for H2 compatibility.
 CREATE INDEX idx_folders_delete_per_loan
-    ON folders (application_id)
-    WHERE is_delete_folder = TRUE AND deleted_at IS NULL;
+    ON folders (application_id, is_delete_folder);

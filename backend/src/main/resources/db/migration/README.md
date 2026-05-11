@@ -19,7 +19,9 @@ fails boot on any drift between entity classes and the post-Flyway schema.
 | V11 | Workspace folders — `folders` self-referencing tree, `documents.folder_id` FK |
 | V12 | Loan dashboard tables — `loan_terms`, `housing_expenses` |
 | V13 | `purchase_credits` + `loan_conditions` |
-| V14 | `properties.purchase_price`, `purchase_credits.received_at`, additional MISMO-derived fields |
+| V14 | `properties.purchase_price`, `properties.attachment_type`, `properties.project_type`, `loan_terms.down_payment_amount` |
+| V15 | Delete-folder support — `folders.is_delete_folder` + lookup index |
+| V16 | `loan_notes` dashboard notes table |
 
-Add the next migration as `V15__short_description.sql`. Match the existing
+Add the next migration as `V17__short_description.sql`. Match the existing
 header-comment style (banner, intent, then DDL).

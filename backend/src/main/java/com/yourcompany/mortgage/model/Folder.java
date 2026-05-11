@@ -16,7 +16,7 @@ import java.time.LocalDateTime;
  * full path is computed by walking parent links; not stored.
  *
  * <p>Sibling display names are unique within a parent (case-insensitive, via
- * {@link #nameNormalized}). The 15 default subfolders are flagged {@code isSystem=true}
+ * {@link #nameNormalized}). The default subfolders are flagged {@code isSystem=true}
  * so future "delete folder" UI cannot remove them by mistake.
  */
 @Entity

@@ -2,7 +2,7 @@
  * Folder CRUD for the document workspace. Mirrors the FolderController endpoints.
  *
  * The backend returns a flat folder list with parentId pointers; the tree is rebuilt
- * on the client. Auto-seeds the root + 15 defaults on first GET, so the very first
+ * on the client. Auto-seeds the root + default folders on first GET, so the very first
  * call to getFolderTree for a loan returns the seeded layout.
  */
 import apiClient from './apiClient';
@@ -14,7 +14,7 @@ const workspaceService = {
     return data;
   },
 
-  /** Idempotent re-seed; creates anything missing from the canonical 15. */
+  /** Idempotent re-seed; creates anything missing from the canonical default folder set. */
   seedDefaults: async (loanId) => {
     const { data } = await apiClient.post(`/loan-applications/${loanId}/folders/seed-defaults`);
     return data;

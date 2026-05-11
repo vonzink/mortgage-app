@@ -18,10 +18,9 @@ import java.util.Optional;
 /**
  * Folder operations for the document workspace.
  *
- * <p>Phase 1 surface: read the tree, create the root + 15 default subfolders idempotently
- * on first access, create user folders, rename folders. Move and delete are intentionally
- * out of scope for Phase 1 — the schema and indexes already support them so Phase 2
- * adds endpoints without a migration.
+ * <p>Current surface: read the tree, create the root + seeded default subfolders
+ * idempotently on first access, create user folders, rename folders, soft-delete
+ * user folders, and locate the system Delete folder used by document hard-delete.
  */
 @Service
 @Slf4j
@@ -64,8 +63,8 @@ public class FolderService {
 
     /**
      * Returns every live folder for a loan as a flat list. The tree shape is reconstructed
-     * by the caller via {@code parentId}. Auto-seeds the root + 15 defaults if the loan has
-     * no folders yet.
+     * by the caller via {@code parentId}. Auto-seeds the root + default subfolders if the
+     * loan has no folders yet.
      */
     @Transactional
     public List<Folder> getTreeForLoan(Long applicationId) {
@@ -81,7 +80,7 @@ public class FolderService {
     // ─── Seed defaults ───────────────────────────────────────────────────────────
 
     /**
-     * Creates the root + 15 default subfolders for a loan if they don't already exist.
+     * Creates the root + default subfolders for a loan if they don't already exist.
      * Safe to call repeatedly. Returns the loan's root folder.
      */
     @Transactional
@@ -103,7 +102,7 @@ public class FolderService {
                         .parentId(root.getId())
                         .displayName(name)
                         .nameNormalized(normalized)
-                        .sortKey(name.length() >= 2 ? name.substring(0, 2) : null) // "01", "02", … "15"
+                        .sortKey(name.length() >= 2 ? name.substring(0, 2) : null) // "01", "02", ...
                         .isSystem(true)
                         .isOldLoanArchive(OLD_LOAN_FILES_NAME.equals(name))
                         .isDeleteFolder(DELETE_FOLDER_NAME.equals(name))
@@ -222,7 +221,7 @@ public class FolderService {
     }
 
     /**
-     * Rename an existing folder. System folders (the 15 defaults + the loan root) can be
+     * Rename an existing folder. System folders (the seeded defaults + the loan root) can be
      * renamed too — LOs sometimes want to drop the numeric prefix; we leave that policy
      * to the user. Sibling collision still applies.
      */

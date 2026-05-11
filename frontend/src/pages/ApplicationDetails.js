@@ -1,29 +1,17 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
-import { useDropzone } from 'react-dropzone';
-import { FaUpload, FaFile, FaTimes, FaFolder } from 'react-icons/fa';
 
 import WorkspaceTab from '../workspace/WorkspaceTab';
 import mortgageService from '../services/mortgageService';
 import { formatCurrency } from '../utils/formHelpers';
-
-const DOCUMENT_TYPES = [
-  'Pay Stub',
-  'W-2 Form',
-  'Tax Return',
-  'Bank Statement',
-  'Driver\'s License',
-  'Social Security Card',
-  'Employment Verification Letter',
-  'Credit Report',
-  'Appraisal Report',
-  'Purchase Agreement',
-  'Insurance Policy',
-  'Gift Letter',
-  'Divorce Decree',
-  'Other'
-];
+import DocumentsHero from '../components/design/DocumentsHero';
+import RecentActivityCard from '../components/design/RecentActivityCard';
+import Button from '../components/design/Button';
+import Icon from '../components/design/Icon';
+import Pill from '../components/design/Pill';
+import { Card } from '../components/design/Card';
+import './ApplicationDetails.design.css';
 
 const ApplicationDetails = () => {
   const { id } = useParams();
@@ -31,10 +19,8 @@ const ApplicationDetails = () => {
   const [application, setApplication] = useState(null);
   const [loading, setLoading] = useState(true);
   const [documents, setDocuments] = useState([]);
-  const [uploading, setUploading] = useState(false);
-  const [pendingFiles, setPendingFiles] = useState([]);
-  const [showUploadLog, setShowUploadLog] = useState(false);
   const [statusHistory, setStatusHistory] = useState([]);
+  const [showSummary, setShowSummary] = useState(false);
 
   const fetchApplication = useCallback(async () => {
     try {
@@ -73,7 +59,7 @@ const ApplicationDetails = () => {
     fetchStatusHistory();
   }, [fetchApplication, fetchDocuments, fetchStatusHistory]);
 
-  // Refresh after a MISMO import for this loan (fired by Header's upload action)
+  // Refresh after a MISMO import for this loan (fired from TopBar's upload action)
   useEffect(() => {
     const handler = (e) => {
       if (String(e.detail?.loanId) === String(id)) {
@@ -85,353 +71,121 @@ const ApplicationDetails = () => {
     return () => window.removeEventListener('mismo:imported', handler);
   }, [id, fetchApplication, fetchDocuments]);
 
-  const onDrop = useCallback((acceptedFiles) => {
-    const newPendingFiles = acceptedFiles.map(file => ({
-      file,
-      documentType: 'Other',
-      id: Math.random().toString(36).substr(2, 9)
-    }));
-    setPendingFiles(prev => [...prev, ...newPendingFiles]);
-  }, []);
-
-  const { getRootProps, getInputProps, isDragActive } = useDropzone({
-    onDrop,
-    accept: {
-      'application/pdf': ['.pdf'],
-      'image/*': ['.png', '.jpg', '.jpeg', '.gif'],
-      'application/msword': ['.doc'],
-      'application/vnd.openxmlformats-officedocument.wordprocessingml.document': ['.docx'],
-      'application/vnd.ms-excel': ['.xls'],
-      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': ['.xlsx']
-    },
-    maxSize: 10485760 // 10MB
-  });
-
-  const handleDocumentTypeChange = (fileId, newType) => {
-    setPendingFiles(prev => 
-      prev.map(pf => pf.id === fileId ? { ...pf, documentType: newType } : pf)
-    );
-  };
-
-  const handleRemovePendingFile = (fileId) => {
-    setPendingFiles(prev => prev.filter(pf => pf.id !== fileId));
-  };
-
-  const handleUploadAll = async () => {
-    if (pendingFiles.length === 0) {
-      toast.warning('No files to upload');
-      return;
-    }
-
-    setUploading(true);
-    let successCount = 0;
-    let errorCount = 0;
-
-    for (const pendingFile of pendingFiles) {
-      try {
-        await mortgageService.uploadDocument(id, {
-          file: pendingFile.file,
-          documentType: pendingFile.documentType,
-        });
-        successCount++;
-      } catch (error) {
-        console.error('Upload error:', error);
-        errorCount++;
-      }
-    }
-
-    if (successCount > 0) {
-      toast.success(`${successCount} document(s) uploaded successfully!`);
-      setPendingFiles([]);
-      await fetchDocuments();
-    }
-
-    if (errorCount > 0) {
-      toast.error(`Failed to upload ${errorCount} document(s)`);
-    }
-
-    setUploading(false);
-  };
-
-  const formatFileSize = (bytes) => {
-    if (bytes === 0) return '0 Bytes';
-    const k = 1024;
-    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
-  };
-
-  const formatDate = (dateString) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
-  };
-
   if (loading) {
-    return (
-      <div className="card">
-        <h2>Application Details</h2>
-        <p>Loading application details...</p>
-      </div>
-    );
+    return <div className="page"><div className="muted">Loading application…</div></div>;
   }
-
   if (!application) {
     return (
-      <div className="card">
-        <h2>Application Not Found</h2>
-        <p>The requested application could not be found.</p>
-        <button onClick={() => navigate('/applications')} className="btn btn-primary">
-          Back to Applications
-        </button>
+      <div className="page">
+        <h2>Application not found</h2>
+        <p className="muted">The requested application could not be found.</p>
+        <Button variant="primary" to="/applications">Back to applications</Button>
       </div>
     );
   }
 
+  const borrower = application.borrowers?.[0];
+  const borrowerName = borrower ? `${borrower.lastName || ''}${borrower.firstName ? `, ${borrower.firstName}` : ''}`.trim() || 'Unknown' : null;
+  const totalSize = documents.reduce((sum, d) => sum + (Number(d.fileSize) || 0), 0);
+  const lastActivity = documents.reduce((latest, d) => {
+    const ts = d.uploadedAt || d.updatedAt;
+    if (!ts) return latest;
+    return (!latest || new Date(ts) > new Date(latest)) ? ts : latest;
+  }, null);
+
   return (
-    <div>
-      <div className="card">
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
-          <h2>Application #{application.applicationNumber}</h2>
-          <button
-            className="btn btn-outline-primary"
-            onClick={() => navigate(`/application-form?edit=${application.id}&view=1`)}
-            title="View full application"
-          >
-            View
-          </button>
+    <div className="page docs-page">
+      <DocumentsHero
+        applicationId={id}
+        borrowerName={borrowerName}
+        fileCount={documents.length}
+        totalSizeBytes={totalSize}
+        lastActivity={lastActivity}
+        onExportAll={() => toast.info('Bulk export is coming soon — for now, use the file table to download individual files.')}
+      />
+
+      <div className="docs-layout">
+        <div className="docs-main">
+          <WorkspaceTab loanId={Number(id)} />
         </div>
+        <aside className="docs-rail">
+          <RecentActivityCard loanId={Number(id)} refreshKey={documents.length} />
+        </aside>
+      </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2rem' }}>
-          <div>
-            <h3>Property Information</h3>
-            <div style={{ marginBottom: '1rem' }}>
-              <strong>Address:</strong><br />
-              {application.property?.addressLine || 'N/A'}<br />
-              {application.property?.city || 'N/A'}, {application.property?.state || 'N/A'} {application.property?.zipCode || 'N/A'}
-            </div>
-            <div style={{ marginBottom: '0.5rem' }}>
-              <strong>Property Type:</strong> {application.property?.propertyType || 'N/A'}
-            </div>
-            <div style={{ marginBottom: '0.5rem' }}>
-              <strong>Construction Type:</strong> {application.property?.constructionType || 'N/A'}
-            </div>
-            <div>
-              <strong>Year Built:</strong> {application.property?.yearBuilt || 'N/A'}
-            </div>
+      {/* Collapsible application summary — secondary data (loan/property/borrower).
+          Hidden by default since the Documents screen is workspace-focused. */}
+      <Card className="docs-summary-card">
+        <div className="card-header">
+          <div className="card-title">
+            <Icon name="briefcase" size={14} stroke={1.8} />
+            <span>Application #{application.applicationNumber} — summary</span>
           </div>
-
-          <div>
-            <h3>Loan Information</h3>
-            <div style={{ marginBottom: '1rem' }}>
-              <div style={{ marginBottom: '0.5rem' }}>
-                <strong>Loan Purpose:</strong> {application.loanPurpose || 'N/A'}
-              </div>
-              <div style={{ marginBottom: '0.5rem' }}>
-                <strong>Loan Type:</strong> {application.loanType || 'N/A'}
-              </div>
-              <div style={{ marginBottom: '0.5rem' }}>
-                <strong>Loan Amount:</strong> {formatCurrency(application.loanAmount || 0)}
+          <div style={{ display: 'flex', gap: 8 }}>
+            <Pill tone="muted">{application.status || 'DRAFT'}</Pill>
+            <Button size="sm" onClick={() => setShowSummary((v) => !v)}>
+              {showSummary ? 'Hide' : 'Show'}
+            </Button>
+            <Button size="sm" variant="ghost" to={`/apply?edit=${application.id}&view=1`} title="Open full application">
+              View
+            </Button>
+            <Button size="sm" variant="primary" to={`/apply?edit=${application.id}`} title="Edit this application">
+              <Icon name="edit" size={12} /> Edit
+            </Button>
+          </div>
+        </div>
+        {showSummary && (
+          <div className="docs-summary-body">
+            <div className="docs-summary-grid">
+              <div>
+                <div className="eyebrow">Property</div>
+                <div className="docs-summary-line">{application.property?.addressLine || '—'}</div>
+                <div className="docs-summary-line dim">
+                  {[application.property?.city, application.property?.state, application.property?.zipCode].filter(Boolean).join(', ') || '—'}
+                </div>
+                <div className="kv docs-summary-kv">
+                  <div className="k">Property type</div><div className="v">{application.property?.propertyType || '—'}</div>
+                  <div className="k">Construction</div><div className="v">{application.property?.constructionType || '—'}</div>
+                  <div className="k">Year built</div><div className="v">{application.property?.yearBuilt || '—'}</div>
+                </div>
               </div>
               <div>
-                <strong>Property Value:</strong> {formatCurrency(application.propertyValue || 0)}
+                <div className="eyebrow">Loan</div>
+                <div className="kv docs-summary-kv">
+                  <div className="k">Purpose</div><div className="v">{application.loanPurpose || '—'}</div>
+                  <div className="k">Type</div><div className="v">{application.loanType || '—'}</div>
+                  <div className="k">Loan amount</div><div className="v mono">{formatCurrency(application.loanAmount || 0)}</div>
+                  <div className="k">Property value</div><div className="v mono">{formatCurrency(application.propertyValue || 0)}</div>
+                </div>
               </div>
-            </div>
-          </div>
-
-          <div>
-            <h3>Borrower Information</h3>
-            {application.borrowers && application.borrowers.length > 0 ? (
-              application.borrowers.map((borrower, index) => (
-                <div key={index} style={{ marginBottom: '1rem', padding: '1rem', border: '1px solid #eee', borderRadius: '5px' }}>
-                  <h4>Borrower {index + 1}</h4>
-                  <div style={{ marginBottom: '0.5rem' }}>
-                    <strong>Name:</strong> {borrower.firstName} {borrower.lastName}
+              <div>
+                <div className="eyebrow">Primary borrower</div>
+                {borrower ? (
+                  <div className="kv docs-summary-kv">
+                    <div className="k">Name</div><div className="v">{[borrower.firstName, borrower.lastName].filter(Boolean).join(' ') || '—'}</div>
+                    <div className="k">Email</div><div className="v">{borrower.email || '—'}</div>
+                    <div className="k">Phone</div><div className="v">{borrower.phone || '—'}</div>
+                    <div className="k">Marital</div><div className="v">{borrower.maritalStatus || '—'}</div>
                   </div>
-                  <div style={{ marginBottom: '0.5rem' }}>
-                    <strong>Email:</strong> {borrower.email}
-                  </div>
-                  <div style={{ marginBottom: '0.5rem' }}>
-                    <strong>Phone:</strong> {borrower.phone}
-                  </div>
-                  <div style={{ marginBottom: '0.5rem' }}>
-                    <strong>Marital Status:</strong> {borrower.maritalStatus}
-                  </div>
-                  <div>
-                    <strong>Dependents:</strong> {borrower.dependentsCount || 0}
-                  </div>
-                </div>
-              ))
-            ) : (
-              <p>No borrower information available</p>
-            )}
-          </div>
-
-          <div>
-            <h3>Application Timeline</h3>
-            {statusHistory.length > 0 ? (
-              <ol style={{ listStyle: 'none', padding: 0, margin: 0 }}>
-                {statusHistory.map((h, i) => (
-                  <li key={h.id || i} style={{ display: 'flex', alignItems: 'baseline', gap: '0.75rem', padding: '0.4rem 0', borderBottom: '1px solid #eee' }}>
-                    <span style={{
-                      display: 'inline-block', padding: '0.15rem 0.5rem',
-                      borderRadius: '4px', fontSize: '0.8rem', fontWeight: 600,
-                      background: '#e0e7ff', color: '#3730a3', whiteSpace: 'nowrap',
-                    }}>
-                      {h.status}
-                    </span>
-                    <span style={{ fontSize: '0.85rem', color: '#6b7280' }}>
-                      {formatDate(h.transitionedAt)}
-                    </span>
-                    {h.note && <span style={{ fontSize: '0.85rem' }}>{h.note}</span>}
-                  </li>
-                ))}
-              </ol>
-            ) : (
-              <div style={{ marginBottom: '1rem' }}>
-                <div style={{ marginBottom: '0.5rem' }}>
-                  <strong>Created:</strong> {formatDate(application.createdDate || new Date())}
-                </div>
+                ) : <div className="muted">No borrower yet</div>}
+              </div>
+              {statusHistory.length > 0 && (
                 <div>
-                  <strong>Last Updated:</strong> {formatDate(application.updatedDate || new Date())}
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
-
-      {/* Document Upload Section */}
-      <div className="card" style={{ marginTop: '2rem' }}>
-        <h2><FaUpload /> Upload Documents</h2>
-        
-        {/* Dropzone */}
-        <div {...getRootProps()} className={`dropzone ${isDragActive ? 'active' : ''}`}>
-          <input {...getInputProps()} />
-          <FaUpload className="dropzone-icon" />
-          {isDragActive ? (
-            <p>Drop files here...</p>
-          ) : (
-            <>
-              <p>Drag & drop files here, or click to select</p>
-              <span className="dropzone-hint">Supported: PDF, Images, Word, Excel (max 10MB)</span>
-            </>
-          )}
-        </div>
-
-        {/* Pending Files */}
-        {pendingFiles.length > 0 && (
-          <div className="pending-files-section">
-            <h3>Files to Upload ({pendingFiles.length})</h3>
-            <div className="pending-files-list">
-              {pendingFiles.map((pf) => (
-                <div key={pf.id} className="pending-file-item">
-                  <div className="pending-file-info">
-                    <FaFile className="file-icon" />
-                    <div className="file-details">
-                      <span className="file-name">{pf.file.name}</span>
-                      <span className="file-size">{formatFileSize(pf.file.size)}</span>
-                    </div>
-                  </div>
-                  <div className="pending-file-actions">
-                    <select
-                      value={pf.documentType}
-                      onChange={(e) => handleDocumentTypeChange(pf.id, e.target.value)}
-                      className="document-type-select"
-                    >
-                      {DOCUMENT_TYPES.map(type => (
-                        <option key={type} value={type}>{type}</option>
-                      ))}
-                    </select>
-                    <button
-                      onClick={() => handleRemovePendingFile(pf.id)}
-                      className="btn-icon btn-danger"
-                      title="Remove"
-                    >
-                      <FaTimes />
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-            <button
-              onClick={handleUploadAll}
-              disabled={uploading}
-              className="btn btn-primary btn-upload-all"
-            >
-              {uploading ? 'Uploading...' : `Upload ${pendingFiles.length} File(s)`}
-            </button>
-            </div>
-          )}
-          
-        {/* Upload log — toggleable audit table. The actual document list lives in
-         *  the workspace below; this is just a flat what-was-uploaded-when view. */}
-        <div className="upload-log-section" style={{ marginTop: '1.5rem' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <h3 style={{ margin: 0 }}>Upload Log ({documents.length})</h3>
-            <button
-              className="btn btn-outline-secondary"
-              onClick={() => setShowUploadLog(prev => !prev)}
-            >
-              {showUploadLog ? 'Hide' : 'Show'}
-            </button>
-          </div>
-          {showUploadLog && (
-            <div style={{ marginTop: '1rem' }}>
-              {documents.length === 0 ? (
-                <p className="empty-text">No uploads yet.</p>
-              ) : (
-                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                  <thead>
-                    <tr style={{ background: 'var(--bg-secondary)' }}>
-                      <th style={{ textAlign: 'left', padding: '0.5rem', borderBottom: '1px solid var(--border-color)' }}>File Name</th>
-                      <th style={{ textAlign: 'left', padding: '0.5rem', borderBottom: '1px solid var(--border-color)' }}>Document Type</th>
-                      <th style={{ textAlign: 'left', padding: '0.5rem', borderBottom: '1px solid var(--border-color)' }}>Uploaded At</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {documents.map(doc => (
-                      <tr key={doc.id}>
-                        <td style={{ padding: '0.5rem', borderBottom: '1px solid var(--border-color)' }}>{doc.fileName}</td>
-                        <td style={{ padding: '0.5rem', borderBottom: '1px solid var(--border-color)' }}>{doc.documentType}</td>
-                        <td style={{ padding: '0.5rem', borderBottom: '1px solid var(--border-color)' }}>{formatDate(doc.uploadedAt)}</td>
-                      </tr>
+                  <div className="eyebrow">Timeline</div>
+                  <ol className="docs-summary-timeline">
+                    {statusHistory.slice(0, 5).map((h, i) => (
+                      <li key={h.id || i}>
+                        <Pill tone="muted">{h.status}</Pill>
+                        <span className="dim">{h.transitionedAt ? new Date(h.transitionedAt).toLocaleDateString() : ''}</span>
+                      </li>
                     ))}
-                  </tbody>
-                </table>
+                  </ol>
+                </div>
               )}
             </div>
-          )}
-        </div>
-        </div>
-
-      {/* Document Workspace (LO view; Phase 1 — folder tree + per-folder file list) */}
-      <div className="card" style={{ marginTop: '2rem' }}>
-        <h2 style={{ marginBottom: '1rem' }}>
-          <FaFolder /> Document Workspace
-          <span style={{
-            marginLeft: '0.75rem',
-            fontSize: '0.7rem',
-            background: '#fef3c7',
-            color: '#92400e',
-            padding: '2px 8px',
-            borderRadius: '999px',
-            verticalAlign: 'middle',
-          }}>BETA</span>
-        </h2>
-        <WorkspaceTab loanId={Number(id)} />
-      </div>
-
-      {/* Back Button */}
-      <div style={{ marginTop: '2rem', textAlign: 'center' }}>
-          <button onClick={() => navigate('/applications')} className="btn btn-secondary">
-            Back to Applications
-          </button>
-      </div>
+          </div>
+        )}
+      </Card>
     </div>
   );
 };

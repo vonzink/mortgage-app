@@ -42,11 +42,15 @@ Goal: take document handling from "MVP upload + folders" to production-grade wit
 - [ ] Frontend: replace free-text doc type input with dropdown from `/document-types`
 - [ ] Frontend: show type badge in `FileTable.jsx`
 
-### Phase 4 — Admin Configuration ⏸ (deferred)
-- [ ] `AdminDocumentTypeController` — CRUD for doc types (Admin-only)
-- [ ] `AdminFolderTemplateController` — manage default folder set
-- [ ] `pages/admin/DocumentTypesAdmin.jsx`
-- [ ] `pages/admin/FolderTemplatesAdmin.jsx`
+### Phase 4 — Admin Configuration ✅
+- [x] `AdminDocumentTypeController` — CRUD for doc types (Admin-only, `/admin/document-types`)
+- [x] V21 migration: `folder_templates` table (externalizes hardcoded folder list)
+- [x] `FolderTemplate` entity + repository
+- [x] `AdminFolderTemplateController` — CRUD for folder templates (`/admin/folder-templates`)
+- [x] `FolderService` reads from DB instead of hardcoded list
+- [x] `pages/admin/AdminHome.js` + `DocumentTypesAdmin.js` + `FolderTemplatesAdmin.js`
+- [x] `hooks/useRoles.js` — frontend role detection from Cognito groups
+- [x] Admin link in `Header.js` (gated on `isAdmin`)
 
 ### Phase 5 — Search & Filtering ✅ (backend)
 - [x] V20 migration: composite indexes on documents

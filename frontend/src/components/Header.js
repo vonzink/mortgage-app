@@ -1,9 +1,10 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { FaHome, FaFileAlt, FaList, FaCog, FaFileDownload, FaFileUpload } from 'react-icons/fa';
+import { FaHome, FaFileAlt, FaList, FaCog, FaFileDownload, FaFileUpload, FaUserShield } from 'react-icons/fa';
 import { toast } from 'react-toastify';
 import AuthControls from './AuthControls';
 import mortgageService from '../services/mortgageService';
+import useRoles from '../hooks/useRoles';
 
 /**
  * Detect "I'm currently looking at a specific loan" from the URL — used to enable the
@@ -24,6 +25,7 @@ const Header = () => {
   const settingsRef = useRef(null);
   const fileInputRef = useRef(null);
   const currentLoanId = useCurrentLoanId();
+  const { isAdmin } = useRoles();
 
   const isActive = (path) => location.pathname === path;
 
@@ -198,6 +200,17 @@ const Header = () => {
                     </button>
                   )}
 
+                  {isAdmin && (
+                    <Link
+                      to="/admin"
+                      onClick={() => setShowSettings(false)}
+                      style={{ ...itemStyle, textDecoration: 'none' }}
+                      onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--bg-secondary)')}
+                      onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+                    >
+                      <FaUserShield /> Admin
+                    </Link>
+                  )}
                   <button
                     onClick={() => { setShowSettings(false); alert('Settings coming soon!'); }}
                     style={itemStyle}

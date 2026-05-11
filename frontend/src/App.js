@@ -13,6 +13,9 @@ import ApplicationForm from './pages/ApplicationForm';
 import ApplicationList from './pages/ApplicationList';
 import ApplicationDetails from './pages/ApplicationDetails';
 import LoanDashboardPage from './pages/LoanDashboardPage';
+import AdminHome from './pages/admin/AdminHome';
+import DocumentTypesAdmin from './pages/admin/DocumentTypesAdmin';
+import FolderTemplatesAdmin from './pages/admin/FolderTemplatesAdmin';
 
 // Styles
 import './App.css';
@@ -94,6 +97,11 @@ function App() {
               path="/loan/:loanId"
               element={<RequireAuth><LoanDashboardPage /></RequireAuth>}
             />
+
+            {/* Admin — backend enforces Admin role; frontend gate is UX only */}
+            <Route path="/admin" element={<RequireAuth><AdminHome /></RequireAuth>} />
+            <Route path="/admin/document-types" element={<RequireAuth><DocumentTypesAdmin /></RequireAuth>} />
+            <Route path="/admin/folder-templates" element={<RequireAuth><FolderTemplatesAdmin /></RequireAuth>} />
           </Routes>
         </main>
         <ToastContainer

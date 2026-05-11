@@ -4,8 +4,10 @@ import com.yourcompany.mortgage.exception.BusinessValidationException;
 import com.yourcompany.mortgage.exception.ResourceNotFoundException;
 import com.yourcompany.mortgage.model.Borrower;
 import com.yourcompany.mortgage.model.Folder;
+import com.yourcompany.mortgage.model.FolderTemplate;
 import com.yourcompany.mortgage.model.LoanApplication;
 import com.yourcompany.mortgage.repository.FolderRepository;
+import com.yourcompany.mortgage.repository.FolderTemplateRepository;
 import com.yourcompany.mortgage.repository.LoanApplicationRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -29,35 +31,7 @@ public class FolderService {
 
     private final FolderRepository folderRepository;
     private final LoanApplicationRepository loanApplicationRepository;
-
-    /**
-     * Default subfolders, in display order. Numeric prefix is part of the name (drives
-     * sort order). Underwriting was added between Conditions and Closing — existing loans
-     * will see it gap-filled by ensureSeeded(); their pre-existing "11 Closing" keeps its
-     * label so re-numbering isn't needed in the database.
-     */
-    private static final List<String> DEFAULT_SUBFOLDERS = List.of(
-            "01 Submission",
-            "02 Borrower Documents",
-            "03 Income",
-            "04 Assets",
-            "05 Credit",
-            "06 Property",
-            "07 Title",
-            "08 Insurance",
-            "09 Disclosures",
-            "10 Conditions",
-            "11 Underwriting",
-            "12 Closing",
-            "13 Post Closing",
-            "14 Invoices",
-            "15 Correspondence",
-            "16 Old Loan Files",
-            "17 Delete"
-    );
-
-    private static final String OLD_LOAN_FILES_NAME = "16 Old Loan Files";
-    private static final String DELETE_FOLDER_NAME = "17 Delete";
+    private final FolderTemplateRepository folderTemplateRepository;
 
     // ─── Read ────────────────────────────────────────────────────────────────────
 
@@ -91,10 +65,13 @@ public class FolderService {
         Folder root = folderRepository.findRootByApplicationId(applicationId)
                 .orElseGet(() -> createRoot(app));
 
-        // Seed missing defaults idempotently. Existing user-created folders with the same
-        // name (case-insensitive collision) cause the seed to silently skip that slot —
-        // the LO can rename their folder and re-seed if they want the canonical layout.
-        for (String name : DEFAULT_SUBFOLDERS) {
+        // Seed missing defaults idempotently. Templates are admin-managed in folder_templates;
+        // existing user-created folders with the same name (case-insensitive collision)
+        // cause the seed to silently skip that slot — the LO can rename their folder and
+        // re-seed if they want the canonical layout.
+        List<FolderTemplate> templates = folderTemplateRepository.findActiveOrdered();
+        for (FolderTemplate tpl : templates) {
+            String name = tpl.getDisplayName();
             String normalized = Folder.normalize(name);
             if (folderRepository.findSiblingByName(applicationId, root.getId(), normalized).isEmpty()) {
                 Folder f = Folder.builder()
@@ -102,10 +79,12 @@ public class FolderService {
                         .parentId(root.getId())
                         .displayName(name)
                         .nameNormalized(normalized)
-                        .sortKey(name.length() >= 2 ? name.substring(0, 2) : null) // "01", "02", ...
+                        .sortKey(tpl.getSortKey() != null
+                                ? tpl.getSortKey()
+                                : (name.length() >= 2 ? name.substring(0, 2) : null))
                         .isSystem(true)
-                        .isOldLoanArchive(OLD_LOAN_FILES_NAME.equals(name))
-                        .isDeleteFolder(DELETE_FOLDER_NAME.equals(name))
+                        .isOldLoanArchive(Boolean.TRUE.equals(tpl.getIsOldLoanArchive()))
+                        .isDeleteFolder(Boolean.TRUE.equals(tpl.getIsDeleteFolder()))
                         .build();
                 folderRepository.save(f);
             }

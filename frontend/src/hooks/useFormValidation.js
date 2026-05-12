@@ -91,16 +91,14 @@ export const useFormValidation = (getValues, watch) => {
    * @returns {Object} Validation result
    */
   const validatePropertyDetails = useCallback(() => {
-    const property = getValues();
-    const errors = [];
-
-    // No required fields for property - all optional
-
+    // No required fields for property — all optional. Kept as a hook for
+    // future use (e.g. cross-field validation) and to preserve API parity
+    // with the other validate* callbacks in this hook.
     return {
-      isValid: true, // Always valid since no required fields
-      errors
+      isValid: true,
+      errors: [],
     };
-  }, [getValues]);
+  }, []);
 
   /**
    * Validate loan information

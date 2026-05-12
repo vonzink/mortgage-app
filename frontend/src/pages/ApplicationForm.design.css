@@ -120,7 +120,11 @@
 .apply-quote-stat-value { font-size: 18px; font-weight: 600; margin-top: 2px; }
 
 /* Sidebar — checklist ---------------------------------------------------- */
-.apply-checklist { padding: 10px 18px 16px; }
+.apply-checklist {
+  padding: 10px 18px 16px;
+  list-style: none;
+  margin: 0;
+}
 .apply-checklist-row {
   display: flex; align-items: center; gap: 10px;
   padding: 7px 0; font-size: 13px;

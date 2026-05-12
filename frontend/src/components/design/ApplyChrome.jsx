@@ -2,6 +2,7 @@ import React from 'react';
 import Icon from './Icon';
 import Pill from './Pill';
 import Button from './Button';
+import { formatAutoSave } from '../../utils/format';
 
 /**
  * The visual chrome around the multi-step Apply form. The actual form state +
@@ -63,14 +64,7 @@ export function ApplyHero({
   );
 }
 
-function formatAutoSave(ts) {
-  if (!ts) return 'Auto-saved';
-  const secs = Math.max(0, Math.round((Date.now() - ts) / 1000));
-  if (secs < 5) return 'Auto-saved just now';
-  if (secs < 60) return `Auto-saved ${secs} sec ago`;
-  const mins = Math.round(secs / 60);
-  return `Auto-saved ${mins} min ago`;
-}
+// formatAutoSave now imported from utils/format (audit SI-1).
 
 /* ─── Progress strip ───────────────────────────────────────────────────── */
 export function ApplyProgressStrip({
@@ -237,21 +231,25 @@ const REQUIRED_DOCS = [
   'Award / benefit letters',
 ];
 function ChecklistCard() {
-  // No completion tracking yet — show as informational list.
+  // No completion tracking yet — show as an informational list.
+  // role="list" + role="listitem" so screen readers announce as a list even
+  // though the visual styling uses div+span (the boxes aren't real <input>s).
   return (
     <div className="card">
       <div className="card-header">
         <div className="card-title"><Icon name="doc" size={14} stroke={1.8} /> What you'll need</div>
-        <span className="dim mono apply-checklist-count">0 / {REQUIRED_DOCS.length}</span>
+        <span className="dim mono apply-checklist-count" aria-label={`${REQUIRED_DOCS.length} items`}>
+          0 / {REQUIRED_DOCS.length}
+        </span>
       </div>
-      <div className="apply-checklist">
+      <ul className="apply-checklist" aria-label="Documents required">
         {REQUIRED_DOCS.map((t) => (
-          <div key={t} className="apply-checklist-row">
-            <div className="apply-checklist-box" />
+          <li key={t} className="apply-checklist-row">
+            <span className="apply-checklist-box" aria-hidden="true" />
             <span>{t}</span>
-          </div>
+          </li>
         ))}
-      </div>
+      </ul>
     </div>
   );
 }

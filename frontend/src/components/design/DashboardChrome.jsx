@@ -2,6 +2,7 @@ import React from 'react';
 import Icon from './Icon';
 import Pill from './Pill';
 import Button from './Button';
+import { formatMoneyShort } from '../../utils/format';
 
 /* ──────────────────────────────────────────────────────────────────────────
  * Dashboard chrome — pieces that wrap the existing LoanDashboardPage:
@@ -155,12 +156,7 @@ function KpiTile({ label, value, sub, color }) {
   );
 }
 
-function formatMoneyShort(n) {
-  if (n == null || n === '') return '—';
-  const num = Number(n);
-  if (isNaN(num)) return String(n);
-  return num.toLocaleString('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 });
-}
+// formatMoneyShort now imported from utils/format (audit SI-1).
 
 /* ── Milestone timeline ─────────────────────────────────────────────────── */
 export function MilestoneTimeline({ milestones, daysElapsed, daysTarget = 60 }) {

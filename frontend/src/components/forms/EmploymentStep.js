@@ -9,9 +9,10 @@ import CurrencyInput from '../form-fields/CurrencyInput';
 import { 
   checkEmploymentHistoryWarning
 } from '../../utils/formHelpers';
-import { 
+import {
   createDefaultEmployment
 } from '../../utils/fieldArrayHelpers';
+import { bubbleTabStyle } from '../shared/bubbleTabStyle';
 
 const EmploymentStep = ({ 
   register, 
@@ -54,25 +55,7 @@ const EmploymentStep = ({
     }
   }, [visibleBorrowers.length, activeBorrowerTab]);
 
-  // Bubble tab styles
-  const bubbleTabStyle = (isActive) => ({
-    padding: '0.6rem 1.2rem',
-    border: 'none',
-    borderRadius: '20px',
-    background: isActive ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' : '#f0f0f0',
-    color: isActive ? 'white' : '#666',
-    cursor: 'pointer',
-    fontWeight: isActive ? '600' : '500',
-    fontSize: '0.9rem',
-    transition: 'all 0.3s ease',
-    boxShadow: isActive ? '0 4px 15px rgba(102, 126, 234, 0.4)' : '0 2px 5px rgba(0,0,0,0.1)',
-    transform: isActive ? 'translateY(-2px)' : 'translateY(0)',
-    marginRight: '0.75rem',
-    marginBottom: '0.5rem',
-    display: 'inline-flex',
-    alignItems: 'center',
-    gap: '0.5rem'
-  });
+  // bubbleTabStyle imported from shared/bubbleTabStyle (audit M-4).
 
   return (
     <FormSection

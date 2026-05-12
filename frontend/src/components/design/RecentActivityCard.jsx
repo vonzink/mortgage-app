@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import Icon from './Icon';
 import auditService from '../../services/auditService';
+import { formatRelativeShort as formatWhen } from '../../utils/format';
 
 /**
  * Right-rail activity feed for the document workspace. Polls the loan audit log
@@ -108,17 +109,4 @@ function extractTarget(json) {
   } catch { return null; }
 }
 
-function formatWhen(iso) {
-  if (!iso) return '';
-  const then = new Date(iso).getTime();
-  if (isNaN(then)) return '';
-  const diffSec = Math.max(0, Math.round((Date.now() - then) / 1000));
-  if (diffSec < 60) return 'just now';
-  const mins = Math.round(diffSec / 60);
-  if (mins < 60) return `${mins}m ago`;
-  const hrs = Math.round(mins / 60);
-  if (hrs < 24) return `${hrs}h ago`;
-  const days = Math.round(hrs / 24);
-  if (days < 7) return `${days}d ago`;
-  try { return new Date(iso).toLocaleDateString(); } catch { return ''; }
-}
+// formatWhen (alias for formatRelativeShort) imported from utils/format (audit SI-1).

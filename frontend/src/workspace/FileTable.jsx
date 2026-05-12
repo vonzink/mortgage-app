@@ -1,5 +1,6 @@
 import React, { useCallback } from 'react';
 import { FaFileAlt, FaDownload, FaTrash, FaPencilAlt, FaHistory, FaClipboardCheck } from 'react-icons/fa';
+import { formatBytes as formatSize, formatDateTime as formatDate } from '../utils/format';
 
 /** MIME tag we use to recognize internal (within-app) drags from external (OS file) drops. */
 export const INTERNAL_DRAG_MIME = 'application/x-mortgage-docs';
@@ -255,19 +256,4 @@ const STATUS_CLASS = {
   DELETED_SOFT: 'ws-status-badge--muted',
 };
 
-function formatSize(bytes) {
-  if (!bytes && bytes !== 0) return '—';
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`;
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-}
-
-function formatDate(iso) {
-  if (!iso) return '—';
-  try {
-    const d = new Date(iso);
-    return d.toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' });
-  } catch {
-    return iso;
-  }
-}
+// formatSize / formatDate now imported from utils/format (audit SI-1).

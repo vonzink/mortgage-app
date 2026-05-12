@@ -1,31 +1,22 @@
 /**
- * Display formatters for the loan dashboard. Each one returns null for empty /
- * unparseable input so the consuming <DefinitionList> can hide the row entirely
- * — keeps the dashboard tidy when fields aren't filled in yet.
+ * Display formatters for the loan dashboard. As of audit SI-1, the actual
+ * formatter logic lives in {@link ../../utils/format.js}. This file now just
+ * re-exports the dashboard-specific aliases (formatMoney → formatMoneyOrNull,
+ * formatDate → formatDateTime since dashboards want time included) and the
+ * dashboard-only helpers (sums + identifier presence check).
  */
 
-export function formatMoney(value) {
-  if (value === null || value === undefined || value === '') return null;
-  const n = Number(value);
-  if (Number.isNaN(n)) return null;
-  return n.toLocaleString('en-US', { style: 'currency', currency: 'USD' });
-}
+import {
+  formatMoneyOrNull as _formatMoney,
+  formatRate as _formatRate,
+  formatDateTime as _formatDate,
+  prettyEnum as _prettyEnum,
+} from '../../utils/format';
 
-export function formatRate(value) {
-  if (value === null || value === undefined || value === '') return null;
-  const n = Number(value);
-  if (Number.isNaN(n)) return null;
-  return `${n.toFixed(4).replace(/\.?0+$/, '')}%`;
-}
-
-export function formatDate(iso) {
-  if (!iso) return null;
-  try {
-    return new Date(iso).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' });
-  } catch {
-    return iso;
-  }
-}
+export const formatMoney = _formatMoney;
+export const formatRate = _formatRate;
+export const formatDate = _formatDate;
+export const prettyEnum = _prettyEnum;
 
 export function hasAnyIdentifier(ids) {
   return ids && (ids.lendingpadLoanNumber || ids.investorLoanNumber || ids.mersMin);
@@ -36,9 +27,3 @@ export const sumExpenses = (list) =>
 
 export const sumCredits = (list) =>
   list.reduce((acc, c) => acc + (Number(c.amount) || 0), 0);
-
-/** "PriorToDocs" → "Prior To Docs"; "INVESTMENT_PROPERTY" → "INVESTMENT PROPERTY". */
-export function prettyEnum(s) {
-  if (!s) return '—';
-  return s.replace(/([a-z])([A-Z])/g, '$1 $2').replace(/_/g, ' ');
-}

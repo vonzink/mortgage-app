@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { FaTimes } from 'react-icons/fa';
 import auditService from '../services/auditService';
+import { formatAction, formatDateTime as formatDate } from '../utils/format';
 
 /**
  * Read-only timeline of every audit log entry for a single document.
@@ -86,16 +87,4 @@ function Metadata({ json }) {
   }
 }
 
-function formatAction(a) {
-  if (!a) return '—';
-  return a.toLowerCase().replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
-}
-
-function formatDate(iso) {
-  if (!iso) return '—';
-  try {
-    return new Date(iso).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' });
-  } catch {
-    return iso;
-  }
-}
+// formatAction / formatDate now imported from utils/format (audit SI-1).

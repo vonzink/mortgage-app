@@ -6,11 +6,12 @@ import React, { useState } from 'react';
 import { FaFileAlt } from 'react-icons/fa';
 import FormSection from '../shared/FormSection';
 import CurrencyInput from '../form-fields/CurrencyInput';
-import { 
-  createDefaultAsset,
+import {
   createDefaultLiability,
   createDefaultREOProperty
 } from '../../utils/fieldArrayHelpers';
+import { bubbleTabStyle } from '../shared/bubbleTabStyle';
+import AssetsSection from './AssetsSection';
 
 const AssetsLiabilitiesStep = ({ 
   register, 
@@ -40,22 +41,7 @@ const AssetsLiabilitiesStep = ({
     return `REO Property ${reoIndex + 1}`;
   };
 
-  // Bubble tab styles
-  const bubbleTabStyle = (isActive) => ({
-    padding: '0.6rem 1.2rem',
-    border: 'none',
-    borderRadius: '20px',
-    background: isActive ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' : '#f0f0f0',
-    color: isActive ? 'white' : '#666',
-    cursor: 'pointer',
-    fontWeight: isActive ? '600' : '500',
-    fontSize: '0.9rem',
-    transition: 'all 0.3s ease',
-    boxShadow: isActive ? '0 4px 15px rgba(102, 126, 234, 0.4)' : '0 2px 5px rgba(0,0,0,0.1)',
-    transform: isActive ? 'translateY(-2px)' : 'translateY(0)',
-    marginRight: '0.75rem',
-    marginBottom: '0.5rem'
-  });
+  // bubbleTabStyle imported from shared/bubbleTabStyle (audit M-4).
 
   // Get field arrays for primary borrower (index 0) - all items will be added here
   const { fields: assetFields, append: appendAsset, remove: removeAsset } = getFieldArray(0, 'assets');
@@ -68,125 +54,17 @@ const AssetsLiabilitiesStep = ({
       icon={<FaFileAlt />}
       description="Assets, liabilities, and real estate owned properties for all borrowers. Use the Owner field to identify who owns each item."
     >
-      {/* Assets Section */}
-      <div className="assets-section">
-        <h5>Assets</h5>
-        
-        {assetFields.length === 0 ? (
-          <div className="no-items-message">
-            <p>No assets added yet. Click "Add Asset" to get started.</p>
-          </div>
-        ) : (
-          <div className="asset-list-section">
-            <div className="asset-header">
-              <div className="asset-header-item">Asset Type</div>
-              <div className="asset-header-item">Owner</div>
-              <div className="asset-header-item">Bank Name</div>
-              <div className="asset-header-item">Account Number</div>
-              <div className="asset-header-item">Amount</div>
-              <div className="asset-header-item">Used for Down Payment</div>
-              <div className="asset-header-item">Actions</div>
-            </div>
-            
-            {assetFields.map((assetField, assetIndex) => (
-              <div key={assetField.id} className="asset-entry">
-                <div className="form-group">
-                  <select
-                    {...register(`borrowers.0.assets.${assetIndex}.assetType`)}
-                    className="form-select"
-                  >
-                          <option value="">Select Type</option>
-                          <option value="Checking">Checking</option>
-                          <option value="Savings">Savings</option>
-                          <option value="MoneyMarket">Money Market</option>
-                          <option value="CertificateOfDeposit">CD</option>
-                          <option value="MutualFunds">Mutual Funds</option>
-                          <option value="Stocks">Stocks</option>
-                          <option value="Bonds">Bonds</option>
-                          <option value="Retirement401k">401(k)</option>
-                          <option value="IRA">IRA</option>
-                          <option value="Pension">Pension</option>
-                          <option value="EarnestMoney">Earnest Money</option>
-                          <option value="Other">Other</option>
-                        </select>
-                      </div>
-                      
-                      <div className="form-group">
-                        <select
-                          {...register(`borrowers.0.assets.${assetIndex}.owner`)}
-                          className="form-select"
-                        >
-                          <option value="">Select Owner</option>
-                          {borrowerFields.map((bf, bfIndex) => (
-                            <option key={bf.id} value={getBorrowerName(bfIndex)}>
-                              {getBorrowerName(bfIndex)}
-                            </option>
-                          ))}
-                          <option value="Joint">Joint</option>
-                          <option value="Other">Other</option>
-                        </select>
-                      </div>
-                      
-                      <div className="form-group">
-                        <input
-                          type="text"
-                          {...register(`borrowers.0.assets.${assetIndex}.bankName`)}
-                          placeholder="Bank Name"
-                        />
-                      </div>
-                      
-                      <div className="form-group">
-                        <input
-                          type="text"
-                          {...register(`borrowers.0.assets.${assetIndex}.accountNumber`)}
-                          placeholder="Account Number"
-                        />
-                      </div>
-                      
-                      <div className="form-group">
-                        <CurrencyInput
-                          id={`borrowers.0.assets.${assetIndex}.assetValue`}
-                          name={`borrowers.0.assets.${assetIndex}.assetValue`}
-                          value={watch(`borrowers.0.assets.${assetIndex}.assetValue`) || ''}
-                          onChange={(e) => setValue(`borrowers.0.assets.${assetIndex}.assetValue`, e.target.value)}
-                          placeholder="0.00"
-                        />
-                      </div>
-                      
-                      <div className="form-group checkbox-group">
-                        <input
-                          type="checkbox"
-                          {...register(`borrowers.0.assets.${assetIndex}.usedForDownpayment`)}
-                          className="form-checkbox"
-                        />
-                      </div>
-                      
-                      <div className="form-group">
-                        <button
-                          type="button"
-                          onClick={() => removeAsset(assetIndex)}
-                          className="btn btn-outline-danger btn-sm"
-                        >
-                          Remove
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              <div className="form-row">
-                <div className="form-group">
-                  <button
-                    type="button"
-                    onClick={() => appendAsset(createDefaultAsset())}
-                    className="btn btn-outline-primary"
-                  >
-                    Add Asset
-                  </button>
-                </div>
-              </div>
-            </div>
+      {/* Assets — extracted to AssetsSection.js as part of audit SI-6. */}
+      <AssetsSection
+        register={register}
+        watch={watch}
+        setValue={setValue}
+        borrowerFields={borrowerFields}
+        getBorrowerName={getBorrowerName}
+        assetFields={assetFields}
+        appendAsset={appendAsset}
+        removeAsset={removeAsset}
+      />
 
             {/* Liabilities Section */}
             <div className="liabilities-section">

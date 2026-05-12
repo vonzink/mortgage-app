@@ -2,6 +2,7 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import Icon from './Icon';
 import Button from './Button';
+import { formatBytes, formatRelative as relativeTime } from '../../utils/format';
 
 /**
  * Hero for the document workspace page (ApplicationDetails). Breadcrumb,
@@ -59,25 +60,4 @@ export default function DocumentsHero({
   );
 }
 
-function formatBytes(bytes) {
-  if (!bytes) return '';
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`;
-  if (bytes < 1024 * 1024 * 1024) return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
-  return `${(bytes / 1024 / 1024 / 1024).toFixed(2)} GB`;
-}
-
-function relativeTime(iso) {
-  if (!iso) return null;
-  const then = new Date(iso).getTime();
-  if (isNaN(then)) return null;
-  const diffSec = Math.max(0, Math.round((Date.now() - then) / 1000));
-  if (diffSec < 60) return 'just now';
-  const mins = Math.round(diffSec / 60);
-  if (mins < 60) return `${mins} min${mins === 1 ? '' : 's'} ago`;
-  const hrs = Math.round(mins / 60);
-  if (hrs < 24) return `${hrs} hour${hrs === 1 ? '' : 's'} ago`;
-  const days = Math.round(hrs / 24);
-  if (days < 30) return `${days} day${days === 1 ? '' : 's'} ago`;
-  try { return new Date(iso).toLocaleDateString(); } catch { return null; }
-}
+// formatBytes / relativeTime (alias for formatRelative) imported from utils/format (audit SI-1).

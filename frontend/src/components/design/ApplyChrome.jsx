@@ -112,7 +112,8 @@ export function ApplyProgressStrip({
               onClick={() => reachable && onStepClick?.(s.id)}
               disabled={!reachable}
               aria-current={active ? 'step' : undefined}
-              title={s.sub}
+              title={reachable ? s.sub : 'Complete the current step to unlock'}
+              style={!reachable ? { cursor: 'not-allowed', opacity: 0.55 } : undefined}
             >
               <div className="apply-step-row">
                 <div className="apply-step-icon">

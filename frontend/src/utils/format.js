@@ -162,16 +162,20 @@ export function formatRelativeShort(iso) {
 }
 
 /**
- * "Auto-saved 2 sec ago" — used by the apply-form draft autosave pill.
- * Quantizes to seconds for the first minute so the user sees the indicator tick.
+ * "Saved locally 2 sec ago" — used by the apply-form draft autosave pill.
+ *
+ * IMPORTANT: drafts are written to sessionStorage in the browser ONLY. Nothing
+ * is sent to the server until the user submits, so the wording must NOT imply
+ * a server-side save. This avoids the "false confidence" failure mode where a
+ * borrower sees "Auto-saved" and assumes their work survives a device wipe.
  */
 export function formatAutoSave(ts) {
-  if (!ts) return 'Auto-saved';
+  if (!ts) return 'Saved locally';
   const secs = Math.max(0, Math.round((Date.now() - ts) / 1000));
-  if (secs < 5) return 'Auto-saved just now';
-  if (secs < 60) return `Auto-saved ${secs} sec ago`;
+  if (secs < 5) return 'Saved locally just now';
+  if (secs < 60) return `Saved locally ${secs} sec ago`;
   const mins = Math.round(secs / 60);
-  return `Auto-saved ${mins} min ago`;
+  return `Saved locally ${mins} min ago`;
 }
 
 // ── Bytes ─────────────────────────────────────────────────────────────────

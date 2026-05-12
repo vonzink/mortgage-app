@@ -116,7 +116,7 @@ const ApplicationForm = () => {
     isLastStep,
     visitedSteps,
     setVisitedSteps
-  } = useFormSteps(7);
+  } = useFormSteps(7, `${draftKey}:steps`);
 
   const { borrowers, getFieldArray } = useBorrowerFieldArrays(control);
 
@@ -297,8 +297,10 @@ const ApplicationForm = () => {
       }
       debug('Application saved successfully! Response:', savedApplication);
 
-      // Successful submit — drop the autosaved draft so the user doesn't see it next time.
+      // Successful submit — drop the autosaved draft + step state so a fresh New
+      // Application starts at step 1.
       clearDraft(draftKey);
+      clearDraft(`${draftKey}:steps`);
 
       toast.success(isEditing ? 'Application updated successfully!' : 'Application submitted successfully!');
       
@@ -410,7 +412,10 @@ const ApplicationForm = () => {
 
   const handleSaveAndExit = () => {
     // useDraftAutosave already wrote to sessionStorage; bounce to the list.
-    toast.info('Draft saved. Pick up where you left off any time.');
+    // Honest wording: drafts live in this browser's sessionStorage only and
+    // do NOT show up in the Applications list until the user submits. Don't
+    // imply a server-side save here.
+    toast.info('Draft saved on this device. Submit to send to your loan officer.');
     navigate('/applications');
   };
 

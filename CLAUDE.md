@@ -29,7 +29,7 @@ mvn spring-boot:run -Dspring-boot.run.profiles=dev
 mvn test -Dtest=ClassNameHere
 ```
 
-Backend package layout under `com.yourcompany.mortgage`:
+Backend package layout under `com.msfg.mortgage`:
 - `controller/` + `dto/` — REST surface
 - `service/` — business logic; `LoanAccessGuard` lives in `security/`
 - `model/` + `repository/` — JPA entities and Spring Data repos

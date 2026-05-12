@@ -1,0 +1,6 @@
+interface:
+  display_name: "Mortgage App"
+  short_description: "MSFG mortgage-app engineering guide"
+  default_prompt: "Use $mortgage-app to make a safe, repo-aligned change to the mortgage application."
+policy:
+  allow_implicit_invocation: true

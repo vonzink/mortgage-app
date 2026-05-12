@@ -43,6 +43,7 @@ import mortgageService from '../../services/mortgageService';
 import { createDefaultBorrower } from '../../utils/fieldArrayHelpers';
 import { focusFirstInvalidField } from '../../utils/formErrorHelpers';
 import { useDraftAutosave, clearDraft } from '../../hooks/useDraftAutosave';
+import { formToApplicationPayload } from '../../utils/applicationPayload';
 
 const ApplicationForm = () => {
   const navigate = useNavigate();
@@ -269,150 +270,16 @@ const ApplicationForm = () => {
     goToStep(stepNumber);
   };
 
-  // Helper to check if a field has actual content
-  const hasValue = (value) => {
-    if (value === null || value === undefined || value === '') return false;
-    if (typeof value === 'string' && value.trim() === '') return false;
-    return true;
-  };
-
   // Form submission
   const onSubmit = async (data) => {
     debug('========== FORM SUBMISSION STARTED ==========');
     debug('Raw form data:', data);
-    
+
     setIsSubmitting(true);
     try {
-      // Transform the form data to match backend DTO structure
-      debug('Transforming form data to backend DTO structure...');
-      debug('data.property object:', data.property);
-      
-      // Normalize unsupported/legacy liability types before building payload
-      const normalizeLiabilityType = (t) => {
-        if (!t) return t;
-        if (t === 'SecuredLoan') return 'Installment';
-        return t;
-      };
-
-      // Helper: normalize phone to 123-456-7890 when possible
-      const normalizePhone = (p) => {
-        if (!p) return null;
-        const digits = String(p).replace(/\D/g, '');
-        if (digits.length < 10) return p; // leave as-is if not enough digits
-        const last10 = digits.slice(-10);
-        return `${last10.slice(0,3)}-${last10.slice(3,6)}-${last10.slice(6)}`;
-      };
-
-      const applicationData = {
-        loanPurpose: data.loanPurpose || 'Purchase',
-        loanType: data.loanType || 'Conventional',
-        loanAmount: parseFloat(data.loanAmount) || 0,
-        propertyValue: parseFloat(data.propertyValue) || 0,
-        status: 'DRAFT',
-          property: {
-              addressLine: hasValue(data.property?.addressLine) ? data.property.addressLine : null,
-              city: hasValue(data.property?.city) ? data.property.city : null,
-              state: hasValue(data.property?.state) ? data.property.state : null,
-              zipCode: hasValue(data.property?.zipCode) ? data.property.zipCode : null,
-              propertyType: data.propertyUse === 'Primary' ? 'PrimaryResidence' :
-                  data.propertyUse === 'Secondary' ? 'SecondHome' :
-                      data.propertyUse || 'PrimaryResidence',
-              propertyValue: parseFloat(data.propertyValue) || 0,
-              constructionType: hasValue(data.constructionType) ? data.constructionType : 'SiteBuilt',
-              yearBuilt: hasValue(data.yearBuilt) ? parseInt(data.yearBuilt) : null,
-              unitsCount: hasValue(data.unitsCount) ? parseInt(data.unitsCount) : 1
-          },
-        borrowers: data.borrowers
-            .filter(borrower => hasValue(borrower.firstName) && hasValue(borrower.lastName))
-            .map((borrower, index) => ({
-              sequenceNumber: index + 1,
-              firstName: borrower.firstName,
-              lastName: borrower.lastName,
-              middleName: borrower.middleName || null,
-              ssn: borrower.ssn || null,
-              birthDate: borrower.dateOfBirth || null,
-              maritalStatus: borrower.maritalStatus || null,
-              dependentsCount: parseInt(borrower.dependents) || 0,
-              citizenshipType: borrower.citizenshipType || null,
-              email: borrower.email || null,
-              phone: borrower.phone || null,
-              employmentHistory: (borrower.employmentHistory || [])
-                  .filter(emp => hasValue(emp.employerName) && hasValue(emp.startDate) && hasValue(emp.employmentStatus))
-                  .map((employment, empIndex) => ({
-                    sequenceNumber: empIndex + 1,
-                    employerName: employment.employerName,
-                    position: employment.position || null,
-                    startDate: employment.startDate,
-                    endDate: employment.endDate || null,
-                    employmentStatus: employment.employmentStatus,
-                    monthlyIncome: parseFloat(employment.monthlyIncome) || 0,
-                    employerAddress: employment.employerAddress || null,
-                    employerCity: null,
-                    employerState: null,
-                    employerZip: null,
-                    employerPhone: normalizePhone(employment.employerPhone) || null,
-                    selfEmployed: false
-                  })),
-              incomeSources: (borrower.incomeSources || [])
-                  .filter(income => hasValue(income.incomeType) && parseFloat(income.monthlyAmount) > 0)
-                  .map((income) => ({
-                    incomeType: income.incomeType,
-                    monthlyAmount: parseFloat(income.monthlyAmount),
-                    description: income.description || null
-                  })),
-              residences: (borrower.residences || [])
-                  .filter(res => hasValue(res.addressLine))
-                  .map((residence, resIndex) => ({
-                    sequenceNumber: resIndex + 1,
-                    addressLine: residence.addressLine,
-                    city: residence.city || null,
-                    state: residence.state || null,
-                    zipCode: residence.zipCode || null,
-                    residencyType: residence.residencyType || null,
-                    residencyBasis: residence.residencyBasis || null,
-                    durationMonths: parseInt(residence.durationMonths) || 0,
-                    monthlyRent: parseFloat(residence.monthlyRent) || 0
-                  })),
-              reoProperties: (borrower.reoProperties || [])
-                  .filter(reo => hasValue(reo.addressLine) && hasValue(reo.city))
-                  .map((reo, reoIndex) => ({
-                    sequenceNumber: reoIndex + 1,
-                    addressLine: reo.addressLine,
-                    city: reo.city,
-                    state: reo.state || null,
-                    zipCode: reo.zipCode || null,
-                    propertyType: reo.propertyType || null,
-                    propertyValue: parseFloat(reo.propertyValue) || 0,
-                    monthlyRentalIncome: parseFloat(reo.monthlyRentalIncome) || 0,
-                    monthlyPayment: parseFloat(reo.monthlyPayment) || 0,
-                    unpaidBalance: parseFloat(reo.unpaidBalance) || 0
-                  })),
-              assets: (borrower.assets || [])
-                  .filter(asset => hasValue(asset.assetType) && parseFloat(asset.assetValue) > 0)
-                  .map(asset => ({
-                    assetType: asset.assetType,
-                    bankName: asset.bankName || null,
-                    accountNumber: asset.accountNumber || null,
-                    assetValue: parseFloat(asset.assetValue) || 0,
-                    usedForDownpayment: asset.usedForDownpayment || false
-                  }))
-            })),
-        liabilities: data.borrowers
-            .filter(borrower => hasValue(borrower.firstName) && hasValue(borrower.lastName))
-            .flatMap(borrower =>
-                (borrower.liabilities || [])
-                    .filter(liability => hasValue(liability.creditorName) && hasValue(liability.liabilityType))
-                    .map(liability => ({
-                      creditorName: liability.creditorName,
-                      accountNumber: liability.accountNumber || null,
-                      liabilityType: normalizeLiabilityType(liability.liabilityType),
-                      monthlyPayment: parseFloat(liability.monthlyPayment) || 0,
-                      unpaidBalance: parseFloat(liability.unpaidBalance) || 0,
-                      payoffStatus: false,
-                      toBePaidOff: false
-                    }))
-            )
-      };
+      // Form → backend DTO conversion lives in utils/applicationPayload.js
+      // (pure, unit-tested). Keeps this handler focused on UI flow + API I/O.
+      const applicationData = formToApplicationPayload(data);
 
       debug('Final application data to send:', JSON.stringify(applicationData, null, 2));
       debug('Number of borrowers:', applicationData.borrowers?.length);

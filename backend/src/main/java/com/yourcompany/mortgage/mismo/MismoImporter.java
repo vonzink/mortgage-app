@@ -568,7 +568,11 @@ public class MismoImporter {
             asset.setAssetType(normalizeAssetType(type));
             asset.setAccountNumber(pluck(a, ".//*[local-name()='AssetAccountIdentifier']"));
             asset.setBankName(pluck(a, ".//*[local-name()='FullName']"));
-            asset.setAssetValue(value);
+            // assets.asset_value is NOT NULL in the schema; some LP exports omit the value
+            // on identification-only assets (e.g. life insurance with no cash value listed).
+            // Default to zero so the row persists; downstream UI shows "$0" which is correct
+            // for those cases and surfaces "this asset needs an amount" to the LO.
+            asset.setAssetValue(value != null ? value : BigDecimal.ZERO);
             String used = pluck(a, ".//*[local-name()='AssetEntryUsedForDownPaymentIndicator']");
             asset.setUsedForDownpayment(used != null && Boolean.parseBoolean(used));
 

@@ -33,6 +33,7 @@ NC='\033[0m'
 DEPLOY_FRONTEND=true
 DEPLOY_BACKEND=true
 DO_REPAIR=false
+DO_VALIDATE=false
 TAIL_LOGS=false
 
 usage() {
@@ -44,7 +45,12 @@ Usage: ./deploy.sh [OPTIONS]
   --backend-only    Rebuild + restart the backend container only
   --repair          Run \`flyway repair\` BEFORE bringing the backend up.
                     Use this once after deploying a migration whose file
-                    was edited (e.g. the V15 partial-index fix).
+                    was edited (e.g. the V15 partial-index fix). Mounts
+                    the local migrations dir so checksums are recomputed
+                    against the new file contents.
+  --validate        Read-only — runs \`flyway validate\` and shows which
+                    migration is failing. Doesn't change anything. Use
+                    this BEFORE --repair to confirm what's wrong.
   --logs            After deploying, tail the backend logs.
   -h, --help        Show this help.
 EOF
@@ -55,6 +61,7 @@ for arg in "$@"; do
     --frontend-only) DEPLOY_FRONTEND=true;  DEPLOY_BACKEND=false ;;
     --backend-only)  DEPLOY_FRONTEND=false; DEPLOY_BACKEND=true  ;;
     --repair)        DO_REPAIR=true                              ;;
+    --validate)      DO_VALIDATE=true; DEPLOY_FRONTEND=false; DEPLOY_BACKEND=false ;;
     --logs)          TAIL_LOGS=true                              ;;
     -h|--help)       usage; exit 0                               ;;
     *)               echo "Unknown option: $arg"; usage; exit 1  ;;
@@ -88,14 +95,15 @@ echo ""
 # Pass flags as positional args to `bash -s` (SSH doesn't forward env vars
 # without server-side AcceptEnv). The heredoc body picks them up as $1..$5.
 ssh -i "$EC2_KEY" "$EC2_HOST" bash -s -- \
-  "$DEPLOY_FRONTEND" "$DEPLOY_BACKEND" "$DO_REPAIR" "$TAIL_LOGS" "$EC2_PROJECT_DIR" <<'REMOTE'
+  "$DEPLOY_FRONTEND" "$DEPLOY_BACKEND" "$DO_REPAIR" "$DO_VALIDATE" "$TAIL_LOGS" "$EC2_PROJECT_DIR" <<'REMOTE'
 set -euo pipefail
 
 DEPLOY_FRONTEND="$1"
 DEPLOY_BACKEND="$2"
 DO_REPAIR="$3"
-TAIL_LOGS="$4"
-PROJECT_DIR="$5"
+DO_VALIDATE="$4"
+TAIL_LOGS="$5"
+PROJECT_DIR="$6"
 
 # Frontend env vars baked into the CRA bundle at build time. Hardcoded here
 # rather than passed from the laptop — they never change between deploys.
@@ -139,10 +147,36 @@ if [ "$DEPLOY_FRONTEND" = "true" ]; then
   echo ""
 fi
 
+# ── Flyway validate (read-only — show what's wrong before repairing) ───
+# Helpful when Spring Boot fails to start with "Migrations have failed
+# validation" and you want to know WHICH migration is the problem.
+if [ "$DO_VALIDATE" = "true" ]; then
+  echo -e "${YELLOW}▸ Running flyway validate (read-only)…${NC}"
+  if [ ! -f deploy/.env ]; then
+    echo -e "${RED}✗ deploy/.env not found — cannot connect to DB${NC}"
+    exit 1
+  fi
+  # shellcheck disable=SC1091
+  set -a; source deploy/.env; set +a
+
+  # Mount the local migrations dir into /flyway/sql so Flyway can compute
+  # checksums against the actual files (otherwise it only inspects the
+  # schema_history table and can't detect file edits).
+  docker run --rm --network host \
+    -v "${PROJECT_DIR}/backend/src/main/resources/db/migration:/flyway/sql" \
+    flyway/flyway:11 \
+    -url="jdbc:postgresql://${DB_HOST}:${DB_PORT}/${DB_NAME}" \
+    -user="${DB_USERNAME}" \
+    -password="${DB_PASSWORD}" \
+    -outOfOrder=true \
+    validate || true   # exit 1 from validate is informational; keep going
+  echo ""
+  exit 0
+fi
+
 # ── Flyway repair (optional, run before bringing backend up) ────────────
 if [ "$DO_REPAIR" = "true" ]; then
   echo -e "${YELLOW}▸ Running flyway repair against prod DB…${NC}"
-  # Source DB creds from deploy/.env
   if [ ! -f deploy/.env ]; then
     echo -e "${RED}✗ deploy/.env not found — cannot repair without DB creds${NC}"
     exit 1
@@ -150,13 +184,17 @@ if [ "$DO_REPAIR" = "true" ]; then
   # shellcheck disable=SC1091
   set -a; source deploy/.env; set +a
 
-  # Use the official Flyway CLI image. --network host so it can reach RDS
-  # via the same network path the backend container uses.
+  # IMPORTANT: mount the local migrations dir so Flyway sees the current
+  # file contents. Without this volume mount, `repair` can only clean
+  # FAILED migration entries from schema_history — it CANNOT update
+  # checksums to match edited files. That's the bug from the first run.
   docker run --rm --network host \
+    -v "${PROJECT_DIR}/backend/src/main/resources/db/migration:/flyway/sql" \
     flyway/flyway:11 \
     -url="jdbc:postgresql://${DB_HOST}:${DB_PORT}/${DB_NAME}" \
     -user="${DB_USERNAME}" \
     -password="${DB_PASSWORD}" \
+    -outOfOrder=true \
     repair
   echo -e "${GREEN}✓ Flyway checksums repaired${NC}"
   echo ""
@@ -194,10 +232,14 @@ REMOTE
 
 echo ""
 echo -e "${CYAN}========================================${NC}"
-echo -e "${GREEN}  Deploy complete!${NC}"
-[ "$DEPLOY_FRONTEND" = true ] && echo -e "  Frontend: ${GREEN}✓${NC} React bundle rebuilt"
-[ "$DO_REPAIR"       = true ] && echo -e "  Flyway:   ${GREEN}✓${NC} checksums repaired"
-[ "$DEPLOY_BACKEND"  = true ] && echo -e "  Backend:  ${GREEN}✓${NC} container restarted"
+if [ "$DO_VALIDATE" = true ]; then
+  echo -e "${GREEN}  Validation complete — see output above${NC}"
+else
+  echo -e "${GREEN}  Deploy complete!${NC}"
+  [ "$DEPLOY_FRONTEND" = true ] && echo -e "  Frontend: ${GREEN}✓${NC} React bundle rebuilt"
+  [ "$DO_REPAIR"       = true ] && echo -e "  Flyway:   ${GREEN}✓${NC} checksums repaired"
+  [ "$DEPLOY_BACKEND"  = true ] && echo -e "  Backend:  ${GREEN}✓${NC} container restarted"
+fi
 echo -e "${CYAN}========================================${NC}"
 echo ""
 echo "  → https://app.msfgco.com"

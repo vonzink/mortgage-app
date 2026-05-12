@@ -134,19 +134,40 @@ const ApplicationForm = () => {
           
           debug('Loaded application data from backend:', applicationData);
           
+          // Reverse the propertyUse mapping that applicationPayload.js applies on submit:
+          // form value ("Primary"/"Secondary"/"Investment") ↔ backend Property.propertyType
+          // ("PrimaryResidence"/"SecondHome"/"Investment"). Without this, MISMO imports
+          // (which write the long form) leave the form's Property Use dropdown blank
+          // because the option values don't match.
+          const reversePropertyUse = (raw) => {
+            if (raw === 'PrimaryResidence') return 'Primary';
+            if (raw === 'SecondHome') return 'Secondary';
+            return raw || '';  // 'Investment' / '' / unknown → pass through
+          };
+          // Same shape, applied to the form's Occupancy dropdown
+          // (OwnerOccupied / SecondHome / Investment) so an imported PrimaryResidence
+          // surfaces as OwnerOccupied.
+          const deriveOccupancy = (raw) => {
+            if (raw === 'PrimaryResidence') return 'OwnerOccupied';
+            if (raw === 'SecondHome') return 'SecondHome';
+            if (raw === 'Investment') return 'Investment';
+            return '';
+          };
+
           // Map backend data to form structure
           const formData = {
             loanPurpose: applicationData.loanPurpose,
             loanType: applicationData.loanType,
             loanAmount: applicationData.loanAmount,
             propertyValue: applicationData.propertyValue,
-            
+
             // Property fields
             property: applicationData.property,
             yearBuilt: applicationData.property?.yearBuilt,
             unitsCount: applicationData.property?.unitsCount,
             constructionType: applicationData.property?.constructionType,
-            propertyUse: applicationData.property?.propertyType,
+            propertyUse: reversePropertyUse(applicationData.property?.propertyType),
+            occupancy: deriveOccupancy(applicationData.property?.propertyType),
             
             // Borrowers with all nested data
             borrowers: (applicationData.borrowers || []).map(borrower => ({

@@ -94,6 +94,29 @@ public final class MismoCoerce {
     }
 
     /**
+     * Map MISMO {@code MaritalStatusType} values onto the form's marital-status
+     * dropdown options ({@code Single | Married | Divorced | Widowed | Separated}).
+     *
+     * <p>MISMO 3.4 only emits three values per ULAD: {@code Married | Unmarried |
+     * Separated}. The "Unmarried" bucket has to flatten down to one of the form's
+     * three single-state options — we pick "Single" because that's the most common
+     * carrier interpretation and matches what LP's UI shows.
+     */
+    public static String normalizeMaritalStatus(String raw) {
+        if (raw == null || raw.isBlank()) return null;
+        String s = raw.trim();
+        switch (s) {
+            case "Married":   return "Married";
+            case "Separated": return "Separated";
+            case "Unmarried": return "Single";
+            // Form values pass through unchanged
+            case "Single": case "Divorced": case "Widowed":
+                return s;
+            default: return s;  // unknown → pass through; downstream UI shows raw value
+        }
+    }
+
+    /**
      * Convert a postal-code value to {@code 12345} or {@code 12345-6789} format.
      * 9 raw digits becomes the dashed ZIP+4 form; everything else passes through.
      */

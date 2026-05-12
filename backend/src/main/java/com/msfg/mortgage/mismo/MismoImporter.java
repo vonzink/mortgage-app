@@ -134,6 +134,7 @@ public class MismoImporter {
             applyProperty(doc, la, changes);
             borrowerSectionImporter.apply(doc, la, links, changes);
             applyAssets(doc, la, links, changes);   // after borrowers — needs them to exist
+            applyReoFromAssets(doc, la, links, changes);  // REOs live inside DEAL/ASSETS, not PARTY
             applyLiabilities(doc, la, changes);
             applyLoanTerms(doc, la, changes);       // populates the dashboard's "this loan" row
             applyHousingExpenses(doc, la, changes); // dashboard PITIA breakdown
@@ -281,6 +282,15 @@ public class MismoImporter {
                             newV.toPlainString()));
                     p.setPropertyValue(newV);
                 }
+                // Mirror onto LoanApplication.propertyValue. The form reads this
+                // top-level field for the "Purchase Price / Property Value" input,
+                // so without the mirror the imported value never shows up in the UI.
+                if (!Objects.equals(la.getPropertyValue(), newV)) {
+                    changes.add(new FieldChange("propertyValue",
+                            la.getPropertyValue() == null ? null : la.getPropertyValue().toPlainString(),
+                            newV.toPlainString()));
+                    la.setPropertyValue(newV);
+                }
             } catch (NumberFormatException ignored) { }
         }
 
@@ -400,6 +410,88 @@ public class MismoImporter {
         return null;
     }
 
+
+    /**
+     * REO properties — LP puts these inside DEAL/ASSETS as ASSET[AssetType=RealEstateOwned]
+     * with an OWNED_PROPERTY child, NOT inside the borrower PARTY. That's why
+     * BorrowerSectionImporter.replaceReoProperties (which scans within a party) never
+     * finds anything in real LP exports.
+     *
+     * <p>Routing strategy mirrors {@link #applyAssets}: xlink arc from ASSET → ROLE →
+     * PARTY → match by sequence to a borrower; single-borrower fallback otherwise.
+     *
+     * <p>Wholesale-replace per borrower on first incoming REO.
+     */
+    private void applyReoFromAssets(Document doc, LoanApplication la, LinkContext links,
+                                     List<FieldChange> changes) throws XPathExpressionException {
+        NodeList nodes = (NodeList) MismoXml.xp().evaluate(
+                "//*[local-name()='ASSETS']/*[local-name()='ASSET']" +
+                "[.//*[local-name()='AssetType' and text()='RealEstateOwned']]",
+                doc, XPathConstants.NODESET);
+        if (nodes.getLength() == 0) return;
+
+        List<Borrower> borrowers = la.getBorrowers();
+        if (borrowers == null || borrowers.isEmpty()) return;
+
+        Map<Long, List<REOProperty>> bucket = new HashMap<>();
+        for (Borrower b : borrowers) bucket.put(b.getId() == null ? -1L : b.getId(), new ArrayList<>());
+
+        int kept = 0;
+        for (int i = 0; i < nodes.getLength(); i++) {
+            Element asset = (Element) nodes.item(i);
+            Element owned = first(asset, ".//*[local-name()='OWNED_PROPERTY']");
+            if (owned == null) continue;
+
+            // Skip the subject property — it's already represented as the loan's Property
+            String isSubject = pluck(owned,
+                    ".//*[local-name()='OwnedPropertySubjectIndicator']");
+            if ("true".equalsIgnoreCase(isSubject)) continue;
+
+            Borrower owner = resolveAssetOwner(asset, links, borrowers);
+            if (owner == null) {
+                log.warn("MISMO REO ASSET could not be routed to a borrower; skipping. label={}",
+                        asset.getAttributeNS(LinkContext.XLINK_NS, "label"));
+                continue;
+            }
+
+            REOProperty reo = new REOProperty();
+            reo.setBorrower(owner);
+            reo.setSequenceNumber(parseSeq(asset, i + 1));
+            reo.setAddressLine(pluck(owned, ".//*[local-name()='AddressLineText']"));
+            reo.setCity(pluck(owned, ".//*[local-name()='CityName']"));
+            reo.setState(pluck(owned, ".//*[local-name()='StateCode']"));
+            reo.setZipCode(pluck(owned, ".//*[local-name()='PostalCode']"));
+            // PropertyUsageType / PropertyCurrentUsageType — keep raw MISMO value
+            // (PrimaryResidence / SecondHome / Investment) so the UI can map it.
+            reo.setPropertyType(firstNonNull(
+                    pluck(owned, ".//*[local-name()='PropertyCurrentUsageType']"),
+                    pluck(owned, ".//*[local-name()='PropertyUsageType']")));
+            reo.setPropertyValue(parseDecimal(firstNonNull(
+                    pluck(owned, ".//*[local-name()='PropertyValuationAmount']"),
+                    pluck(owned, ".//*[local-name()='PropertyEstimatedValueAmount']"))));
+            reo.setUnpaidBalance(parseDecimal(
+                    pluck(owned, ".//*[local-name()='OwnedPropertyLienUPBAmount']")));
+            reo.setMonthlyPayment(parseDecimal(
+                    pluck(owned, ".//*[local-name()='OwnedPropertyMaintenanceExpenseAmount']")));
+            reo.setMonthlyRentalIncome(parseDecimal(
+                    pluck(owned, ".//*[local-name()='OwnedPropertyRentalIncomeNetAmount']")));
+
+            bucket.get(owner.getId() == null ? -1L : owner.getId()).add(reo);
+            kept++;
+        }
+
+        // Replace strategy: only borrowers who got new REOs have their list reset.
+        for (Borrower b : borrowers) {
+            List<REOProperty> incoming = bucket.get(b.getId() == null ? -1L : b.getId());
+            if (incoming.isEmpty()) continue;
+            if (b.getReoProperties() == null) b.setReoProperties(new ArrayList<>());
+            b.getReoProperties().clear();
+            b.getReoProperties().addAll(incoming);
+        }
+        if (kept > 0) {
+            changes.add(new FieldChange("reoProperties", "<replaced>", kept + " row(s)"));
+        }
+    }
 
     /**
      * Liabilities are wholesale-replaced on import — these come from LendingPad's credit pull

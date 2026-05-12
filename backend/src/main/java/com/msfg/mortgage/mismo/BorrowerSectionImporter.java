@@ -26,6 +26,7 @@ import java.util.List;
 import java.util.Objects;
 
 import static com.msfg.mortgage.mismo.parse.MismoCoerce.firstNonNull;
+import static com.msfg.mortgage.mismo.parse.MismoCoerce.normalizeMaritalStatus;
 import static com.msfg.mortgage.mismo.parse.MismoCoerce.normalizePhone;
 import static com.msfg.mortgage.mismo.parse.MismoCoerce.normalizeZip;
 import static com.msfg.mortgage.mismo.parse.MismoCoerce.parseBool;
@@ -77,11 +78,14 @@ public class BorrowerSectionImporter {
     private void applyBorrowers(Document doc, LoanApplication la, LinkContext links,
                                   List<MismoImporter.FieldChange> changes)
             throws XPathExpressionException {
-        // Only walk PARTYs that are actually Borrowers (skip PropertyOwner, LegalEntity for the LO,
-        // title companies, agents, etc.). MISMO marks the role with PartyRoleType=Borrower.
+        // Walk PARTYs that play a Borrower-side role: primary Borrower, Cosigner, or
+        // CoBorrower. (Skip PropertyOwner, LegalEntity for the LO, title companies, agents,
+        // RealEstateAgent, etc.) LP exports a CoBorrower as PartyRoleType=Cosigner — without
+        // accepting that value the second borrower is silently dropped on import.
         NodeList parties = (NodeList) MismoXml.xp().evaluate(
                 "//*[local-name()='PARTY']" +
-                "[.//*[local-name()='ROLE_DETAIL']/*[local-name()='PartyRoleType' and text()='Borrower']]",
+                "[.//*[local-name()='ROLE_DETAIL']/*[local-name()='PartyRoleType']" +
+                "[text()='Borrower' or text()='Cosigner' or text()='CoBorrower']]",
                 doc, XPathConstants.NODESET);
         if (parties.getLength() == 0) return;
 
@@ -124,7 +128,8 @@ public class BorrowerSectionImporter {
             }
 
             stringSet(b::getMaritalStatus, b::setMaritalStatus,
-                    pluck(party, ".//*[local-name()='MaritalStatusType']"), prefix + "maritalStatus", changes);
+                    normalizeMaritalStatus(pluck(party, ".//*[local-name()='MaritalStatusType']")),
+                    prefix + "maritalStatus", changes);
             stringSet(b::getCitizenshipType, b::setCitizenshipType,
                     pluck(party, ".//*[local-name()='CitizenshipResidencyType']"), prefix + "citizenshipType", changes);
 

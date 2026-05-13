@@ -256,22 +256,37 @@ const DeclarationsStep = ({
 // ── HMDA section ─────────────────────────────────────────────────────────────
 // Stores race + ethnicity as comma-separated MISMO codes on the declaration.
 // The MISMO importer pre-populates these from PARTY/INDIVIDUAL/GOVERNMENT_MONITORING.
+//
+// Display labels are human-readable; the `value` is the MISMO enum the backend
+// expects (do not change without updating the importer + DTO).
 const HMDA_RACES = [
-  'AmericanIndianOrAlaskaNative',
-  'Asian',
-  'BlackOrAfricanAmerican',
-  'NativeHawaiianOrOtherPacificIslander',
-  'White',
+  { value: 'AmericanIndianOrAlaskaNative',          label: 'American Indian or Alaska Native' },
+  { value: 'Asian',                                 label: 'Asian' },
+  { value: 'BlackOrAfricanAmerican',                label: 'Black or African American' },
+  { value: 'NativeHawaiianOrOtherPacificIslander',  label: 'Native Hawaiian or other Pacific Islander' },
+  { value: 'White',                                 label: 'White' },
 ];
 const HMDA_ETHNICITIES = [
-  'HispanicOrLatino',
-  'NotHispanicOrLatino',
+  { value: 'HispanicOrLatino',    label: 'Hispanic or Latino' },
+  { value: 'NotHispanicOrLatino', label: 'Not Hispanic or Latino' },
+];
+const HMDA_SEX_OPTIONS = [
+  { value: 'Male',                            label: 'Male' },
+  { value: 'Female',                          label: 'Female' },
+  { value: 'InformationNotProvidedUnknown',   label: 'Not provided' },
+  { value: 'NotApplicable',                   label: 'Not applicable' },
+];
+const APP_TAKEN_OPTIONS = [
+  { value: 'FaceToFace', label: 'Face-to-face' },
+  { value: 'Telephone',  label: 'Telephone' },
+  { value: 'Internet',   label: 'Internet' },
+  { value: 'Mail',       label: 'Mail' },
 ];
 
 function HmdaSection({ borrowerIndex, register, watch, setValue }) {
   const baseName = `borrowers.${borrowerIndex}.declaration`;
 
-  // Build a CSV toggle helper — each checkbox flips its value in/out of the CSV.
+  // Each checkbox toggles its value in/out of the field's comma-separated string.
   const toggleCsv = (fieldName, value) => {
     const cur = watch(`${baseName}.${fieldName}`) || '';
     const set = new Set(cur.split(',').map((s) => s.trim()).filter(Boolean));
@@ -284,86 +299,91 @@ function HmdaSection({ borrowerIndex, register, watch, setValue }) {
   };
 
   return (
-    <div className="declaration-section" style={{ marginTop: '1.5rem' }}>
-      <h5>HMDA — Government Monitoring</h5>
-      <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '0.75rem' }}>
-        Required for HMDA reporting. Borrower may decline to provide; check
-        "Not provided" instead of leaving blank.
-      </p>
+    <div className="hmda-section">
+      <div className="hmda-section-head">
+        <h5 className="hmda-section-title">HMDA — Government Monitoring</h5>
+        <p className="hmda-section-help">
+          Required for HMDA reporting. Borrower may decline to provide;
+          check "Not provided" instead of leaving blank.
+        </p>
+      </div>
 
-      <div className="form-row">
-        <div className="form-group" style={{ flex: '1 1 100%' }}>
-          <label>Race (select all that apply)</label>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.75rem' }}>
+      <div className="hmda-grid">
+        {/* Race ----------------------------------------------------------- */}
+        <fieldset className="hmda-block hmda-block--full">
+          <legend>Race <span className="dim">(select all that apply)</span></legend>
+          <div className="hmda-options">
             {HMDA_RACES.map((r) => (
-              <label key={r} style={{ display: 'flex', gap: '0.35rem', alignItems: 'center' }}>
+              <label key={r.value} className="hmda-check">
                 <input
                   type="checkbox"
-                  checked={isSelected('hmdaRace', r)}
-                  onChange={() => toggleCsv('hmdaRace', r)}
+                  checked={isSelected('hmdaRace', r.value)}
+                  onChange={() => toggleCsv('hmdaRace', r.value)}
                 />
-                <span style={{ fontSize: '0.85rem' }}>{r}</span>
+                <span>{r.label}</span>
               </label>
             ))}
-            <label style={{ display: 'flex', gap: '0.35rem', alignItems: 'center', marginLeft: 'auto' }}>
-              <input type="checkbox" {...register(`${baseName}.hmdaRaceRefusal`)} />
-              <span style={{ fontSize: '0.85rem' }}>Not provided</span>
-            </label>
           </div>
-        </div>
-      </div>
-
-      <div className="form-row">
-        <div className="form-group" style={{ flex: '1 1 60%' }}>
-          <label>Ethnicity</label>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.75rem' }}>
-            {HMDA_ETHNICITIES.map((e) => (
-              <label key={e} style={{ display: 'flex', gap: '0.35rem', alignItems: 'center' }}>
-                <input
-                  type="checkbox"
-                  checked={isSelected('hmdaEthnicity', e)}
-                  onChange={() => toggleCsv('hmdaEthnicity', e)}
-                />
-                <span style={{ fontSize: '0.85rem' }}>{e}</span>
-              </label>
-            ))}
-            <label style={{ display: 'flex', gap: '0.35rem', alignItems: 'center' }}>
-              <input type="checkbox" {...register(`${baseName}.hmdaEthnicityRefusal`)} />
-              <span style={{ fontSize: '0.85rem' }}>Not provided</span>
-            </label>
-          </div>
-        </div>
-
-        <div className="form-group" style={{ flex: '1 1 40%' }}>
-          <label htmlFor={`${baseName}.hmdaSex`}>Sex</label>
-          <select id={`${baseName}.hmdaSex`} {...register(`${baseName}.hmdaSex`)}>
-            <option value="">Select…</option>
-            <option value="Male">Male</option>
-            <option value="Female">Female</option>
-            <option value="InformationNotProvidedUnknown">Not provided</option>
-            <option value="NotApplicable">Not applicable</option>
-          </select>
-          <label style={{ display: 'flex', gap: '0.35rem', alignItems: 'center', marginTop: '0.4rem' }}>
-            <input type="checkbox" {...register(`${baseName}.hmdaSexRefusal`)} />
-            <span style={{ fontSize: '0.85rem' }}>Borrower refused to provide sex</span>
+          <label className="hmda-check hmda-refusal">
+            <input type="checkbox" {...register(`${baseName}.hmdaRaceRefusal`)} />
+            <span>Borrower declined to provide race</span>
           </label>
-        </div>
-      </div>
+        </fieldset>
 
-      <div className="form-row">
-        <div className="form-group" style={{ flex: '1 1 50%' }}>
-          <label htmlFor={`${baseName}.applicationTakenMethod`}>Application Taken By</label>
+        {/* Ethnicity ------------------------------------------------------ */}
+        <fieldset className="hmda-block">
+          <legend>Ethnicity</legend>
+          <div className="hmda-options">
+            {HMDA_ETHNICITIES.map((e) => (
+              <label key={e.value} className="hmda-check">
+                <input
+                  type="checkbox"
+                  checked={isSelected('hmdaEthnicity', e.value)}
+                  onChange={() => toggleCsv('hmdaEthnicity', e.value)}
+                />
+                <span>{e.label}</span>
+              </label>
+            ))}
+          </div>
+          <label className="hmda-check hmda-refusal">
+            <input type="checkbox" {...register(`${baseName}.hmdaEthnicityRefusal`)} />
+            <span>Borrower declined to provide ethnicity</span>
+          </label>
+        </fieldset>
+
+        {/* Sex ------------------------------------------------------------ */}
+        <fieldset className="hmda-block">
+          <legend>Sex</legend>
+          <select
+            id={`${baseName}.hmdaSex`}
+            className="hmda-select"
+            {...register(`${baseName}.hmdaSex`)}
+          >
+            <option value="">Select…</option>
+            {HMDA_SEX_OPTIONS.map((o) => (
+              <option key={o.value} value={o.value}>{o.label}</option>
+            ))}
+          </select>
+          <label className="hmda-check hmda-refusal">
+            <input type="checkbox" {...register(`${baseName}.hmdaSexRefusal`)} />
+            <span>Borrower declined to provide sex</span>
+          </label>
+        </fieldset>
+
+        {/* Application taken method (per-loan, but the form pairs it with HMDA) */}
+        <fieldset className="hmda-block hmda-block--full">
+          <legend>Application taken by</legend>
           <select
             id={`${baseName}.applicationTakenMethod`}
+            className="hmda-select"
             {...register(`${baseName}.applicationTakenMethod`)}
           >
             <option value="">Select…</option>
-            <option value="FaceToFace">Face-to-face</option>
-            <option value="Telephone">Telephone</option>
-            <option value="Internet">Internet</option>
-            <option value="Mail">Mail</option>
+            {APP_TAKEN_OPTIONS.map((o) => (
+              <option key={o.value} value={o.value}>{o.label}</option>
+            ))}
           </select>
-        </div>
+        </fieldset>
       </div>
     </div>
   );

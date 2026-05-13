@@ -27,7 +27,7 @@
 .dash-stat-row {
   display: grid;
   grid-template-columns: 1.4fr 1fr 1fr 1fr;
-  gap: 14px; margin-bottom: 20px;
+  gap: 16px; margin-bottom: 28px;
 }
 @media (max-width: 1100px) {
   .dash-stat-row { grid-template-columns: 1fr 1fr; }
@@ -36,27 +36,28 @@
   .dash-stat-row { grid-template-columns: 1fr; }
 }
 
-/* Dark note-amount card */
+/* Dark note-amount card. Text contrast bumped — old #f1ede0 + opacity:.6 on
+   labels left the value barely readable against the forest gradient. */
 .dash-note-card {
   background: linear-gradient(160deg, var(--forest-800), var(--forest-900));
-  color: #f1ede0;
+  color: #fff;
   border: 0;
 }
 .dash-note-eyebrow {
   font-size: 11px; text-transform: uppercase; letter-spacing: .12em;
-  opacity: .6;
+  color: rgba(255,255,255,0.78);
 }
 .dash-note-value {
-  font-size: 42px; font-weight: 600; letter-spacing: -0.03em;
-  margin-top: 6px; line-height: 1;
+  font-size: 42px; font-weight: 700; letter-spacing: -0.03em;
+  margin-top: 6px; line-height: 1; color: #fff;
 }
-.dash-note-value-cents { font-size: 24px; opacity: .6; }
+.dash-note-value-cents { font-size: 24px; color: rgba(255,255,255,0.85); }
 .dash-note-stats {
   display: flex; gap: 22px; margin-top: 16px; font-size: 12.5px;
   flex-wrap: wrap;
 }
-.dash-note-stat-label { opacity: .6; font-size: 11px; }
-.dash-note-stat-value { font-size: 16px; font-weight: 600; margin-top: 2px; }
+.dash-note-stat-label { color: rgba(255,255,255,0.72); font-size: 11px; }
+.dash-note-stat-value { font-size: 16px; font-weight: 600; margin-top: 2px; color: #fff; }
 
 /* Light KPI tiles */
 .dash-kpi { display: flex; flex-direction: column; }
@@ -68,7 +69,7 @@
 .dash-kpi-sub { font-size: 12px; margin-top: 4px; }
 
 /* Status timeline ---------------------------------------------------------- */
-.dash-timeline-card { margin-bottom: 20px; }
+.dash-timeline-card { margin-bottom: 28px; }
 .dash-timeline-meta { font-size: 12px; }
 .dash-timeline-body { padding: 22px 28px 24px; }
 .dash-timeline-grid {
@@ -123,5 +124,7 @@
 /* In-grid status dropdown (kept functional) ------------------------------- */
 .dash-status-row {
   display: flex; align-items: center; gap: 12px;
-  margin-bottom: 20px; flex-wrap: wrap;
+  margin-bottom: 28px; flex-wrap: wrap;
+  padding: 12px 14px; background: var(--bg-secondary, #f6f4ee);
+  border-radius: 8px;
 }

@@ -364,6 +364,16 @@ public class LoanApplicationService {
      * caller from the JWT and stamp it. The note column is reserved for an LO-entered comment.
      */
     public LoanApplication updateApplicationStatus(Long id, String status) {
+        return updateApplicationStatus(id, status, null);
+    }
+
+    /**
+     * Move a loan to a new status with an optional explicit transition timestamp
+     * (used for backdating from the dashboard). Null timestamp → @PrePersist
+     * stamps {@code now()} on the history row.
+     */
+    public LoanApplication updateApplicationStatus(Long id, String status,
+                                                    java.time.LocalDateTime transitionedAt) {
         LoanApplication application = loanApplicationRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Application not found"));
 
@@ -382,6 +392,7 @@ public class LoanApplicationService {
         loanStatusHistoryRepository.save(LoanStatusHistory.builder()
                 .loanApplicationId(saved.getId())
                 .status(parsed.name())
+                .transitionedAt(transitionedAt)
                 .build());
 
         return saved;

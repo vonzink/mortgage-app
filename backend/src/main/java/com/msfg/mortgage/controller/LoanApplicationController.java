@@ -312,11 +312,21 @@ public class LoanApplicationController {
         }
     }
 
+    /**
+     * Move a loan to a new status. Optional {@code transitionedAt} (ISO-8601
+     * date or datetime) lets the LO backdate a milestone — useful when the
+     * actual event happened before the LO got around to clicking the dashboard.
+     * Omitted → defaults to now().
+     */
     @PatchMapping("/{id}/status")
     @PreAuthorize("@loanAccessGuard.isInternal() and @loanAccessGuard.canAccess(#id)")
-    public ResponseEntity<?> updateApplicationStatus(@PathVariable Long id, @RequestParam String status) {
+    public ResponseEntity<?> updateApplicationStatus(
+            @PathVariable Long id,
+            @RequestParam String status,
+            @RequestParam(required = false) String transitionedAt) {
         try {
-            LoanApplication application = loanApplicationService.updateApplicationStatus(id, status);
+            java.time.LocalDateTime ts = parseTransitionedAt(transitionedAt);
+            LoanApplication application = loanApplicationService.updateApplicationStatus(id, status, ts);
             return new ResponseEntity<>(application, HttpStatus.OK);
         } catch (IllegalArgumentException e) {
             log.warn("Status update rejected for application {} -> {}: {}", id, status, e.getMessage());
@@ -324,6 +334,20 @@ public class LoanApplicationController {
         } catch (RuntimeException e) {
             log.warn("Status update failed for application {} -> {}: {}", id, status, e.getMessage());
             return new ResponseEntity<>(HttpStatus.NOT_FOUND);
+        }
+    }
+
+    /**
+     * Accept either an ISO date ("2026-05-13") or full datetime ("2026-05-13T14:00:00").
+     * Pure dates are interpreted at start-of-day local. Returns null for blank input
+     * so the service falls back to LocalDateTime.now() in its @PrePersist.
+     */
+    private static java.time.LocalDateTime parseTransitionedAt(String s) {
+        if (s == null || s.isBlank()) return null;
+        try {
+            return java.time.LocalDateTime.parse(s.trim());
+        } catch (java.time.format.DateTimeParseException e) {
+            return java.time.LocalDate.parse(s.trim()).atStartOfDay();
         }
     }
 

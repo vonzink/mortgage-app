@@ -142,11 +142,15 @@ export default function LoanDashboardPage() {
 
   useEffect(() => { load(); }, [load]);
 
+  // Date the LO is backdating the next status transition to. Defaults to today;
+  // they can override before clicking the dropdown to advance the loan.
+  const [statusDate, setStatusDate] = useState(() => new Date().toISOString().slice(0, 10));
+
   const handleStatusChange = async (next) => {
     if (!next || next === data.status) return;
     try {
-      await dashboardService.updateStatus(loanId, next, null);
-      toast.success(`Status: ${data.status} → ${next}`);
+      await dashboardService.updateStatus(loanId, next, statusDate || null);
+      toast.success(`Status: ${data.status} → ${next}${statusDate ? ` (${statusDate})` : ''}`);
       await load();
     } catch (err) {
       toast.error(`Status update failed: ${err?.response?.data?.message || err.message}`);
@@ -294,8 +298,10 @@ export default function LoanDashboardPage() {
 
       <MilestoneTimeline milestones={milestones} daysElapsed={daysElapsed} daysTarget={60} />
 
-      {/* Inline status dropdown (functional — the design's "Update status"
-          opens a modal; we keep the dropdown for now). */}
+      {/* Status update row: pick a date first (defaults to today), then change
+          the dropdown to advance the loan. The date stamps the new
+          loan_status_history row so the timeline reflects when the milestone
+          actually happened, not when the LO got around to clicking. */}
       <div className="dash-status-row">
         <label className="muted" style={{ fontSize: 13 }}>Update status</label>
         <select
@@ -305,6 +311,15 @@ export default function LoanDashboardPage() {
         >
           {STATUS_ORDER.map(s => <option key={s} value={s}>{s}</option>)}
         </select>
+        <label className="muted" style={{ fontSize: 13, marginLeft: 8 }}>on</label>
+        <input
+          type="date"
+          value={statusDate}
+          onChange={(e) => setStatusDate(e.target.value)}
+          max={new Date().toISOString().slice(0, 10)}
+          title="Date this transition happened. Defaults to today; backdate when the milestone happened earlier."
+          style={{ padding: '6px 10px', border: '1px solid var(--ink-line)', borderRadius: 6, fontSize: 13 }}
+        />
         {outstandingCount > 0 && (
           <span className="dashboard-warning-pill">{outstandingCount} outstanding</span>
         )}

@@ -23,11 +23,19 @@ const dashboardService = {
     return data;
   },
 
-  /** PATCH — change loan status. Backend writes a loan_status_history row. */
-  updateStatus: async (loanId, status, note) => {
+  /**
+   * PATCH — change loan status. Backend writes a loan_status_history row.
+   * Optional `transitionedAt` (ISO date "2026-05-13" or full datetime) lets
+   * the LO backdate a milestone; omitted → backend stamps now().
+   *
+   * Spring's @RequestParam reads from query params, not JSON bodies — that's
+   * why the args go in the URL even though the verb is PATCH.
+   */
+  updateStatus: async (loanId, status, transitionedAt) => {
+    const params = new URLSearchParams({ status });
+    if (transitionedAt) params.set('transitionedAt', transitionedAt);
     const { data } = await apiClient.patch(
-      `/loan-applications/${loanId}/status`,
-      { status, note },
+      `/loan-applications/${loanId}/status?${params.toString()}`,
     );
     return data;
   },

@@ -268,7 +268,11 @@ export default function LoanDashboardPage() {
         ) : null}
         onAllLoans={() => navigate('/applications')}
         onExportMismo={handleExportMismo}
-        onViewApplication={() => navigate(`/applications/${loanId}`)}
+        // "View application" opens the form in read-only mode. Going to
+        // /applications/:id would land on the document workspace instead,
+        // which is what "Documents" is for — separate concept.
+        onViewApplication={() => navigate(`/apply?edit=${loanId}&view=1`)}
+        onOpenDocuments={() => navigate(`/applications/${loanId}`)}
         onUpdateStatus={null /* status changes via the in-grid select below */}
       />
 

@@ -77,6 +77,9 @@ export default function WorkspaceTab({ loanId }) {
   // Phase 3: staged files awaiting type selection before the actual upload starts.
   const [pendingUploadFiles, setPendingUploadFiles] = useState([]);
 
+  // Drop-zone visual hint while a file is being dragged from the OS over the workspace.
+  const [isOsDragOver, setIsOsDragOver] = useState(false);
+
   // Phase 5: search + filters. When any are set, we hit /documents/search
   // instead of the folder-scoped listing.
   const [search, setSearch] = useState('');
@@ -283,8 +286,10 @@ export default function WorkspaceTab({ loanId }) {
 
   // ── Folder-aware upload ──────────────────────────────────────────────────
   const handleUploadClick = () => {
-    if (!selectedFolderId) {
-      toast.warning('Pick a folder first');
+    // Allow upload from any selected folder, including the loan root (root
+    // uploads land at folder_id=NULL and the table's "atRoot" view shows them).
+    if (selectedFolderId == null && rootId == null) {
+      toast.warning('Folders are still loading — try again in a moment');
       return;
     }
     fileInputRef.current?.click();
@@ -295,6 +300,41 @@ export default function WorkspaceTab({ loanId }) {
     e.target.value = '';
     if (files.length === 0) return;
     // Stage files and open the type modal — actual upload kicks off on confirm.
+    setPendingUploadFiles(files);
+  };
+
+  // ── OS file drag-and-drop ────────────────────────────────────────────────
+  // Catch native OS file drops anywhere over the workspace main area.
+  // Must call preventDefault on dragover/dragenter or the browser will refuse
+  // the drop and just open the file as a navigation. The internal-drag MIME
+  // (used for moving files between folders inside FileTable) is filtered out
+  // so we don't double-handle that path.
+  const isOsFileDrag = (e) => {
+    const dt = e.dataTransfer;
+    if (!dt) return false;
+    // dataTransfer.types contains "Files" when an OS file is being dragged.
+    // Internal moves use a custom MIME (see FileTable INTERNAL_DRAG_MIME).
+    return Array.from(dt.types || []).includes('Files');
+  };
+  const handleOsDragOver = (e) => {
+    if (!isOsFileDrag(e)) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'copy';
+    if (!isOsDragOver) setIsOsDragOver(true);
+  };
+  const handleOsDragLeave = (e) => {
+    // Only clear the highlight when leaving the outer container (not crossing
+    // a child boundary). currentTarget is stable; relatedTarget is where we
+    // went; if that's still inside, ignore.
+    if (e.currentTarget.contains(e.relatedTarget)) return;
+    setIsOsDragOver(false);
+  };
+  const handleOsDrop = (e) => {
+    if (!isOsFileDrag(e)) return;
+    e.preventDefault();
+    setIsOsDragOver(false);
+    const files = Array.from(e.dataTransfer.files || []);
+    if (files.length === 0) return;
     setPendingUploadFiles(files);
   };
 
@@ -537,7 +577,13 @@ export default function WorkspaceTab({ loanId }) {
           )}
         </aside>
 
-        <main className="ws-main">
+        <main
+          className={`ws-main${isOsDragOver ? ' ws-main--drag-over' : ''}`}
+          onDragOver={handleOsDragOver}
+          onDragEnter={handleOsDragOver}
+          onDragLeave={handleOsDragLeave}
+          onDrop={handleOsDrop}
+        >
           <Breadcrumbs path={breadcrumb} onNavigate={setSelectedFolderId} />
 
           {atDeleteFolder && (
@@ -564,21 +610,21 @@ export default function WorkspaceTab({ loanId }) {
             folderNameFor={folderNameFor}
           />
 
-          {/* Upload button sits at the END of the file list — once clicked and the
-              upload completes, the table refreshes and the new docs appear among
-              the files (auto-routed by tag if uploaded from the loan root). */}
+          {/* Upload button + OS-drop hint. Drop a file anywhere in the workspace
+              area to stage it; the type-picker modal fires either way. */}
           <div className="ws-upload-row">
             <button
               type="button"
               className="btn btn-primary"
               onClick={handleUploadClick}
-              disabled={!selectedFolder || uploadingCount > 0}
+              disabled={uploadingCount > 0 || (rootId == null && selectedFolderId == null)}
               title={atRoot
                 ? 'Files uploaded from root auto-route into folders by tag'
                 : `Upload into ${selectedFolder?.displayName || 'this folder'}`}
             >
               <FaUpload /> {uploadingCount > 0 ? `Uploading ${uploadingCount}…` : 'Upload'}
             </button>
+            <span className="ws-upload-hint dim">or drag files anywhere into this panel</span>
             <input
               ref={fileInputRef}
               type="file"

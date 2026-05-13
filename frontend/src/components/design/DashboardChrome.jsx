@@ -40,6 +40,7 @@ export function DashboardHero({
   onAllLoans,
   onExportMismo,
   onViewApplication,
+  onOpenDocuments,
   onUpdateStatus,
 }) {
   const tone = dashboardStatusTone(status);
@@ -67,8 +68,13 @@ export function DashboardHero({
           </Button>
         )}
         {onViewApplication && (
-          <Button onClick={onViewApplication}>
+          <Button onClick={onViewApplication} title="Open the 1003 in read-only mode">
             <Icon name="doc" size={14} /> View application
+          </Button>
+        )}
+        {onOpenDocuments && (
+          <Button onClick={onOpenDocuments} title="Open the document workspace">
+            <Icon name="folder" size={14} /> Documents
           </Button>
         )}
         {onUpdateStatus && (

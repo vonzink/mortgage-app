@@ -154,7 +154,7 @@ function AppCard({ app, isLatest, onMismo, onCopy, onDelete }) {
             <Icon name="chart" size={12} /> Dashboard
           </Button>
           <Button size="sm" variant="primary" to={`/apply?edit=${app.id}`} title="Edit this application">
-            <Icon name="edit" size={12} /> Continue
+            <Icon name="edit" size={12} /> Edit
           </Button>
         </div>
       </div>

@@ -103,6 +103,221 @@ public class LoanApplicationService {
         return b;
     }
 
+    /**
+     * Server-side clone of an existing application — produces a fresh row that
+     * carries forward the full data tree (property, every borrower with
+     * employment/income/residences/declaration/assets/REO, and top-level
+     * liabilities) so the LO doesn't retype.
+     *
+     * <p>What we DO NOT copy: identifiers that must stay unique per loan
+     * (applicationNumber + lendingpadLoanNumber + investorLoanNumber + MERS
+     * MIN), audit / status timestamps (status resets to REGISTERED), borrower
+     * SSNs (re-collect to avoid stale-PII risk), and document records (the
+     * carried document workspace would point at someone else's S3 keys).
+     */
+    public LoanApplication cloneApplication(Long sourceId) {
+        LoanApplication src = loanApplicationRepository.findById(sourceId)
+                .orElseThrow(() -> new ResourceNotFoundException("LoanApplication " + sourceId + " not found"));
+
+        LoanApplication app = new LoanApplication();
+        app.setLoanPurpose(src.getLoanPurpose());
+        app.setLoanType(src.getLoanType());
+        app.setLoanAmount(src.getLoanAmount());
+        app.setPropertyValue(src.getPropertyValue());
+        app.setStatus("REGISTERED");
+        app.setAssignedLoId(src.getAssignedLoId());
+        app.setAssignedLoName(src.getAssignedLoName());
+        // Identifiers stay null — uniqueness constraints + the
+        // applicationNumber generator will assign fresh values on save.
+
+        if (src.getProperty() != null) {
+            Property srcP = src.getProperty();
+            Property p = new Property();
+            p.setApplication(app);
+            p.setAddressLine(srcP.getAddressLine());
+            p.setCity(srcP.getCity());
+            p.setState(srcP.getState());
+            p.setZipCode(srcP.getZipCode());
+            p.setCounty(srcP.getCounty());
+            p.setPropertyType(srcP.getPropertyType());
+            p.setPropertyValue(srcP.getPropertyValue());
+            p.setPurchasePrice(srcP.getPurchasePrice());
+            p.setConstructionType(srcP.getConstructionType());
+            p.setYearBuilt(srcP.getYearBuilt());
+            p.setUnitsCount(srcP.getUnitsCount());
+            p.setAttachmentType(srcP.getAttachmentType());
+            p.setProjectType(srcP.getProjectType());
+            app.setProperty(p);
+        }
+
+        if (src.getBorrowers() != null && !src.getBorrowers().isEmpty()) {
+            List<Borrower> borrowers = new ArrayList<>(src.getBorrowers().size());
+            for (Borrower srcB : src.getBorrowers()) {
+                borrowers.add(cloneBorrower(srcB, app));
+            }
+            app.setBorrowers(borrowers);
+        }
+
+        if (src.getLiabilities() != null && !src.getLiabilities().isEmpty()) {
+            List<Liability> liabs = new ArrayList<>(src.getLiabilities().size());
+            for (Liability srcL : src.getLiabilities()) {
+                Liability l = new Liability();
+                l.setApplication(app);
+                l.setAccountNumber(srcL.getAccountNumber());
+                l.setCreditorName(srcL.getCreditorName());
+                l.setLiabilityType(srcL.getLiabilityType());
+                l.setMonthlyPayment(srcL.getMonthlyPayment());
+                l.setUnpaidBalance(srcL.getUnpaidBalance());
+                l.setPayoffStatus(Boolean.TRUE.equals(srcL.getPayoffStatus()));
+                l.setToBePaidOff(Boolean.TRUE.equals(srcL.getToBePaidOff()));
+                l.setExclusionReason(srcL.getExclusionReason());
+                // borrower FK left null — re-link after borrower clones get IDs
+                liabs.add(l);
+            }
+            app.setLiabilities(liabs);
+        }
+
+        return loanApplicationRepository.save(app);
+    }
+
+    private Borrower cloneBorrower(Borrower src, LoanApplication app) {
+        Borrower b = new Borrower();
+        b.setApplication(app);
+        b.setSequenceNumber(src.getSequenceNumber());
+        b.setFirstName(src.getFirstName());
+        b.setLastName(src.getLastName());
+        // SSN intentionally NOT copied — re-collect to avoid stale-PII risk.
+        b.setBirthDate(src.getBirthDate());
+        b.setMaritalStatus(src.getMaritalStatus());
+        b.setEmail(src.getEmail());
+        b.setPhone(src.getPhone());
+        b.setCitizenshipType(src.getCitizenshipType());
+        b.setDependentsCount(src.getDependentsCount());
+        b.setCurrentAddressLine(src.getCurrentAddressLine());
+        b.setCurrentCity(src.getCurrentCity());
+        b.setCurrentState(src.getCurrentState());
+        b.setCurrentZipCode(src.getCurrentZipCode());
+
+        if (src.getEmploymentHistory() != null) {
+            List<Employment> list = new ArrayList<>();
+            for (Employment srcE : src.getEmploymentHistory()) {
+                Employment e = new Employment();
+                e.setBorrower(b);
+                e.setSequenceNumber(srcE.getSequenceNumber());
+                e.setEmployerName(srcE.getEmployerName());
+                e.setEmployerPhone(srcE.getEmployerPhone());
+                e.setEmployerAddress(srcE.getEmployerAddress());
+                e.setEmployerCity(srcE.getEmployerCity());
+                e.setEmployerState(srcE.getEmployerState());
+                e.setEmployerZip(srcE.getEmployerZip());
+                e.setPosition(srcE.getPosition());
+                e.setStartDate(srcE.getStartDate());
+                e.setEndDate(srcE.getEndDate());
+                e.setMonthlyIncome(srcE.getMonthlyIncome());
+                e.setEmploymentStatus(srcE.getEmploymentStatus());
+                e.setIsPresent(srcE.getIsPresent());
+                e.setSelfEmployed(srcE.getSelfEmployed());
+                list.add(e);
+            }
+            b.setEmploymentHistory(list);
+        }
+
+        if (src.getIncomeSources() != null) {
+            List<IncomeSource> list = new ArrayList<>();
+            for (IncomeSource srcI : src.getIncomeSources()) {
+                IncomeSource i = new IncomeSource();
+                i.setBorrower(b);
+                i.setIncomeType(srcI.getIncomeType());
+                i.setMonthlyAmount(srcI.getMonthlyAmount());
+                i.setDescription(srcI.getDescription());
+                list.add(i);
+            }
+            b.setIncomeSources(list);
+        }
+
+        if (src.getResidences() != null) {
+            List<Residence> list = new ArrayList<>();
+            for (Residence srcR : src.getResidences()) {
+                Residence r = new Residence();
+                r.setBorrower(b);
+                r.setAddressLine(srcR.getAddressLine());
+                r.setCity(srcR.getCity());
+                r.setState(srcR.getState());
+                r.setZipCode(srcR.getZipCode());
+                r.setResidencyType(srcR.getResidencyType());
+                r.setResidencyBasis(srcR.getResidencyBasis());
+                r.setDurationMonths(srcR.getDurationMonths());
+                r.setMonthlyRent(srcR.getMonthlyRent());
+                list.add(r);
+            }
+            b.setResidences(list);
+        }
+
+        if (src.getAssets() != null) {
+            List<Asset> list = new ArrayList<>();
+            for (Asset srcA : src.getAssets()) {
+                Asset a = new Asset();
+                a.setBorrower(b);
+                a.setAssetType(srcA.getAssetType());
+                a.setBankName(srcA.getBankName());
+                a.setAccountNumber(srcA.getAccountNumber());
+                a.setAssetValue(srcA.getAssetValue());
+                a.setUsedForDownpayment(srcA.getUsedForDownpayment());
+                list.add(a);
+            }
+            b.setAssets(list);
+        }
+
+        if (src.getReoProperties() != null) {
+            List<REOProperty> list = new ArrayList<>();
+            for (REOProperty srcR : src.getReoProperties()) {
+                REOProperty r = new REOProperty();
+                r.setBorrower(b);
+                r.setSequenceNumber(srcR.getSequenceNumber());
+                r.setAddressLine(srcR.getAddressLine());
+                r.setCity(srcR.getCity());
+                r.setState(srcR.getState());
+                r.setZipCode(srcR.getZipCode());
+                r.setPropertyType(srcR.getPropertyType());
+                r.setPropertyValue(srcR.getPropertyValue());
+                r.setMonthlyRentalIncome(srcR.getMonthlyRentalIncome());
+                r.setMonthlyPayment(srcR.getMonthlyPayment());
+                r.setUnpaidBalance(srcR.getUnpaidBalance());
+                list.add(r);
+            }
+            b.setReoProperties(list);
+        }
+
+        if (src.getDeclaration() != null) {
+            Declaration srcD = src.getDeclaration();
+            Declaration d = new Declaration();
+            d.setBorrower(b);
+            d.setOutstandingJudgments(srcD.getOutstandingJudgments());
+            d.setBankruptcy(srcD.getBankruptcy());
+            d.setForeclosure(srcD.getForeclosure());
+            d.setLawsuit(srcD.getLawsuit());
+            d.setLoanForeclosure(srcD.getLoanForeclosure());
+            d.setPresentlyDelinquent(srcD.getPresentlyDelinquent());
+            d.setAlimonyChildSupport(srcD.getAlimonyChildSupport());
+            d.setBorrowingDownPayment(srcD.getBorrowingDownPayment());
+            d.setComakerEndorser(srcD.getComakerEndorser());
+            d.setUsCitizen(srcD.getUsCitizen());
+            d.setPermanentResident(srcD.getPermanentResident());
+            d.setIntentToOccupy(srcD.getIntentToOccupy());
+            d.setHmdaRace(srcD.getHmdaRace());
+            d.setHmdaRaceRefusal(srcD.getHmdaRaceRefusal());
+            d.setHmdaEthnicity(srcD.getHmdaEthnicity());
+            d.setHmdaEthnicityRefusal(srcD.getHmdaEthnicityRefusal());
+            d.setHmdaEthnicityOrigin(srcD.getHmdaEthnicityOrigin());
+            d.setHmdaSex(srcD.getHmdaSex());
+            d.setHmdaSexRefusal(srcD.getHmdaSexRefusal());
+            d.setApplicationTakenMethod(srcD.getApplicationTakenMethod());
+            b.setDeclaration(d);
+        }
+
+        return b;
+    }
+
     @Transactional(readOnly = true)
     public List<LoanApplication> getAllApplications() {
         return loanApplicationRepository.findAll();

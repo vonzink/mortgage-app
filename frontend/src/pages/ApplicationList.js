@@ -246,20 +246,17 @@ export default function ApplicationList() {
 
   const handleCopyToNewApplication = async (applicationId) => {
     try {
-      const data = await mortgageService.getApplication(applicationId);
-      // Carry over the structural data only — addresses / dates / SSNs stay per-applicant.
-      const formData = {
-        loanPurpose: data.loanPurpose,
-        loanType: data.loanType,
-        assets: data.assets || [],
-        liabilities: data.liabilities || [],
-        realEstateOwned: data.realEstateOwned || [],
-      };
-      sessionStorage.setItem('carryOverData', JSON.stringify(formData));
-      navigate('/apply');
-      toast.success('Starting new application with carried-over data');
-    } catch {
-      toast.error('Failed to copy application data');
+      // Server-side clone — produces a real new row in the apps list with the
+      // full data tree carried forward. SSNs and unique identifiers are reset
+      // server-side so the LO doesn't accidentally duplicate PII.
+      const result = await mortgageService.cloneApplication(applicationId);
+      toast.success(`New application ${result.applicationNumber || ''} created from copy`);
+      // Refresh the list so the new card appears immediately, then jump into
+      // the form for the LO to fill in the SSNs / borrower-specific bits.
+      await fetchApplications();
+      navigate(`/apply?edit=${result.id}`);
+    } catch (err) {
+      toast.error(`Copy failed: ${err.response?.data?.message || err.message || err}`);
     }
   };
 

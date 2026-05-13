@@ -44,6 +44,17 @@ const mortgageService = {
     await apiClient.delete(`/loan-applications/${id}`);
   },
 
+  /**
+   * Server-side clone — creates a new application carrying forward the source's
+   * loan basics, property, every borrower (with employment / income / residences
+   * / declaration / assets / REO), and top-level liabilities. Returns
+   * { id, applicationNumber }. SSNs and unique identifiers are NOT carried.
+   */
+  cloneApplication: async (sourceId) => {
+    const { data } = await apiClient.post(`/loan-applications/${sourceId}/clone`);
+    return data;
+  },
+
   /** Status timeline for the borrower portal's progress view. */
   getStatusHistory: async (id) => {
     const { data } = await apiClient.get(`/loan-applications/${id}/status-history`);

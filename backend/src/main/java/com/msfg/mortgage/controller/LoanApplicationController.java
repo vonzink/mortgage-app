@@ -124,6 +124,36 @@ public class LoanApplicationController {
     }
 
     /**
+     * Server-side clone of an existing application — returns the new app's id +
+     * applicationNumber. Implements the "Copy to new" action on the apps list:
+     * the LO clicks Copy, a fresh row appears in the list with the carried-over
+     * data, and the form opens for them to fill in the borrower-specific bits
+     * (SSNs are intentionally not carried).
+     */
+    @PostMapping("/{id}/clone")
+    @PreAuthorize("hasAnyRole('LO','Processor','Admin','Manager') and @loanAccessGuard.canAccess(#id)")
+    public ResponseEntity<?> cloneApplication(@PathVariable Long id) {
+        try {
+            LoanApplication la = loanApplicationService.cloneApplication(id);
+            // Auto-assign the calling user as LO if the source didn't have one.
+            User me = currentUserService.currentUser().orElse(null);
+            if (me != null && la.getAssignedLoId() == null) {
+                la.setAssignedLoId(me.getId());
+                la.setAssignedLoName(me.getName());
+            }
+            Map<String, Object> body = new LinkedHashMap<>();
+            body.put("ok", true);
+            body.put("id", la.getId());
+            body.put("applicationNumber", la.getApplicationNumber());
+            return ResponseEntity.status(HttpStatus.CREATED).body(body);
+        } catch (Exception e) {
+            log.warn("Clone application {} failed: {}", id, e.getMessage());
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error", "clone_failed", "message", e.getMessage()));
+        }
+    }
+
+    /**
      * Internal-only firehose. Borrowers/agents must use {@code GET /me/loans}, which is
      * filtered to loans they participate in.
      */

@@ -385,27 +385,44 @@ public class MismoImporter {
         }
     }
 
-    /** Returns the borrower that owns an asset, or null if unresolvable. */
+    /**
+     * Routes an ASSET / LIABILITY / REO node to its owning Borrower via xlink.
+     * Strategy:
+     *   1. Read the node's xlink:label (e.g. "ASSET_2") and follow the
+     *      RELATIONSHIPS arc to the linked ROLE label (e.g. "BORROWER_2").
+     *   2. The ROLE element carries SequenceNumber — match THAT to the
+     *      borrower's sequenceNumber. (Earlier code walked up to PARTY and
+     *      read PARTY.SequenceNumber, but LP omits it on the borrower
+     *      parties, so every multi-borrower routing fell through.)
+     *   3. Fallback when the relationship is absent: single-borrower loans
+     *      assign everything to the sole borrower.
+     */
     private Borrower resolveAssetOwner(Element asset, LinkContext links, List<Borrower> borrowers) {
-        // xlink-based routing
         String assetLabel = asset.getAttributeNS(LinkContext.XLINK_NS, "label");
         if (!assetLabel.isEmpty()) {
             String roleLabel = links.arcsByFrom.get(assetLabel);
             if (roleLabel != null) {
                 Element role = links.elementsByLabel.get(roleLabel);
                 if (role != null) {
+                    int seq = parseSeq(role, 0);
+                    for (Borrower b : borrowers) {
+                        if (b.getSequenceNumber() != null && b.getSequenceNumber() == seq) return b;
+                    }
+                    // Defensive: walk up to PARTY and try PARTY.SequenceNumber too,
+                    // in case a future export carries it on the party rather than the role.
                     org.w3c.dom.Node n = role;
                     while (n != null && !"PARTY".equals(n.getLocalName())) n = n.getParentNode();
                     if (n != null) {
-                        int seq = parseSeq((Element) n, 0);
-                        for (Borrower b : borrowers) {
-                            if (b.getSequenceNumber() != null && b.getSequenceNumber() == seq) return b;
+                        int partySeq = parseSeq((Element) n, 0);
+                        if (partySeq != seq) {
+                            for (Borrower b : borrowers) {
+                                if (b.getSequenceNumber() != null && b.getSequenceNumber() == partySeq) return b;
+                            }
                         }
                     }
                 }
             }
         }
-        // Single-borrower fallback
         if (borrowers.size() == 1) return borrowers.get(0);
         return null;
     }
@@ -454,11 +471,20 @@ public class MismoImporter {
                 continue;
             }
 
+            String addr = pluck(owned, ".//*[local-name()='AddressLineText']");
+            String city = pluck(owned, ".//*[local-name()='CityName']");
+            // reo_properties.address_line is NOT NULL — skip placeholder REO blocks
+            // (LP emits PRIMARY-residence ASSET[RealEstateOwned] with only
+            // PropertyEstimatedValueAmount and no ADDRESS). Carrying these as a
+            // separate REO row would also be wrong: the borrower's primary IS
+            // the subject property, not a separately-owned asset.
+            if (addr == null && city == null) continue;
+
             REOProperty reo = new REOProperty();
             reo.setBorrower(owner);
             reo.setSequenceNumber(parseSeq(asset, i + 1));
-            reo.setAddressLine(pluck(owned, ".//*[local-name()='AddressLineText']"));
-            reo.setCity(pluck(owned, ".//*[local-name()='CityName']"));
+            reo.setAddressLine(addr);
+            reo.setCity(city);
             reo.setState(pluck(owned, ".//*[local-name()='StateCode']"));
             reo.setZipCode(pluck(owned, ".//*[local-name()='PostalCode']"));
             // PropertyUsageType / PropertyCurrentUsageType — keep raw MISMO value
@@ -473,8 +499,15 @@ public class MismoImporter {
                     pluck(owned, ".//*[local-name()='OwnedPropertyLienUPBAmount']")));
             reo.setMonthlyPayment(parseDecimal(
                     pluck(owned, ".//*[local-name()='OwnedPropertyMaintenanceExpenseAmount']")));
-            reo.setMonthlyRentalIncome(parseDecimal(
-                    pluck(owned, ".//*[local-name()='OwnedPropertyRentalIncomeNetAmount']")));
+            // OwnedPropertyRentalIncomeNetAmount is NET (income minus expenses)
+            // and CAN be negative (rental losing money). The form/entity treats
+            // monthlyRentalIncome as gross income and forbids negatives via bean
+            // validation, so clamp to zero — the loss side is already captured
+            // by OwnedPropertyMaintenanceExpenseAmount above.
+            BigDecimal netRent = parseDecimal(
+                    pluck(owned, ".//*[local-name()='OwnedPropertyRentalIncomeNetAmount']"));
+            if (netRent != null && netRent.signum() < 0) netRent = BigDecimal.ZERO;
+            reo.setMonthlyRentalIncome(netRent);
 
             bucket.get(owner.getId() == null ? -1L : owner.getId()).add(reo);
             kept++;

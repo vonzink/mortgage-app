@@ -109,11 +109,16 @@ public class BorrowerSectionImporter {
 
             String prefix = "borrowers." + i + ".";
 
-            // Basic fields
+            // Basic fields. Scope name lookups to INDIVIDUAL/NAME — a loose
+            // ".//FirstName" would match the first ALIAS/NAME/FirstName in
+            // document order (which for borrowers with AKAs would silently
+            // overwrite the legal name with the alias).
             stringSet(b::getFirstName, b::setFirstName,
-                    pluck(party, ".//*[local-name()='FirstName']"), prefix + "firstName", changes);
+                    pluck(party, ".//*[local-name()='INDIVIDUAL']/*[local-name()='NAME']/*[local-name()='FirstName']"),
+                    prefix + "firstName", changes);
             stringSet(b::getLastName, b::setLastName,
-                    pluck(party, ".//*[local-name()='LastName']"), prefix + "lastName", changes);
+                    pluck(party, ".//*[local-name()='INDIVIDUAL']/*[local-name()='NAME']/*[local-name()='LastName']"),
+                    prefix + "lastName", changes);
 
             String dob = pluck(party, ".//*[local-name()='BorrowerBirthDate']");
             if (dob != null) {

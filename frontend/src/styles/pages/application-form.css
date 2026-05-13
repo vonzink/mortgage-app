@@ -202,6 +202,19 @@
 .liability-entry .form-group select {
   font-size: 0.85rem;
   padding: 0.4rem 0.6rem;
+  /* Don't let "HELOC / Revolving" or long creditor names crowd the dropdown
+     arrow / right edge. Reserves room for the native select chevron. */
+  text-overflow: ellipsis;
+}
+
+.asset-entry .form-group select,
+.liability-entry .form-group select {
+  padding-right: 1.6rem;
+}
+
+.asset-entry .form-group,
+.liability-entry .form-group {
+  min-width: 0;  /* let CSS Grid actually shrink children below content width */
 }
 
 .form-checkbox {

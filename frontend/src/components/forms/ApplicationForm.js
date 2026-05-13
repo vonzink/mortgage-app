@@ -245,7 +245,48 @@ const ApplicationForm = () => {
             if (formData.borrowers.length === 0) {
               formData.borrowers = [createDefaultBorrower(1)];
             }
-            formData.borrowers[0].liabilities = applicationData.liabilities;
+            // Resolve borrowerId → owner-name string the AssetsLiabilitiesStep
+            // dropdown expects. The select uses "FirstName LastName" labels
+            // sourced from the in-form borrowers, so we mirror that format.
+            const borrowerById = new Map();
+            (applicationData.borrowers || []).forEach((b) => {
+              if (b?.id) {
+                borrowerById.set(b.id, `${b.firstName || ''} ${b.lastName || ''}`.trim());
+              }
+            });
+            formData.borrowers[0].liabilities = applicationData.liabilities.map((l) => ({
+              ...l,
+              owner: l.borrowerId ? (borrowerById.get(l.borrowerId) || '') : (l.owner || ''),
+            }));
+          }
+
+          // Reverse Property Type derivation. The backend Property entity stores
+          // PropertyUsageType in `propertyType` (PrimaryResidence/SecondHome/...) —
+          // already mapped above. The form ALSO needs a "Property Type" dropdown
+          // value (SingleFamily/Condo/Townhouse/MultiFamily/Manufactured) which
+          // the backend doesn't have a dedicated column for. Derive from the
+          // MISMO breakdown that DID flow through (attachmentType, projectType,
+          // unitsCount, constructionType).
+          const derivePropertyClassification = (p) => {
+            if (!p) return '';
+            if (p.constructionType === 'Manufactured') return 'Manufactured';
+            if (p.projectType === 'Condominium') return 'Condo';
+            const units = Number(p.unitsCount) || 0;
+            if (units >= 2) return 'MultiFamily';
+            if (p.projectType === 'PUD') return 'Townhouse';
+            if (p.attachmentType === 'Attached') return 'Townhouse';
+            if (p.attachmentType === 'Detached') return 'SingleFamily';
+            return '';
+          };
+          formData.propertyType = derivePropertyClassification(applicationData.property);
+
+          // Down payment auto-derive on load: PP - Loan Amount when both present.
+          // The Loan Information step recomputes downPayment as the user edits
+          // PP/LA, but on first paint the field would be blank without this.
+          const ppNum = Number(applicationData.propertyValue) || 0;
+          const laNum = Number(applicationData.loanAmount) || 0;
+          if (ppNum > 0 && laNum > 0 && ppNum > laNum) {
+            formData.downPayment = (ppNum - laNum).toFixed(2);
           }
           
           debug('Mapped form data:', formData);

@@ -99,7 +99,11 @@ const AssetsLiabilitiesStep = ({
                           <option value="AutoLoan">Auto Loan</option>
                           <option value="StudentLoan">Student Loan</option>
                           <option value="MortgageLoan">Mortgage</option>
-                          <option value="Revolving">HELOC / Revolving</option>
+                          {/* HELOC is split out from Revolving — HELOCs are
+                              secured by a property and bridge to REO; pure
+                              Revolving (e.g. unsecured LOC) does not. */}
+                          <option value="HELOC">HELOC</option>
+                          <option value="Revolving">Revolving</option>
                           <option value="Installment">Installment</option>
                           <option value="Other">Other</option>
                         </select>

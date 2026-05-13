@@ -54,7 +54,19 @@ public class DeclarationDTO {
     private Boolean creditReportConsent = true;
     private Boolean propertyInsuranceRequired = true;
     private Boolean floodInsuranceRequired = false;
-    
+
+    // ── HMDA government-monitoring (V23) ─────────────────────────────────
+    // Comma-separated MISMO codes for race + ethnicity (multi-valued in MISMO 3.4).
+    // The form's HmdaSection toggles values in/out of the same string.
+    private String hmdaRace;
+    private Boolean hmdaRaceRefusal = false;
+    private String hmdaEthnicity;
+    private Boolean hmdaEthnicityRefusal = false;
+    private String hmdaEthnicityOrigin;
+    private String hmdaSex;
+    private Boolean hmdaSexRefusal = false;
+    private String applicationTakenMethod;
+
     private Long borrowerId; // For association
     
     // Read-only computed fields
@@ -350,4 +362,29 @@ public class DeclarationDTO {
     public void setFloodInsuranceRequired(Boolean floodInsuranceRequired) {
         this.floodInsuranceRequired = floodInsuranceRequired;
     }
+
+    // ── HMDA accessors ───────────────────────────────────────────────────
+    public String getHmdaRace() { return hmdaRace; }
+    public void setHmdaRace(String hmdaRace) { this.hmdaRace = hmdaRace; }
+
+    public Boolean getHmdaRaceRefusal() { return hmdaRaceRefusal; }
+    public void setHmdaRaceRefusal(Boolean v) { this.hmdaRaceRefusal = v; }
+
+    public String getHmdaEthnicity() { return hmdaEthnicity; }
+    public void setHmdaEthnicity(String hmdaEthnicity) { this.hmdaEthnicity = hmdaEthnicity; }
+
+    public Boolean getHmdaEthnicityRefusal() { return hmdaEthnicityRefusal; }
+    public void setHmdaEthnicityRefusal(Boolean v) { this.hmdaEthnicityRefusal = v; }
+
+    public String getHmdaEthnicityOrigin() { return hmdaEthnicityOrigin; }
+    public void setHmdaEthnicityOrigin(String v) { this.hmdaEthnicityOrigin = v; }
+
+    public String getHmdaSex() { return hmdaSex; }
+    public void setHmdaSex(String hmdaSex) { this.hmdaSex = hmdaSex; }
+
+    public Boolean getHmdaSexRefusal() { return hmdaSexRefusal; }
+    public void setHmdaSexRefusal(Boolean v) { this.hmdaSexRefusal = v; }
+
+    public String getApplicationTakenMethod() { return applicationTakenMethod; }
+    public void setApplicationTakenMethod(String v) { this.applicationTakenMethod = v; }
 }

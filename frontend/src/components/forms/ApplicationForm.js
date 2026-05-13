@@ -224,7 +224,17 @@ const ApplicationForm = () => {
                 creditReportConsent: borrower.declaration.creditReportConsent,
                 incomeVerificationConsent: borrower.declaration.incomeVerificationConsent,
                 creditExplanation: borrower.declaration.creditExplanation,
-                employmentGapExplanation: borrower.declaration.employmentGapExplanation
+                employmentGapExplanation: borrower.declaration.employmentGapExplanation,
+                // HMDA round-trip — backend stores comma-separated MISMO codes;
+                // form's HmdaSection toggles values in/out of the same string.
+                hmdaRace: borrower.declaration.hmdaRace,
+                hmdaRaceRefusal: borrower.declaration.hmdaRaceRefusal,
+                hmdaEthnicity: borrower.declaration.hmdaEthnicity,
+                hmdaEthnicityRefusal: borrower.declaration.hmdaEthnicityRefusal,
+                hmdaEthnicityOrigin: borrower.declaration.hmdaEthnicityOrigin,
+                hmdaSex: borrower.declaration.hmdaSex,
+                hmdaSexRefusal: borrower.declaration.hmdaSexRefusal,
+                applicationTakenMethod: borrower.declaration.applicationTakenMethod,
               } : {})
             }))
           };
@@ -407,6 +417,7 @@ const ApplicationForm = () => {
                         register={register}
                         errors={errors}
                         watch={watch}
+                        setValue={setValue}
                         getValues={getValues}
                         borrowerFields={borrowers.fields}
                     />

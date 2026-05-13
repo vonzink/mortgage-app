@@ -340,33 +340,108 @@ public class BorrowerSectionImporter {
                                       List<MismoImporter.FieldChange> changes)
             throws XPathExpressionException {
         Element dd = first(party, ".//*[local-name()='DECLARATION_DETAIL']");
-        if (dd == null) return;
+        // GOVERNMENT_MONITORING (HMDA) lives outside DECLARATION_DETAIL but per-PARTY.
+        // We may have HMDA without declaration questions, or vice versa, so check both.
+        Element gm = first(party, ".//*[local-name()='GOVERNMENT_MONITORING']");
+        if (dd == null && gm == null) return;
+
         Declaration d = b.getDeclaration();
         if (d == null) {
             d = new Declaration();
             d.setBorrower(b);
             b.setDeclaration(d);
         }
-        d.setOutstandingJudgments(parseBool(pluck(dd, "*[local-name()='OutstandingJudgmentsIndicator']")));
-        d.setBankruptcy(parseBool(pluck(dd, "*[local-name()='BankruptcyIndicator']")));
-        d.setForeclosure(parseBool(pluck(dd, "*[local-name()='PriorPropertyForeclosureCompletedIndicator']")));
-        d.setLawsuit(parseBool(pluck(dd, "*[local-name()='PartyToLawsuitIndicator']")));
-        d.setLoanForeclosure(parseBool(pluck(dd, "*[local-name()='PriorPropertyDeedInLieuConveyedIndicator']")));
-        d.setPresentlyDelinquent(parseBool(pluck(dd, "*[local-name()='PresentlyDelinquentIndicator']")));
-        d.setAlimonyChildSupport(parseBool(pluck(dd, "*[local-name()='AlimonyChildSupportObligationIndicator']")));
-        d.setBorrowingDownPayment(parseBool(pluck(dd, "*[local-name()='BorrowedDownPaymentIndicator']")));
-        d.setComakerEndorser(parseBool(pluck(dd, "*[local-name()='CoMakerEndorserOfNoteIndicator']")));
-        // Citizenship — flatten the MISMO type into our two booleans
-        String citizen = pluck(dd, "*[local-name()='CitizenshipResidencyType']");
-        if (citizen != null) {
-            d.setUsCitizen("USCitizen".equalsIgnoreCase(citizen));
-            d.setPermanentResident("PermanentResidentAlien".equalsIgnoreCase(citizen));
+        if (dd != null) {
+            d.setOutstandingJudgments(parseBool(pluck(dd, "*[local-name()='OutstandingJudgmentsIndicator']")));
+            d.setBankruptcy(parseBool(pluck(dd, "*[local-name()='BankruptcyIndicator']")));
+            d.setForeclosure(parseBool(pluck(dd, "*[local-name()='PriorPropertyForeclosureCompletedIndicator']")));
+            d.setLawsuit(parseBool(pluck(dd, "*[local-name()='PartyToLawsuitIndicator']")));
+            d.setLoanForeclosure(parseBool(pluck(dd, "*[local-name()='PriorPropertyDeedInLieuConveyedIndicator']")));
+            d.setPresentlyDelinquent(parseBool(pluck(dd, "*[local-name()='PresentlyDelinquentIndicator']")));
+            d.setAlimonyChildSupport(parseBool(pluck(dd, "*[local-name()='AlimonyChildSupportObligationIndicator']")));
+            d.setBorrowingDownPayment(parseBool(pluck(dd, "*[local-name()='BorrowedDownPaymentIndicator']")));
+            d.setComakerEndorser(parseBool(pluck(dd, "*[local-name()='CoMakerEndorserOfNoteIndicator']")));
+            // Citizenship — flatten the MISMO type into our two booleans
+            String citizen = pluck(dd, "*[local-name()='CitizenshipResidencyType']");
+            if (citizen != null) {
+                d.setUsCitizen("USCitizen".equalsIgnoreCase(citizen));
+                d.setPermanentResident("PermanentResidentAlien".equalsIgnoreCase(citizen));
+            }
+            String intent = pluck(dd, "*[local-name()='IntentToOccupyType']");
+            if (intent != null) {
+                d.setIntentToOccupy("Yes".equalsIgnoreCase(intent));
+            }
         }
-        String intent = pluck(dd, "*[local-name()='IntentToOccupyType']");
-        if (intent != null) {
-            d.setIntentToOccupy("Yes".equalsIgnoreCase(intent));
+
+        if (gm != null) {
+            applyHmda(gm, d);
         }
         changes.add(new MismoImporter.FieldChange(prefix + "declaration", "<replaced>", "1 row"));
+    }
+
+    /**
+     * Pull HMDA government-monitoring values into the {@link Declaration}.
+     *
+     * <p>MISMO 3.4 carries multi-valued HMDA_RACES and HMDA_ETHNICITIES under
+     * GOVERNMENT_MONITORING. We collapse each to a comma-separated list of MISMO
+     * codes (the form/UI is responsible for rendering them as checkboxes).
+     * HMDAGenderType lives in the ULAD: namespace; refusal indicators are
+     * separate booleans we copy through verbatim.
+     */
+    private void applyHmda(Element gm, Declaration d) throws XPathExpressionException {
+        // GOVERNMENT_MONITORING_DETAIL holds the refusal indicators
+        Element detail = first(gm, ".//*[local-name()='GOVERNMENT_MONITORING_DETAIL']");
+        if (detail != null) {
+            Boolean ethRefusal = parseBool(pluck(detail, "*[local-name()='HMDAEthnicityRefusalIndicator']"));
+            Boolean genderRefusal = parseBool(pluck(detail, "*[local-name()='HMDAGenderRefusalIndicator']"));
+            Boolean raceRefusal = parseBool(pluck(detail, "*[local-name()='HMDARaceRefusalIndicator']"));
+            if (ethRefusal != null)    d.setHmdaEthnicityRefusal(ethRefusal);
+            if (genderRefusal != null) d.setHmdaSexRefusal(genderRefusal);
+            if (raceRefusal != null)   d.setHmdaRaceRefusal(raceRefusal);
+        }
+
+        // Race: collect every HMDARaceType into a comma-separated list.
+        String race = collectCsv(gm, ".//*[local-name()='HMDA_RACE']//*[local-name()='HMDARaceType']");
+        if (race != null) d.setHmdaRace(race);
+
+        // Ethnicity: collect every HMDAEthnicityType.
+        String eth = collectCsv(gm, ".//*[local-name()='HMDA_ETHNICITY']//*[local-name()='HMDAEthnicityType']");
+        if (eth != null) d.setHmdaEthnicity(eth);
+
+        // Hispanic origin sub-types (Cuban, Mexican, etc.) when applicable.
+        String origin = collectCsv(gm, ".//*[local-name()='HMDAEthnicityOriginType']");
+        if (origin != null) d.setHmdaEthnicityOrigin(origin);
+
+        // Gender — ULAD: namespace prefix; local-name() match handles it.
+        String sex = pluck(gm, ".//*[local-name()='HMDAGenderType']");
+        if (sex != null) d.setHmdaSex(sex);
+
+        // ApplicationTakenMethodType lives under URLA, not here. We grab it
+        // when present so each borrower's declaration carries the value
+        // (form displays it once but having it on each row is harmless).
+        Element party = (Element) gm.getParentNode();
+        while (party != null && !"PARTY".equals(party.getLocalName())) party = (Element) party.getParentNode();
+        if (party != null) {
+            Element root = party.getOwnerDocument().getDocumentElement();
+            String taken = pluck(root, ".//*[local-name()='ApplicationTakenMethodType']");
+            if (taken != null) d.setApplicationTakenMethod(taken);
+        }
+    }
+
+    /** Concatenate every text node matching the xpath into a comma-separated string. */
+    private String collectCsv(Element ctx, String xpath) throws XPathExpressionException {
+        NodeList list = (NodeList) MismoXml.xp().evaluate(xpath, ctx, XPathConstants.NODESET);
+        if (list.getLength() == 0) return null;
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < list.getLength(); i++) {
+            String t = list.item(i).getTextContent();
+            if (t == null) continue;
+            t = t.trim();
+            if (t.isEmpty()) continue;
+            if (sb.length() > 0) sb.append(',');
+            sb.append(t);
+        }
+        return sb.length() == 0 ? null : sb.toString();
     }
 
     // ── Helpers ──────────────────────────────────────────────────────────

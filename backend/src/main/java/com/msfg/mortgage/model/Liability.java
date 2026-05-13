@@ -58,7 +58,17 @@ public class Liability {
 
     @Column(name = "to_be_paid_off")
     private Boolean toBePaidOff = false;
-    
+
+    /**
+     * LO-applied classification: NULL (counts in DTI as-is), {@code Omit}
+     * (excluded — e.g. paid by employer), {@code Payoff} (paid off at closing),
+     * {@code Duplicate} (bureau double-reported the same debt).
+     * Populated from MISMO {@code LiabilityExclusionIndicator}=true → "Omit"
+     * on import; the LO can override in the form.
+     */
+    @Column(name = "exclusion_reason", length = 20)
+    private String exclusionReason;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
     
@@ -195,6 +205,14 @@ public class Liability {
         this.toBePaidOff = toBePaidOff;
     }
     
+    public String getExclusionReason() {
+        return exclusionReason;
+    }
+
+    public void setExclusionReason(String exclusionReason) {
+        this.exclusionReason = exclusionReason;
+    }
+
     public LocalDateTime getCreatedAt() {
         return createdAt;
     }

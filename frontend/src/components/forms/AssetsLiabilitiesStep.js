@@ -83,9 +83,10 @@ const AssetsLiabilitiesStep = ({
                     <div className="liability-header-item">Account Number</div>
                     <div className="liability-header-item">Monthly Payment</div>
                     <div className="liability-header-item">Unpaid Balance</div>
+                    <div className="liability-header-item">Status</div>
                     <div className="liability-header-item">Actions</div>
                   </div>
-                  
+
                   {liabilityFields.map((liabilityField, liabilityIndex) => (
                     <div key={liabilityField.id} className="liability-entry">
                       <div className="form-group">
@@ -155,7 +156,22 @@ const AssetsLiabilitiesStep = ({
                           placeholder="0.00"
                         />
                       </div>
-                      
+
+                      {/* LO classification — Omit/Payoff/Duplicate. Empty = use as-is in DTI.
+                          MISMO LiabilityExclusionIndicator=true preselects "Omit" on import. */}
+                      <div className="form-group">
+                        <select
+                          {...register(`borrowers.0.liabilities.${liabilityIndex}.exclusionReason`)}
+                          className="form-select"
+                          title="Mark how this debt should be treated for DTI"
+                        >
+                          <option value="">— Include —</option>
+                          <option value="Omit">Omit</option>
+                          <option value="Payoff">Payoff</option>
+                          <option value="Duplicate">Duplicate</option>
+                        </select>
+                      </div>
+
                       <div className="form-group">
                         <button
                           type="button"

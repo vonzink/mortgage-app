@@ -85,7 +85,39 @@ public class Declaration {
     
     @Column(name = "flood_insurance_required")
     private Boolean floodInsuranceRequired = false;
-    
+
+    // ── HMDA government monitoring (per-borrower) ────────────────────────────
+    // MISMO 3.4 carries multi-valued race + ethnicity. We store a comma-
+    // separated list of MISMO codes per axis (e.g. "AmericanIndianOrAlaskaNative,White").
+    // Refusal indicators are separate booleans because the LO can mark
+    // "borrower refused to provide" independently of any selections.
+    @Column(name = "hmda_race", length = 255)
+    private String hmdaRace;
+
+    @Column(name = "hmda_race_refusal")
+    private Boolean hmdaRaceRefusal = false;
+
+    @Column(name = "hmda_ethnicity", length = 255)
+    private String hmdaEthnicity;
+
+    @Column(name = "hmda_ethnicity_refusal")
+    private Boolean hmdaEthnicityRefusal = false;
+
+    /** Origin sub-types when ethnicity includes "HispanicOrLatino" (e.g. Cuban,Mexican). */
+    @Column(name = "hmda_ethnicity_origin", length = 255)
+    private String hmdaEthnicityOrigin;
+
+    /** MISMO HMDAGenderType: Male | Female | InformationNotProvidedUnknown | NotApplicable. */
+    @Column(name = "hmda_sex", length = 50)
+    private String hmdaSex;
+
+    @Column(name = "hmda_sex_refusal")
+    private Boolean hmdaSexRefusal = false;
+
+    /** MISMO ApplicationTakenMethodType: FaceToFace | Telephone | Internet | Mail. */
+    @Column(name = "application_taken_method", length = 50)
+    private String applicationTakenMethod;
+
     // Constructors
     public Declaration() {}
     
@@ -293,4 +325,29 @@ public class Declaration {
     public void setFloodInsuranceRequired(Boolean floodInsuranceRequired) {
         this.floodInsuranceRequired = floodInsuranceRequired;
     }
+
+    // ── HMDA accessors ───────────────────────────────────────────────────────
+    public String getHmdaRace() { return hmdaRace; }
+    public void setHmdaRace(String hmdaRace) { this.hmdaRace = hmdaRace; }
+
+    public Boolean getHmdaRaceRefusal() { return hmdaRaceRefusal; }
+    public void setHmdaRaceRefusal(Boolean v) { this.hmdaRaceRefusal = v; }
+
+    public String getHmdaEthnicity() { return hmdaEthnicity; }
+    public void setHmdaEthnicity(String hmdaEthnicity) { this.hmdaEthnicity = hmdaEthnicity; }
+
+    public Boolean getHmdaEthnicityRefusal() { return hmdaEthnicityRefusal; }
+    public void setHmdaEthnicityRefusal(Boolean v) { this.hmdaEthnicityRefusal = v; }
+
+    public String getHmdaEthnicityOrigin() { return hmdaEthnicityOrigin; }
+    public void setHmdaEthnicityOrigin(String v) { this.hmdaEthnicityOrigin = v; }
+
+    public String getHmdaSex() { return hmdaSex; }
+    public void setHmdaSex(String hmdaSex) { this.hmdaSex = hmdaSex; }
+
+    public Boolean getHmdaSexRefusal() { return hmdaSexRefusal; }
+    public void setHmdaSexRefusal(Boolean v) { this.hmdaSexRefusal = v; }
+
+    public String getApplicationTakenMethod() { return applicationTakenMethod; }
+    public void setApplicationTakenMethod(String v) { this.applicationTakenMethod = v; }
 }

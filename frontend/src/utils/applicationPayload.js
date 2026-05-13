@@ -162,6 +162,53 @@ function buildBorrower(b, idx) {
     residences: buildResidences(b.residences),
     reoProperties: buildReoProperties(b.reoProperties),
     assets: buildAssets(b.assets),
+    declaration: buildDeclaration(b),
+  };
+}
+
+/**
+ * Pull every declaration / HMDA field off the form's borrower row. The form
+ * registers these as `borrowers.X.declaration.{field}` AND a few legacy ones
+ * as siblings (e.g. usCitizen, intentToOccupy). Coalesce both shapes.
+ */
+function buildDeclaration(b) {
+  const d = b.declaration || {};
+  // Sibling-level fields (the ApplicationForm load spreads them flat) win
+  // when present so older form state still flows through. Then HMDA values.
+  const pick = (k) => (b[k] !== undefined ? b[k] : d[k]);
+  return {
+    outstandingJudgments:    pick('outstandingJudgments') ?? null,
+    bankruptcy:              pick('bankruptcy') ?? null,
+    foreclosure:             pick('foreclosure') ?? null,
+    lawsuit:                 pick('lawsuit') ?? null,
+    loanForeclosure:         pick('loanForeclosure') ?? null,
+    presentlyDelinquent:     pick('presentlyDelinquent') ?? null,
+    alimonyChildSupport:     pick('alimonyChildSupport') ?? null,
+    borrowingDownPayment:    pick('borrowingDownPayment') ?? null,
+    comakerEndorser:         pick('comakerEndorser') ?? null,
+    coSignerObligation:      pick('coSignerObligation') ?? null,
+    pendingCreditInquiry:    pick('pendingCreditInquiry') ?? null,
+    usCitizen:               pick('usCitizen') ?? null,
+    permanentResident:       pick('permanentResident') ?? null,
+    intentToOccupy:          pick('intentToOccupy') ?? null,
+    downPaymentGift:         pick('downPaymentGift') ?? null,
+    giftSource:              pick('giftSource') ?? null,
+    giftAmount:              toFloat(pick('giftAmount')) || null,
+    creditExplanation:       pick('creditExplanation') ?? null,
+    employmentGapExplanation: pick('employmentGapExplanation') ?? null,
+    creditReportConsent:     pick('creditReportConsent') ?? null,
+    incomeVerificationConsent: pick('incomeVerificationConsent') ?? null,
+    propertyInsuranceRequired: pick('propertyInsuranceRequired') ?? null,
+    floodInsuranceRequired:    pick('floodInsuranceRequired') ?? null,
+    // HMDA — comma-separated CSVs from the checkbox toggle helpers.
+    hmdaRace:                pick('hmdaRace') || null,
+    hmdaRaceRefusal:         pick('hmdaRaceRefusal') ?? false,
+    hmdaEthnicity:           pick('hmdaEthnicity') || null,
+    hmdaEthnicityRefusal:    pick('hmdaEthnicityRefusal') ?? false,
+    hmdaEthnicityOrigin:     pick('hmdaEthnicityOrigin') || null,
+    hmdaSex:                 pick('hmdaSex') || null,
+    hmdaSexRefusal:          pick('hmdaSexRefusal') ?? false,
+    applicationTakenMethod:  pick('applicationTakenMethod') || null,
   };
 }
 
@@ -177,8 +224,13 @@ function buildLiabilities(borrowers) {
           liabilityType: normalizeLiabilityType(l.liabilityType),
           monthlyPayment: toFloat(l.monthlyPayment),
           unpaidBalance: toFloat(l.unpaidBalance),
+          // exclusionReason is the new LO-applied bucket (Omit / Payoff / Duplicate);
+          // empty string is sent as null so a "use as-is" liability stays NULL in DB.
+          exclusionReason: hasValue(l.exclusionReason) ? l.exclusionReason : null,
+          // Mirror Payoff onto the legacy boolean so any older read paths still see
+          // the right state. Omit/Duplicate don't flip toBePaidOff.
           payoffStatus: false,
-          toBePaidOff: false,
+          toBePaidOff: l.exclusionReason === 'Payoff',
         }))
     );
 }

@@ -160,7 +160,8 @@
 }
 
 .liability-header {
-  grid-template-columns: 1.2fr 1fr 1.2fr 1fr 1fr 1fr 100px;
+  /* Type | Owner | Creditor | Account # | Monthly | Balance | Status | Actions */
+  grid-template-columns: 1.2fr 1fr 1.2fr 1fr 1fr 1fr 0.9fr 100px;
 }
 
 .asset-header-item,
@@ -182,7 +183,7 @@
 }
 
 .liability-entry {
-  grid-template-columns: 1.2fr 1fr 1.2fr 1fr 1fr 1fr 100px;
+  grid-template-columns: 1.2fr 1fr 1.2fr 1fr 1fr 1fr 0.9fr 100px;
 }
 
 .asset-entry:last-child,

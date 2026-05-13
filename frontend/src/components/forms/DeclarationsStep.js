@@ -6,11 +6,12 @@ import React, { useState, useEffect } from 'react';
 import { FaFileAlt } from 'react-icons/fa';
 import FormSection from '../shared/FormSection';
 
-const DeclarationsStep = ({ 
-  register, 
-  errors, 
-  watch, 
-  getValues, 
+const DeclarationsStep = ({
+  register,
+  errors,
+  watch,
+  setValue,
+  getValues,
   borrowerFields
 }) => {
   const [activeBorrowerTab, setActiveBorrowerTab] = useState(0);
@@ -220,6 +221,16 @@ const DeclarationsStep = ({
               </div>
             </div>
 
+            {/* HMDA Government Monitoring (per ULAD section X). Optional for the
+                borrower; the LO confirms before submit. Multi-select for race +
+                ethnicity because both axes can carry several values. */}
+            <HmdaSection
+              borrowerIndex={borrowerIndex}
+              register={register}
+              watch={watch}
+              setValue={setValue}
+            />
+
             {/* Comments Section */}
             <div className="form-row">
               <div className="form-group" style={{ width: '100%' }}>
@@ -241,5 +252,121 @@ const DeclarationsStep = ({
     </FormSection>
   );
 };
+
+// ── HMDA section ─────────────────────────────────────────────────────────────
+// Stores race + ethnicity as comma-separated MISMO codes on the declaration.
+// The MISMO importer pre-populates these from PARTY/INDIVIDUAL/GOVERNMENT_MONITORING.
+const HMDA_RACES = [
+  'AmericanIndianOrAlaskaNative',
+  'Asian',
+  'BlackOrAfricanAmerican',
+  'NativeHawaiianOrOtherPacificIslander',
+  'White',
+];
+const HMDA_ETHNICITIES = [
+  'HispanicOrLatino',
+  'NotHispanicOrLatino',
+];
+
+function HmdaSection({ borrowerIndex, register, watch, setValue }) {
+  const baseName = `borrowers.${borrowerIndex}.declaration`;
+
+  // Build a CSV toggle helper — each checkbox flips its value in/out of the CSV.
+  const toggleCsv = (fieldName, value) => {
+    const cur = watch(`${baseName}.${fieldName}`) || '';
+    const set = new Set(cur.split(',').map((s) => s.trim()).filter(Boolean));
+    if (set.has(value)) set.delete(value); else set.add(value);
+    setValue(`${baseName}.${fieldName}`, Array.from(set).join(','));
+  };
+  const isSelected = (fieldName, value) => {
+    const cur = watch(`${baseName}.${fieldName}`) || '';
+    return cur.split(',').map((s) => s.trim()).includes(value);
+  };
+
+  return (
+    <div className="declaration-section" style={{ marginTop: '1.5rem' }}>
+      <h5>HMDA — Government Monitoring</h5>
+      <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '0.75rem' }}>
+        Required for HMDA reporting. Borrower may decline to provide; check
+        "Not provided" instead of leaving blank.
+      </p>
+
+      <div className="form-row">
+        <div className="form-group" style={{ flex: '1 1 100%' }}>
+          <label>Race (select all that apply)</label>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.75rem' }}>
+            {HMDA_RACES.map((r) => (
+              <label key={r} style={{ display: 'flex', gap: '0.35rem', alignItems: 'center' }}>
+                <input
+                  type="checkbox"
+                  checked={isSelected('hmdaRace', r)}
+                  onChange={() => toggleCsv('hmdaRace', r)}
+                />
+                <span style={{ fontSize: '0.85rem' }}>{r}</span>
+              </label>
+            ))}
+            <label style={{ display: 'flex', gap: '0.35rem', alignItems: 'center', marginLeft: 'auto' }}>
+              <input type="checkbox" {...register(`${baseName}.hmdaRaceRefusal`)} />
+              <span style={{ fontSize: '0.85rem' }}>Not provided</span>
+            </label>
+          </div>
+        </div>
+      </div>
+
+      <div className="form-row">
+        <div className="form-group" style={{ flex: '1 1 60%' }}>
+          <label>Ethnicity</label>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.75rem' }}>
+            {HMDA_ETHNICITIES.map((e) => (
+              <label key={e} style={{ display: 'flex', gap: '0.35rem', alignItems: 'center' }}>
+                <input
+                  type="checkbox"
+                  checked={isSelected('hmdaEthnicity', e)}
+                  onChange={() => toggleCsv('hmdaEthnicity', e)}
+                />
+                <span style={{ fontSize: '0.85rem' }}>{e}</span>
+              </label>
+            ))}
+            <label style={{ display: 'flex', gap: '0.35rem', alignItems: 'center' }}>
+              <input type="checkbox" {...register(`${baseName}.hmdaEthnicityRefusal`)} />
+              <span style={{ fontSize: '0.85rem' }}>Not provided</span>
+            </label>
+          </div>
+        </div>
+
+        <div className="form-group" style={{ flex: '1 1 40%' }}>
+          <label htmlFor={`${baseName}.hmdaSex`}>Sex</label>
+          <select id={`${baseName}.hmdaSex`} {...register(`${baseName}.hmdaSex`)}>
+            <option value="">Select…</option>
+            <option value="Male">Male</option>
+            <option value="Female">Female</option>
+            <option value="InformationNotProvidedUnknown">Not provided</option>
+            <option value="NotApplicable">Not applicable</option>
+          </select>
+          <label style={{ display: 'flex', gap: '0.35rem', alignItems: 'center', marginTop: '0.4rem' }}>
+            <input type="checkbox" {...register(`${baseName}.hmdaSexRefusal`)} />
+            <span style={{ fontSize: '0.85rem' }}>Borrower refused to provide sex</span>
+          </label>
+        </div>
+      </div>
+
+      <div className="form-row">
+        <div className="form-group" style={{ flex: '1 1 50%' }}>
+          <label htmlFor={`${baseName}.applicationTakenMethod`}>Application Taken By</label>
+          <select
+            id={`${baseName}.applicationTakenMethod`}
+            {...register(`${baseName}.applicationTakenMethod`)}
+          >
+            <option value="">Select…</option>
+            <option value="FaceToFace">Face-to-face</option>
+            <option value="Telephone">Telephone</option>
+            <option value="Internet">Internet</option>
+            <option value="Mail">Mail</option>
+          </select>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export default DeclarationsStep;

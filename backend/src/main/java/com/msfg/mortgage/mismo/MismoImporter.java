@@ -135,7 +135,7 @@ public class MismoImporter {
             borrowerSectionImporter.apply(doc, la, links, changes);
             applyAssets(doc, la, links, changes);   // after borrowers — needs them to exist
             applyReoFromAssets(doc, la, links, changes);  // REOs live inside DEAL/ASSETS, not PARTY
-            applyLiabilities(doc, la, changes);
+            applyLiabilities(doc, la, links, changes);
             applyLoanTerms(doc, la, changes);       // populates the dashboard's "this loan" row
             applyHousingExpenses(doc, la, changes); // dashboard PITIA breakdown
             applyPurchaseCredits(doc, la, changes); // earnest money, seller credit, etc.
@@ -498,7 +498,8 @@ public class MismoImporter {
      * after the borrower submits, and represent the authoritative set. Borrowers don't curate
      * liabilities directly in the application form anyway.
      */
-    private void applyLiabilities(Document doc, LoanApplication la, List<FieldChange> changes)
+    private void applyLiabilities(Document doc, LoanApplication la, LinkContext links,
+                                   List<FieldChange> changes)
             throws XPathExpressionException {
         NodeList items = (NodeList) MismoXml.xp().evaluate(
                 "//*[local-name()='LIABILITY']", doc, XPathConstants.NODESET);
@@ -512,6 +513,7 @@ public class MismoImporter {
             la.getLiabilities().clear();
         }
 
+        List<Borrower> borrowers = la.getBorrowers();
         for (int i = 0; i < items.getLength(); i++) {
             Element li = (Element) items.item(i);
             Liability l = new Liability();
@@ -523,6 +525,28 @@ public class MismoImporter {
             l.setCreditorName(pluck(li, ".//*[local-name()='LIABILITY_HOLDER']/*[local-name()='NAME']/*[local-name()='FullName']"));
             l.setPayoffStatus(false);
             l.setToBePaidOff(false);
+
+            // Owner: route the LIABILITY's xlink:label through the same arc-by-role
+            // machinery used for assets. LP labels each LIABILITY (e.g. xlink:label=
+            // "LIABILITY_5") and adds an arc to the owning Borrower's ROLE.
+            if (borrowers != null && !borrowers.isEmpty()) {
+                Borrower owner = resolveAssetOwner(li, links, borrowers);
+                if (owner != null) l.setBorrower(owner);
+            }
+
+            // Exclusion: LP marks "don't include in DTI" via LiabilityExclusionIndicator.
+            // We map true → "Omit". The LO can override to Payoff / Duplicate in the form.
+            String excluded = pluck(li, ".//*[local-name()='LiabilityExclusionIndicator']");
+            if ("true".equalsIgnoreCase(excluded)) {
+                l.setExclusionReason("Omit");
+            } else {
+                String payoffFlag = pluck(li, ".//*[local-name()='LiabilityPayoffStatusIndicator']");
+                if ("true".equalsIgnoreCase(payoffFlag)) {
+                    l.setExclusionReason("Payoff");
+                    l.setToBePaidOff(true);
+                }
+            }
+
             la.getLiabilities().add(l);
         }
         if (previous != items.getLength()) {

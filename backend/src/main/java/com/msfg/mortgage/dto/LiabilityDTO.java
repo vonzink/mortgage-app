@@ -34,7 +34,10 @@ public class LiabilityDTO {
     
     @NotNull(message = "To be paid off status is required")
     private Boolean toBePaidOff = false;
-    
+
+    /** LO classification: Omit / Payoff / Duplicate (or null = include in DTI). */
+    private String exclusionReason;
+
     private Long borrowerId; // For association
     
     // Read-only computed fields
@@ -166,4 +169,7 @@ public class LiabilityDTO {
     public Boolean getIsConsumerDebt() {
         return isConsumerDebt;
     }
+
+    public String getExclusionReason() { return exclusionReason; }
+    public void setExclusionReason(String exclusionReason) { this.exclusionReason = exclusionReason; }
 }

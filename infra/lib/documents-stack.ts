@@ -86,7 +86,7 @@ export class DocumentsStack extends cdk.Stack {
         {
           allowedMethods: [s3.HttpMethods.GET, s3.HttpMethods.PUT, s3.HttpMethods.POST, s3.HttpMethods.HEAD],
           allowedOrigins: envName === 'prod'
-            ? ['https://apply.msfgco.com', 'https://dashboard.msfgco.com']
+            ? ['https://app.msfgco.com', 'https://apply.msfgco.com', 'https://dashboard.msfgco.com']
             : ['http://localhost:3000', 'http://localhost:5173'],
           allowedHeaders: ['*'],
           exposedHeaders: ['ETag', 'x-amz-version-id'],

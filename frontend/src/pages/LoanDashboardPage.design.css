@@ -121,10 +121,31 @@
   .dash-timeline-label { font-size: 10.5px; white-space: normal; }
 }
 
-/* In-grid status dropdown (kept functional) ------------------------------- */
-.dash-status-row {
-  display: flex; align-items: center; gap: 12px;
-  margin-bottom: 28px; flex-wrap: wrap;
-  padding: 12px 14px; background: var(--bg-secondary, #f6f4ee);
-  border-radius: 8px;
+/* Workflow cards — Conditions, Notes, Status Timeline. Copper left accent
+   so the actionable surfaces visually outrank the read-only reference cards
+   (Loan Terms, Property, Borrower, etc.). */
+.dashboard-card--workflow {
+  border-left: 3px solid var(--copper);
+}
+.dashboard-card--workflow .dashboard-card-title {
+  color: var(--ink-900);
+}
+
+/* AdvanceStatusModal helpers — the "from" pill, soft inline hints, warn variant. */
+.advance-status-from {
+  display: inline-flex; align-items: center;
+  padding: 6px 12px;
+  background: #ece8da; color: var(--ink-500);
+  border-radius: 6px;
+  font-size: 13px; font-weight: 600;
+  font-family: var(--font-mono, ui-monospace, monospace);
+}
+.dashboard-form-hint {
+  margin: 4px 0 0; padding: 8px 12px;
+  font-size: 12.5px; color: var(--ink-500);
+  background: #f5f2e8; border-radius: 6px;
+}
+.dashboard-form-hint--warn {
+  color: var(--copper);
+  background: var(--copper-bg, #fbeede);
 }

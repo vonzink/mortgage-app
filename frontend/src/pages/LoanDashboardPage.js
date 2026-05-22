@@ -28,6 +28,7 @@ import './LoanDashboardPage.design.css';
 import { DashCard, DefinitionList, EmptyHint } from './loanDashboard/DashCard';
 import { EditTermsModal } from './loanDashboard/EditTermsModal';
 import { AddConditionModal } from './loanDashboard/AddConditionModal';
+import { AdvanceStatusModal } from './loanDashboard/AdvanceStatusModal';
 import {
   formatMoney, formatRate, formatDate,
   hasAnyIdentifier, sumExpenses, sumCredits, prettyEnum,
@@ -123,6 +124,7 @@ export default function LoanDashboardPage() {
   const [error, setError] = useState(null);
   const [editingTerms, setEditingTerms] = useState(false);
   const [showAddCondition, setShowAddCondition] = useState(false);
+  const [showAdvanceStatus, setShowAdvanceStatus] = useState(false);
   const [newNote, setNewNote] = useState('');
 
   const load = useCallback(async () => {
@@ -142,19 +144,27 @@ export default function LoanDashboardPage() {
 
   useEffect(() => { load(); }, [load]);
 
-  // Date the LO is backdating the next status transition to. Defaults to today;
-  // they can override before clicking the dropdown to advance the loan.
-  const [statusDate, setStatusDate] = useState(() => new Date().toISOString().slice(0, 10));
-
-  const handleStatusChange = async (next) => {
-    if (!next || next === data.status) return;
-    try {
-      await dashboardService.updateStatus(loanId, next, statusDate || null);
-      toast.success(`Status: ${data.status} → ${next}${statusDate ? ` (${statusDate})` : ''}`);
-      await load();
-    } catch (err) {
-      toast.error(`Status update failed: ${err?.response?.data?.message || err.message}`);
+  // Advance the loan via the AdvanceStatusModal. The modal owns the date +
+  // optional note; we sequence the writes (status first, then note) and
+  // refresh once. Status endpoint has no `note` field — we tack the note on
+  // as a dashboard note so it lands in the same audit surface.
+  const advanceStatus = async ({ status, transitionedAt, note }) => {
+    const from = data.status;
+    await dashboardService.updateStatus(loanId, status, transitionedAt);
+    if (note) {
+      try {
+        await dashboardService.createNote(
+          loanId,
+          `[${from} → ${status}${transitionedAt ? ` on ${transitionedAt}` : ''}] ${note}`,
+        );
+      } catch (e) {
+        // Note failure shouldn't block the status transition success message.
+        console.warn('Status advanced but note attach failed:', e);
+      }
     }
+    toast.success(`Status: ${from} → ${status}${transitionedAt ? ` (${transitionedAt})` : ''}`);
+    setShowAdvanceStatus(false);
+    await load();
   };
 
   const saveTerms = async (patch) => {
@@ -263,6 +273,7 @@ export default function LoanDashboardPage() {
         borrowerName={borrowerName}
         status={data.status}
         statusLabel={statusLabel}
+        outstandingCount={outstandingCount}
         subline={subline.length > 0 ? (
           <span className="dash-subline-row">
             {subline.map((s, i) => (
@@ -272,12 +283,12 @@ export default function LoanDashboardPage() {
         ) : null}
         onAllLoans={() => navigate('/applications')}
         onExportMismo={handleExportMismo}
-        // "View application" opens the form in read-only mode. Going to
+        // "Open 1003" opens the form in read-only mode. Going to
         // /applications/:id would land on the document workspace instead,
-        // which is what "Documents" is for — separate concept.
+        // which is what "Files" is for — separate concept.
         onViewApplication={() => navigate(`/apply?edit=${loanId}&view=1`)}
         onOpenDocuments={() => navigate(`/applications/${loanId}`)}
-        onUpdateStatus={null /* status changes via the in-grid select below */}
+        onAdvanceStatus={() => setShowAdvanceStatus(true)}
       />
 
       <div className="dash-stat-row">
@@ -298,34 +309,121 @@ export default function LoanDashboardPage() {
 
       <MilestoneTimeline milestones={milestones} daysElapsed={daysElapsed} daysTarget={60} />
 
-      {/* Status update row: pick a date first (defaults to today), then change
-          the dropdown to advance the loan. The date stamps the new
-          loan_status_history row so the timeline reflects when the milestone
-          actually happened, not when the LO got around to clicking. */}
-      <div className="dash-status-row">
-        <label className="muted" style={{ fontSize: 13 }}>Update status</label>
-        <select
-          className={`status-pill status-${(data.status || 'unknown').toLowerCase()} status-select`}
-          value={data.status || ''}
-          onChange={(e) => handleStatusChange(e.target.value)}
-        >
-          {STATUS_ORDER.map(s => <option key={s} value={s}>{s}</option>)}
-        </select>
-        <label className="muted" style={{ fontSize: 13, marginLeft: 8 }}>on</label>
-        <input
-          type="date"
-          value={statusDate}
-          onChange={(e) => setStatusDate(e.target.value)}
-          max={new Date().toISOString().slice(0, 10)}
-          title="Date this transition happened. Defaults to today; backdate when the milestone happened earlier."
-          style={{ padding: '6px 10px', border: '1px solid var(--ink-line)', borderRadius: 6, fontSize: 13 }}
-        />
-        {outstandingCount > 0 && (
-          <span className="dashboard-warning-pill">{outstandingCount} outstanding</span>
-        )}
-      </div>
-
       <div className="dashboard-grid">
+        {/* ── Workflow cards first — these are the surfaces an LO acts on. ── */}
+        <DashCard
+          icon={<FaListUl />}
+          title="Conditions"
+          variant="workflow"
+          fullWidth
+          actionRight={(
+            <button className="btn btn-primary btn-sm" onClick={() => setShowAddCondition(true)}>
+              <FaPlus /> Add condition
+            </button>
+          )}
+        >
+          {data.conditions && data.conditions.length > 0 ? (
+            <ul className="dashboard-conditions">
+              {data.conditions.map(c => {
+                const cleared = c.status !== 'Outstanding';
+                return (
+                  <li key={c.id} className={`dashboard-condition${cleared ? ' dashboard-condition--cleared' : ''}`}>
+                    <button
+                      type="button"
+                      className="dashboard-condition-toggle"
+                      onClick={() => toggleConditionStatus(c)}
+                      title={cleared ? 'Reopen' : 'Mark cleared'}
+                    >
+                      {cleared ? <FaCheckCircle className="ok" /> : <FaTimesCircle className="warn" />}
+                    </button>
+                    <div className="dashboard-condition-body">
+                      <div className="dashboard-condition-text">{c.conditionText}</div>
+                      <div className="dashboard-condition-meta">
+                        {c.conditionType && <span>{prettyEnum(c.conditionType)}</span>}
+                        {c.dueDate && <span>Due {c.dueDate}</span>}
+                        {c.clearedAt && <span>Cleared {formatDate(c.clearedAt)}</span>}
+                      </div>
+                      {c.notes && <div className="dashboard-condition-notes">{c.notes}</div>}
+                    </div>
+                    <button
+                      type="button"
+                      className="btn-icon btn-icon--danger"
+                      onClick={() => removeCondition(c)}
+                      title="Delete"
+                    >
+                      <FaTrash />
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+          ) : <EmptyHint>No conditions yet. Add one to start the worklist.</EmptyHint>}
+        </DashCard>
+
+        <DashCard icon={<FaStickyNote />} title="Notes" variant="workflow" fullWidth>
+          <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem' }}>
+            <textarea
+              className="form-control"
+              rows={2}
+              placeholder="Add a note… (Enter to save, Shift+Enter for newline)"
+              value={newNote}
+              onChange={(e) => setNewNote(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); addNote(); } }}
+              style={{ flex: 1, resize: 'vertical' }}
+            />
+            <button
+              className="btn btn-primary"
+              onClick={addNote}
+              disabled={!newNote.trim()}
+              style={{ alignSelf: 'flex-end' }}
+            >
+              <FaPlus /> Add
+            </button>
+          </div>
+          {data.notes && data.notes.length > 0 ? (
+            <ul className="dashboard-conditions">
+              {data.notes.map(n => (
+                <li key={n.id} className="dashboard-condition">
+                  <div className="dashboard-condition-body" style={{ flex: 1 }}>
+                    <div style={{ whiteSpace: 'pre-wrap' }}>{n.content}</div>
+                    <div className="dashboard-condition-meta">
+                      {n.authorName && <span>{n.authorName}</span>}
+                      <span>{formatDate(n.createdAt)}</span>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    className="btn-icon btn-icon--danger"
+                    onClick={() => removeNote(n)}
+                    title="Delete note"
+                  >
+                    <FaTrash />
+                  </button>
+                </li>
+              ))}
+            </ul>
+          ) : <EmptyHint>No notes yet. Add one above.</EmptyHint>}
+        </DashCard>
+
+        <DashCard icon={<FaHistory />} title="Status Timeline" variant="workflow" fullWidth>
+          {data.statusHistory && data.statusHistory.length > 0 ? (
+            <ol className="dashboard-timeline">
+              {data.statusHistory.map((h, i) => (
+                <li key={`${h.transitionedAt}-${i}`} className="dashboard-timeline-row">
+                  <span className={`status-pill status-${(h.status || 'unknown').toLowerCase()}`}>
+                    {h.status}
+                  </span>
+                  <div>
+                    <div className="dashboard-muted-small">{formatDate(h.transitionedAt)}</div>
+                    {h.note && <div>{h.note}</div>}
+                  </div>
+                </li>
+              ))}
+            </ol>
+          ) : <EmptyHint>No status changes recorded yet.</EmptyHint>}
+        </DashCard>
+
+        {/* ── Reference cards — the read-only facts of the loan. ────────── */}
         <DashCard
           icon={<FaFileSignature />}
           title="Loan Terms"
@@ -433,69 +531,6 @@ export default function LoanDashboardPage() {
           ) : <EmptyHint>Closing details will appear once scheduled.</EmptyHint>}
         </DashCard>
 
-        <DashCard icon={<FaHistory />} title="Status Timeline" fullWidth>
-          {data.statusHistory && data.statusHistory.length > 0 ? (
-            <ol className="dashboard-timeline">
-              {data.statusHistory.map((h, i) => (
-                <li key={`${h.transitionedAt}-${i}`} className="dashboard-timeline-row">
-                  <span className={`status-pill status-${(h.status || 'unknown').toLowerCase()}`}>
-                    {h.status}
-                  </span>
-                  <div>
-                    <div className="dashboard-muted-small">{formatDate(h.transitionedAt)}</div>
-                    {h.note && <div>{h.note}</div>}
-                  </div>
-                </li>
-              ))}
-            </ol>
-          ) : <EmptyHint>No status changes recorded yet.</EmptyHint>}
-        </DashCard>
-
-        <DashCard icon={<FaStickyNote />} title="Notes" fullWidth>
-          <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem' }}>
-            <textarea
-              className="form-control"
-              rows={2}
-              placeholder="Add a note…"
-              value={newNote}
-              onChange={(e) => setNewNote(e.target.value)}
-              onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); addNote(); } }}
-              style={{ flex: 1, resize: 'vertical' }}
-            />
-            <button
-              className="btn btn-primary"
-              onClick={addNote}
-              disabled={!newNote.trim()}
-              style={{ alignSelf: 'flex-end' }}
-            >
-              <FaPlus /> Add
-            </button>
-          </div>
-          {data.notes && data.notes.length > 0 ? (
-            <ul className="dashboard-conditions">
-              {data.notes.map(n => (
-                <li key={n.id} className="dashboard-condition">
-                  <div className="dashboard-condition-body" style={{ flex: 1 }}>
-                    <div style={{ whiteSpace: 'pre-wrap' }}>{n.content}</div>
-                    <div className="dashboard-condition-meta">
-                      {n.authorName && <span>{n.authorName}</span>}
-                      <span>{formatDate(n.createdAt)}</span>
-                    </div>
-                  </div>
-                  <button
-                    type="button"
-                    className="btn-icon btn-icon--danger"
-                    onClick={() => removeNote(n)}
-                    title="Delete note"
-                  >
-                    <FaTrash />
-                  </button>
-                </li>
-              ))}
-            </ul>
-          ) : <EmptyHint>No notes yet. Add one above.</EmptyHint>}
-        </DashCard>
-
         <DashCard icon={<FaCalendarAlt />} title="Proposed Housing Expenses" fullWidth>
           {data.housingExpenses && data.housingExpenses.length > 0 ? (
             <table className="dashboard-table">
@@ -550,53 +585,6 @@ export default function LoanDashboardPage() {
           ) : <EmptyHint>No purchase credits imported.</EmptyHint>}
         </DashCard>
 
-        <DashCard
-          icon={<FaListUl />}
-          title="Conditions"
-          fullWidth
-          actionRight={(
-            <button className="btn btn-primary btn-sm" onClick={() => setShowAddCondition(true)}>
-              <FaPlus /> Add condition
-            </button>
-          )}
-        >
-          {data.conditions && data.conditions.length > 0 ? (
-            <ul className="dashboard-conditions">
-              {data.conditions.map(c => {
-                const cleared = c.status !== 'Outstanding';
-                return (
-                  <li key={c.id} className={`dashboard-condition${cleared ? ' dashboard-condition--cleared' : ''}`}>
-                    <button
-                      type="button"
-                      className="dashboard-condition-toggle"
-                      onClick={() => toggleConditionStatus(c)}
-                      title={cleared ? 'Reopen' : 'Mark cleared'}
-                    >
-                      {cleared ? <FaCheckCircle className="ok" /> : <FaTimesCircle className="warn" />}
-                    </button>
-                    <div className="dashboard-condition-body">
-                      <div className="dashboard-condition-text">{c.conditionText}</div>
-                      <div className="dashboard-condition-meta">
-                        {c.conditionType && <span>{prettyEnum(c.conditionType)}</span>}
-                        {c.dueDate && <span>Due {c.dueDate}</span>}
-                        {c.clearedAt && <span>Cleared {formatDate(c.clearedAt)}</span>}
-                      </div>
-                      {c.notes && <div className="dashboard-condition-notes">{c.notes}</div>}
-                    </div>
-                    <button
-                      type="button"
-                      className="btn-icon btn-icon--danger"
-                      onClick={() => removeCondition(c)}
-                      title="Delete"
-                    >
-                      <FaTrash />
-                    </button>
-                  </li>
-                );
-              })}
-            </ul>
-          ) : <EmptyHint>No conditions yet. Add one to start the worklist.</EmptyHint>}
-        </DashCard>
       </div>
 
       {editingTerms && (
@@ -610,6 +598,15 @@ export default function LoanDashboardPage() {
         <AddConditionModal
           onClose={() => setShowAddCondition(false)}
           onSave={addCondition}
+        />
+      )}
+      {showAdvanceStatus && (
+        <AdvanceStatusModal
+          currentStatus={data.status}
+          statusOrder={STATUS_ORDER}
+          outstandingCount={outstandingCount}
+          onClose={() => setShowAdvanceStatus(false)}
+          onSave={advanceStatus}
         />
       )}
     </div>

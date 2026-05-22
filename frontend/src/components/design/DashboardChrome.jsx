@@ -36,12 +36,13 @@ export function DashboardHero({
   borrowerName,
   status,
   statusLabel,
-  subline,            // node — { loanType, estClose, processorName } style
+  outstandingCount = 0,   // surfaces next to the status pill — most actionable signal
+  subline,                // node — { loanType, estClose, processorName } style
   onAllLoans,
   onExportMismo,
   onViewApplication,
   onOpenDocuments,
-  onUpdateStatus,
+  onAdvanceStatus,        // replaces the old in-grid status dropdown (deliberate action)
 }) {
   const tone = dashboardStatusTone(status);
   return (
@@ -53,6 +54,11 @@ export function DashboardHero({
         <div className="dash-title-row">
           <h1 className="dash-h1">{borrowerName || 'Unnamed borrower'}</h1>
           {statusLabel && <Pill tone={tone} dot>{statusLabel}</Pill>}
+          {outstandingCount > 0 && (
+            <Pill tone="warn" dot title={`${outstandingCount} outstanding condition${outstandingCount === 1 ? '' : 's'}`}>
+              {outstandingCount} outstanding
+            </Pill>
+          )}
         </div>
         {subline && <div className="muted dash-subline">{subline}</div>}
       </div>
@@ -68,18 +74,18 @@ export function DashboardHero({
           </Button>
         )}
         {onViewApplication && (
-          <Button onClick={onViewApplication} title="Open the 1003 in read-only mode">
-            <Icon name="doc" size={14} /> View application
+          <Button onClick={onViewApplication} title="Open the 1003 (read-only)">
+            <Icon name="doc" size={14} /> Open 1003
           </Button>
         )}
         {onOpenDocuments && (
           <Button onClick={onOpenDocuments} title="Open the document workspace">
-            <Icon name="folder" size={14} /> Documents
+            <Icon name="folder" size={14} /> Files
           </Button>
         )}
-        {onUpdateStatus && (
-          <Button variant="primary" onClick={onUpdateStatus}>
-            <Icon name="edit" size={14} /> Update status
+        {onAdvanceStatus && (
+          <Button variant="primary" onClick={onAdvanceStatus} title="Move this loan to the next stage">
+            <Icon name="check" size={14} /> Advance status
           </Button>
         )}
       </div>

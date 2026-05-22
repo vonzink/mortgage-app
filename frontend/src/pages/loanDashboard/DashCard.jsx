@@ -1,9 +1,22 @@
 import React from 'react';
 
-/** Standard panel used for every dashboard section. */
-export function DashCard({ icon, title, children, fullWidth, actionRight }) {
+/**
+ * Standard panel used for every dashboard section.
+ *
+ * `variant`:
+ *   - 'reference' (default) — read-only facts (property, borrower, identifiers)
+ *   - 'workflow'            — actionable surfaces (conditions, notes, timeline);
+ *                              gets a copper left accent so the eye finds them first.
+ */
+export function DashCard({ icon, title, children, fullWidth, actionRight, variant }) {
+  const cls = [
+    'card',
+    'dashboard-card',
+    fullWidth ? 'dashboard-card--wide' : '',
+    variant === 'workflow' ? 'dashboard-card--workflow' : '',
+  ].filter(Boolean).join(' ');
   return (
-    <div className={`card dashboard-card${fullWidth ? ' dashboard-card--wide' : ''}`}>
+    <div className={cls}>
       <div className="dashboard-card-titlebar">
         <h2 className="dashboard-card-title">{icon} {title}</h2>
         {actionRight}

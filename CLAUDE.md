@@ -67,6 +67,22 @@ npm test                                                     # Jest (CDK asserti
 
 The dev S3 bucket and IAM role are already deployed; never `cdk destroy` (`removalPolicy: RETAIN` and Object Lock are intentional).
 
+### Deploying to production
+
+Run from the repo root:
+
+```bash
+./deploy.sh                 # full: build frontend bundle + rebuild backend container
+./deploy.sh --frontend-only # rebuild + rsync React bundle; nginx serves it directly
+./deploy.sh --backend-only  # docker compose build + restart backend; Flyway runs on boot
+./deploy.sh --repair        # backend rebuild with Flyway repair (drift recovery)
+./deploy.sh --logs          # tail container logs after restart
+```
+
+Prod is a single EC2 host at `52.203.186.217` (`ssh -i ~/MSFG/Security/msfg-mortgage-key.pem ubuntu@52.203.186.217`). RDS Postgres + S3 (us-west-1). nginx serves the React bundle and reverse-proxies `/api` → Spring container on `:8081`. Canonical prod host is `app.msfgco.com`.
+
+**If you see prod 502s + Flyway checksum mismatch** in the backend logs: `./deploy.sh --repair --backend-only --logs`. Don't diagnose — the runbook at `.claude/memory/project_flyway_drift_runbook.md` covers it.
+
 ## Architecture — the parts that matter
 
 ### Canonical data model
@@ -88,25 +104,35 @@ The merge rule for MISMO imports is **always overwrite** every field we model �
 
 ### Status workflow
 
-11 stages defined in `LoanStatus` enum: `REGISTERED → APPLICATION → DISCLOSURES_SENT → DISCLOSURES_SIGNED → UNDERWRITING → APPROVED → APPRAISAL → INSURANCE → CTC → DOCS_OUT → FUNDED`, plus terminal `DISPOSITIONED`. The column is `VARCHAR(30)` in Postgres; the enum is the validation gate. `LoanStatus.fromString` accepts legacy values (`DRAFT`/`SUBMITTED`/`PROCESSING`/`DENIED`) and remaps them. `LoanApplicationService.updateApplicationStatus` writes a `loan_status_history` row on every transition; the `transitioned_by_user_id` is null until Phase 3 wires it up.
+11 stages defined in `LoanStatus` enum: `REGISTERED → APPLICATION → DISCLOSURES_SENT → DISCLOSURES_SIGNED → UNDERWRITING → APPROVED → APPRAISAL → INSURANCE → CTC → DOCS_OUT → FUNDED`, plus terminal `DISPOSITIONED`. The column is `VARCHAR(30)` in Postgres; the enum is the validation gate. `LoanStatus.fromString` accepts legacy values (`DRAFT`/`SUBMITTED`/`PROCESSING`/`DENIED`) and remaps them. `LoanApplicationService.updateApplicationStatus(id, status, transitionedAt)` writes a `loan_status_history` row on every transition; the `transitioned_by_user_id` is null until Phase 3 wires it up. The `PATCH /api/loan-applications/{id}/status` endpoint accepts an optional `transitionedAt` query param (ISO date or datetime) so the LO can backdate a milestone.
+
+### Server-side clone
+
+`POST /api/loan-applications/{id}/clone` deep-copies an application (property + all borrowers with employment/income/residences/declaration/assets/REO + liabilities) into a new row with `status=REGISTERED`. Does **not** copy: `applicationNumber`, `lendingpadLoanNumber`, MERS MIN, borrower SSNs, or document records. Backs the "Copy to new" action on the apps list.
 
 ### Schema management
 
 All schema changes go through Flyway migrations under `backend/src/main/resources/db/migration/V*__*.sql`. Postgres-flavored SQL (`BIGSERIAL`, `BOOLEAN`, separate `CREATE INDEX` after `CREATE TABLE`). The `MODE=PostgreSQL` H2 in dev parses these directly. **Never edit a committed migration** — add a new one. JPA `ddl-auto` is `validate` in both dev and prod; Hibernate compares entities against the post-Flyway schema and fails boot on drift.
 
-Current migrations (next is `V11`):
+Current migrations: V1 through V23. Run `ls backend/src/main/resources/db/migration/` for the live head. Highlights you'll hit:
+
 - `V1` — initial schema
 - `V2` — `loan_status_history` audit table
 - `V3` — `users` + per-loan assignments (assigned_lo_id, borrower/agent join tables)
 - `V4` — document visibility flags (LO-controlled per-doc toggles)
-- `V5` — `assets` table (entity existed before the schema did)
-- `V6` — `created_at` / `updated_at` audit columns on entities that already declared them
-- `V7` — Document S3 fields for the presigned-PUT borrower upload flow
-- `V8` — loan identifiers (LP R-number, MERS MIN, etc.)
-- `V9` — `mismo_imports` audit table
-- `V10` — closing-stage data (1:1 `closing_information` per loan)
+- `V5–V10` — assets, audit timestamps, S3 doc fields, identifiers, `mismo_imports`, closing data
+- `V22` — liability classification (`exclusion_reason`, `to_be_paid_off`, `payoff_status`) + `borrower_id` FK on `liabilities`
+- `V23` — HMDA fields on `declarations` (race/ethnicity/sex stored as comma-separated MISMO codes; refusal booleans; `application_taken_method`)
+
+**H2 quirk**: `MODE=PostgreSQL` H2 won't parse multi-clause `ALTER TABLE`. Write one `ALTER TABLE … ADD COLUMN` per statement (V23 is the reference).
 
 Most child entities have **relaxed bean-validation annotations** (`@NotNull` / `@NotBlank` removed from many fields) because partial MISMO imports would otherwise fail. Required-field UX lives in the React form (`useDraftAutosave` + `summarizeErrors` on the next-step trigger) — the backend trusts the form and the importer.
+
+### Serializing JPA entities
+
+`backend/.../config/JacksonConfig.java` registers `Hibernate6Module` with `FORCE_LAZY_LOADING=false` so lazy proxies serialize as `null` instead of throwing `No serializer found for ByteBuddyInterceptor`. This became required when V22 added `Liability.borrower` (@ManyToOne lazy) — once a Borrower is loaded as a proxy via Liability, the same instance shows up inside `LoanApplication.borrowers` via the session cache, and `GET /api/loan-applications` 500s.
+
+**Rule of thumb**: prefer returning DTOs (see `mapper/LoanApplicationMapper`). If you must return an entity, Hibernate6Module covers you but the shape of what reaches the client depends on what's been fetch-joined.
 
 ### S3 layout (deployed buckets: `msfg-mortgage-app-documents-{dev,prod}` + `-logs` siblings)
 
@@ -117,15 +143,25 @@ applications/{application_id}/{party_role}/{document_type}/{doc_uuid}-{safe_file
 loans/{loan_id}/{party_role}/{document_type}/{doc_uuid}-{safe_filename}
 ```
 
-Lifecycle / disposition state lives in **S3 object tags**, not in the key (keys are immutable). Tags drive the lifecycle policies that move objects to STANDARD_IA / GLACIER_IR / GLACIER_DEEP_ARCHIVE based on `loan_state` and `retention_class`. See [`infra/lib/documents-stack.ts`](infra/lib/documents-stack.ts) for the rule set and [`backend/.../S3DocumentService.java`](backend/src/main/java/com/yourcompany/mortgage/service/S3DocumentService.java) for the upload/download flow.
+Lifecycle / disposition state lives in **S3 object tags**, not in the key (keys are immutable). Tags drive the lifecycle policies that move objects to STANDARD_IA / GLACIER_IR / GLACIER_DEEP_ARCHIVE based on `loan_state` and `retention_class`. See [`infra/lib/documents-stack.ts`](infra/lib/documents-stack.ts) for the rule set and [`backend/.../S3DocumentService.java`](backend/src/main/java/com/msfg/mortgage/service/S3DocumentService.java) for the upload/download flow.
 
 The borrower-portal upload is a 3-step direct-to-S3 flow: client asks for a presigned PUT URL (backend creates a `Document` row with `upload_status='pending'`), client PUTs the file directly to S3, client calls `/confirm` which HEADs the object and applies tags.
+
+**CORS allowlist on prod bucket**: `app.msfgco.com` (canonical), `apply.msfgco.com`, `dashboard.msfgco.com`. Updating origins requires editing **both** `infra/lib/documents-stack.ts` *and* applying live via `aws s3api put-bucket-cors` — `cdk deploy` alone doesn't re-push CORS to an existing bucket promptly enough for active users. Symptom of a stale allowlist: `TypeError: Failed to fetch` on `uploadFileToS3`.
+
+There are 4 prod-and-dev S3 buckets total (`msfg-mortgage-app-documents-{prod,dev}` + `-logs` siblings). **Do not propose consolidating them** — Object Lock + WORM retention are bucket-level (CFPB / Reg Z), lifecycle rules and encryption are bucket-scoped, and dev/prod isolation is load-bearing. See `.claude/memory/feedback_keep_4_s3_buckets.md`.
 
 ### MISMO export/import
 
 `MismoExporter` builds XML via StAX (`MismoXmlWriter` helper). v1 emits application-stage data only — anything closing-stage (escrows, fees, AUS findings, MI, integrated disclosures) flows back from LendingPad on import but is not yet modeled in our DB.
 
-`MismoImporter` walks the DOM via `local-name()` XPath (namespace-agnostic). Filters PARTY elements by `PartyRoleType='Borrower'` to skip the LO/title/agent parties LP also includes. Whole-list replace for residences, employment, income sources, assets, REOs, liabilities, declarations. Per-borrower matching by `SequenceNumber`; creates new borrowers if the file has more parties than the DB. **There is no MISMO XSD in the project** — mapping is hand-derived from a sample file and `LoanIdentifierType` discriminators (`LenderLoan` for the LP R-number, `MERS_MIN`, etc.).
+`MismoImporter` orchestrates; `BorrowerSectionImporter`, `MismoCoerce`, `MismoNodes`, and `LinkContext` handle their slices. Walks the DOM via `local-name()` XPath (namespace-agnostic). Filters PARTY elements by `PartyRoleType ∈ {Borrower, Cosigner, CoBorrower}` to skip the LO/title/agent parties LP also includes.
+
+**xlink routing for assets/liabilities/REOs**: ASSET/LIABILITY → RELATIONSHIPS `arc` → ROLE label → PARTY → borrower. Use `LinkContext.arcsByFrom` + `LinkContext.elementsByLabel`. Match borrowers by **`ROLE.SequenceNumber`** — the PARTY-level SequenceNumber is often absent or wrong.
+
+Whole-list replace for residences/employment/income/assets/REOs/liabilities/declarations. Per-borrower matching by `SequenceNumber`; creates new borrowers if the file has more parties than the DB. **Name xpath is scoped to `INDIVIDUAL/NAME`** — `.//FirstName` would otherwise match ALIAS firstNames first.
+
+**There is no MISMO XSD in the project** — mapping is hand-derived from a sample file and `LoanIdentifierType` discriminators (`LenderLoan` for the LP R-number, `MERS_MIN`, etc.). Drift-protection guards: skip REOs whose ADDRESS is fully null, clamp negative `OwnedPropertyRentalIncomeNetAmount` to zero.
 
 ### Frontend conventions worth knowing
 
@@ -134,6 +170,12 @@ The borrower-portal upload is a 3-step direct-to-S3 flow: client asks for a pres
 - `mismo:imported` event refreshes `ApplicationDetails` after a cog-dropdown upload.
 - Down-payment $/% toggle has a separate raw-input state for % mode to prevent fighting react-hook-form's controlled re-renders. `LoanInformationStep.js` is the reference for that pattern.
 - SSN/phone masking via the `maskedRegister` helper in `PersonalInfoField.js`. Validation regex matches the masked shape (`xxx-xx-xxxx`, `xxx-xxx-xxxx`).
+
+#### Loan Dashboard chrome (`/loans/:id`)
+
+- `<DashCard variant="workflow">` (Conditions, Notes, Status Timeline) gets a copper left accent and sits at the top of the grid; default reference cards (Loan Terms, Property, Borrower, …) sit below. Don't mix the two — workflow cards are where the LO acts, reference cards are read-only facts.
+- **Status transitions go through `<AdvanceStatusModal>`**, never an inline dropdown. The modal sequences two writes: `PATCH /status?status=…&transitionedAt=…` (backdate supported) followed by an optional dashboard note tagged `[FROM → TO on DATE] …`. The status endpoint has no `note` field — the tagged note is how we keep transition context in the audit surface.
+- Hero-level actions live only in `DashboardChrome.jsx`'s `<DashboardHero>`. Adding one means adding a prop, not sprinkling buttons into the page body. Current hero props: `onAllLoans`, `onExportMismo`, `onViewApplication` ("Open 1003"), `onOpenDocuments` ("Files"), `onAdvanceStatus`, plus `outstandingCount` for the inline pill next to the status pill.
 
 ### Stale files / removed features
 

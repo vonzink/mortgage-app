@@ -30,6 +30,24 @@ const mortgageService = {
     return data;
   },
 
+  /**
+   * Typeahead for the global TopBar search. Returns up to `limit` ranked hits.
+   * Uses an AbortController so rapid retypes cancel in-flight requests.
+   *
+   * @param {string} q
+   * @param {{ limit?: number, signal?: AbortSignal }} [opts]
+   */
+  searchLoans: async (q, opts = {}) => {
+    const params = new URLSearchParams();
+    if (q) params.set('q', q);
+    if (opts.limit) params.set('limit', String(opts.limit));
+    const { data } = await apiClient.get(
+      `/loan-applications/search?${params.toString()}`,
+      { signal: opts.signal },
+    );
+    return Array.isArray(data) ? data : [];
+  },
+
   getApplication: async (id) => {
     const { data } = await apiClient.get(`/loan-applications/${id}`);
     return data;

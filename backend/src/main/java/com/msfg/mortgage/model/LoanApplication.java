@@ -40,6 +40,15 @@ public class LoanApplication {
     @Column(name = "created_date")
     private LocalDateTime createdDate;
 
+    /**
+     * When the loan most recently entered its current status. Backfilled from
+     * loan_status_history MAX in V24; written in LoanApplicationService.updateApplicationStatus
+     * and on create. Denormalized so the pipeline page's stage-age sort doesn't
+     * join loan_status_history per row.
+     */
+    @Column(name = "status_changed_at", nullable = false)
+    private LocalDateTime statusChangedAt;
+
     @Column(name = "updated_date")
     private LocalDateTime updatedDate;
 
@@ -99,6 +108,12 @@ public class LoanApplication {
     protected void onCreate() {
         createdDate = LocalDateTime.now();
         updatedDate = LocalDateTime.now();
+        // Default status_changed_at to createdDate so the pipeline's stage-age
+        // sort shows "day 0" for new loans instead of failing NOT NULL.
+        // updateApplicationStatus overwrites this on every transition.
+        if (statusChangedAt == null) {
+            statusChangedAt = createdDate;
+        }
         if (applicationNumber == null) {
             applicationNumber = generateApplicationNumber();
         }
@@ -191,6 +206,14 @@ public class LoanApplication {
 
     public LocalDateTime getCreatedDate() {
         return createdDate;
+    }
+
+    public LocalDateTime getStatusChangedAt() {
+        return statusChangedAt;
+    }
+
+    public void setStatusChangedAt(LocalDateTime statusChangedAt) {
+        this.statusChangedAt = statusChangedAt;
     }
 
     public LocalDateTime getUpdatedDate() {

@@ -387,6 +387,10 @@ public class LoanApplicationService {
         }
 
         application.setLoanStatus(parsed);
+        // Mirror the transition timestamp onto the loan so the pipeline list
+        // can sort by stage age without joining loan_status_history per row.
+        application.setStatusChangedAt(
+                transitionedAt != null ? transitionedAt : java.time.LocalDateTime.now());
         LoanApplication saved = loanApplicationRepository.save(application);
 
         loanStatusHistoryRepository.save(LoanStatusHistory.builder()

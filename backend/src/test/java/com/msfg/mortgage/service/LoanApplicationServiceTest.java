@@ -151,4 +151,36 @@ class LoanApplicationServiceTest {
         // not a regression.
         loanApplicationService.deleteApplication(999_999L);
     }
+
+    // ── statusChangedAt denormalization (V24) ──────────────────────────────────
+
+    @Test
+    void createApplication_stampsStatusChangedAtToCreatedDate() {
+        LoanApplication saved = loanApplicationService.createApplication(purchaseApplication("Purchase"));
+        assertThat(saved.getStatusChangedAt()).isNotNull();
+        assertThat(saved.getStatusChangedAt()).isEqualTo(saved.getCreatedDate());
+    }
+
+    @Test
+    void updateApplicationStatus_updatesStatusChangedAtToProvidedTransitionedAt() {
+        LoanApplication saved = loanApplicationService.createApplication(purchaseApplication("Purchase"));
+        java.time.LocalDateTime when = java.time.LocalDateTime.of(2026, 4, 15, 9, 0);
+
+        LoanApplication moved = loanApplicationService.updateApplicationStatus(
+                saved.getId(), "UNDERWRITING", when);
+
+        assertThat(moved.getStatusChangedAt()).isEqualTo(when);
+    }
+
+    @Test
+    void updateApplicationStatus_defaultsStatusChangedAtToNowWhenNotProvided() {
+        LoanApplication saved = loanApplicationService.createApplication(purchaseApplication("Purchase"));
+        java.time.LocalDateTime before = java.time.LocalDateTime.now().minusSeconds(2);
+
+        LoanApplication moved = loanApplicationService.updateApplicationStatus(
+                saved.getId(), "APPLICATION", null);
+
+        assertThat(moved.getStatusChangedAt()).isAfter(before);
+        assertThat(moved.getStatusChangedAt()).isBefore(java.time.LocalDateTime.now().plusSeconds(2));
+    }
 }

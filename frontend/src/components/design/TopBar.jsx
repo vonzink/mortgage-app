@@ -3,6 +3,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from 'react-oidc-context';
 import { toast } from 'react-toastify';
 import Icon from './Icon';
+import LoanSearch from './LoanSearch';
 import useRoles from '../../hooks/useRoles';
 import mortgageService from '../../services/mortgageService';
 import { buildCognitoLogoutUrl } from '../../auth/cognitoConfig';
@@ -127,6 +128,9 @@ export default function TopBar() {
           </Link>
         )}
       </nav>
+
+      {/* Global typeahead — find any loan by name, app#, or external loan id. */}
+      {auth.isAuthenticated && <LoanSearch />}
 
       <div className="top-right">
         {auth.isLoading && <span style={{ opacity: 0.6, fontSize: 13 }}>…</span>}

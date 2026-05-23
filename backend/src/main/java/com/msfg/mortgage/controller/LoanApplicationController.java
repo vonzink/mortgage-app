@@ -1,6 +1,9 @@
 package com.msfg.mortgage.controller;
 
 import com.msfg.mortgage.dto.LoanApplicationDTO;
+import com.msfg.mortgage.dto.LoanListFilters;
+import com.msfg.mortgage.dto.LoanListPage;
+import com.msfg.mortgage.dto.LoanSearchHit;
 import com.msfg.mortgage.mismo.MismoExporter;
 import com.msfg.mortgage.mismo.MismoImporter;
 import com.msfg.mortgage.model.LoanApplication;
@@ -10,7 +13,9 @@ import com.msfg.mortgage.model.User;
 import com.msfg.mortgage.repository.LoanStatusHistoryRepository;
 import com.msfg.mortgage.repository.MismoImportRepository;
 import com.msfg.mortgage.security.CurrentUserService;
+import com.msfg.mortgage.service.LoanApplicationListService;
 import com.msfg.mortgage.service.LoanApplicationService;
+import com.msfg.mortgage.service.LoanSearchService;
 import org.springframework.core.io.ByteArrayResource;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
@@ -47,6 +52,8 @@ import java.util.Optional;
 public class LoanApplicationController {
 
     private final LoanApplicationService loanApplicationService;
+    private final LoanApplicationListService loanApplicationListService;
+    private final LoanSearchService loanSearchService;
     private final LoanStatusHistoryRepository loanStatusHistoryRepository;
     private final MismoExporter mismoExporter;
     private final MismoImporter mismoImporter;
@@ -154,14 +161,69 @@ public class LoanApplicationController {
     }
 
     /**
-     * Internal-only firehose. Borrowers/agents must use {@code GET /me/loans}, which is
-     * filtered to loans they participate in.
+     * Paged list backing the /applications pipeline page. Replaces the previous
+     * unpaged firehose. The old shape is preserved at {@code GET /all} during
+     * the frontend cutover (Phase 1) — that route is deleted in Phase 3 once
+     * no caller remains.
      */
     @GetMapping
     @PreAuthorize("@loanAccessGuard.isInternal()")
+    public ResponseEntity<LoanListPage> list(
+            @RequestParam(required = false) List<String> status,
+            @RequestParam(name = "lo", required = false) Integer assignedLoId,
+            @RequestParam(required = false) Integer conditionsGt,
+            @RequestParam(required = false) String closingFrom,
+            @RequestParam(required = false) String closingTo,
+            @RequestParam(required = false) Integer stageAgeGt,
+            @RequestParam(required = false) List<String> loanType,
+            @RequestParam(required = false) java.math.BigDecimal amountMin,
+            @RequestParam(required = false) java.math.BigDecimal amountMax,
+            @RequestParam(defaultValue = "createdDate,desc") String sort,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "25") int size) {
+
+        String[] sortParts = sort.split(",", 2);
+        String sortField = sortParts.length > 0 && !sortParts[0].isBlank() ? sortParts[0] : "createdDate";
+        String sortDir   = sortParts.length > 1 && !sortParts[1].isBlank() ? sortParts[1] : "desc";
+
+        LoanListFilters filters = new LoanListFilters(
+            status == null ? List.of() : status,
+            java.util.Optional.ofNullable(assignedLoId),
+            java.util.Optional.ofNullable(conditionsGt),
+            parseDate(closingFrom),
+            parseDate(closingTo),
+            java.util.Optional.ofNullable(stageAgeGt),
+            loanType == null ? List.of() : loanType,
+            java.util.Optional.ofNullable(amountMin),
+            java.util.Optional.ofNullable(amountMax),
+            sortField, sortDir, page, size
+        );
+
+        return ResponseEntity.ok(loanApplicationListService.list(filters));
+    }
+
+    /** Deprecated firehose. Removed in Task 3.9 of the pipeline rollout. */
+    @GetMapping("/all")
+    @PreAuthorize("@loanAccessGuard.isInternal()")
+    @Deprecated
     public ResponseEntity<List<LoanApplication>> getAllApplications() {
         List<LoanApplication> applications = loanApplicationService.getAllApplications();
         return new ResponseEntity<>(applications, HttpStatus.OK);
+    }
+
+    /** Typeahead for the global TopBar search. */
+    @GetMapping("/search")
+    @PreAuthorize("@loanAccessGuard.isInternal()")
+    public ResponseEntity<List<LoanSearchHit>> searchLoans(
+            @RequestParam(required = false) String q,
+            @RequestParam(required = false) Integer limit) {
+        return ResponseEntity.ok(loanSearchService.search(q, limit));
+    }
+
+    private static java.util.Optional<java.time.LocalDate> parseDate(String s) {
+        if (s == null || s.isBlank()) return java.util.Optional.empty();
+        try { return java.util.Optional.of(java.time.LocalDate.parse(s.trim())); }
+        catch (java.time.format.DateTimeParseException e) { return java.util.Optional.empty(); }
     }
 
     @GetMapping("/{id}")

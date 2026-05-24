@@ -319,11 +319,6 @@ public class LoanApplicationService {
     }
 
     @Transactional(readOnly = true)
-    public List<LoanApplication> getAllApplications() {
-        return loanApplicationRepository.findAll();
-    }
-
-    @Transactional(readOnly = true)
     public Optional<LoanApplication> getApplicationById(Long id) {
         return loanApplicationRepository.findById(id);
     }

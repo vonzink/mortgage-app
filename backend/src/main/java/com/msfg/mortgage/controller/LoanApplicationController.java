@@ -202,15 +202,6 @@ public class LoanApplicationController {
         return ResponseEntity.ok(loanApplicationListService.list(filters));
     }
 
-    /** Deprecated firehose. Removed in Task 3.9 of the pipeline rollout. */
-    @GetMapping("/all")
-    @PreAuthorize("@loanAccessGuard.isInternal()")
-    @Deprecated
-    public ResponseEntity<List<LoanApplication>> getAllApplications() {
-        List<LoanApplication> applications = loanApplicationService.getAllApplications();
-        return new ResponseEntity<>(applications, HttpStatus.OK);
-    }
-
     /** Typeahead for the global TopBar search. */
     @GetMapping("/search")
     @PreAuthorize("@loanAccessGuard.isInternal()")

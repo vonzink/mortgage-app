@@ -22,36 +22,14 @@
 .docs-subtitle { margin-top: 6px; font-size: 14px; }
 .docs-hero-actions { display: flex; gap: 10px; flex-wrap: wrap; }
 
-/* Main layout — workspace + right rail ----------------------------------- */
+/* Main layout — workspace spans full width (right rail removed). */
 .docs-layout {
   display: grid;
-  grid-template-columns: 1fr 320px;
+  grid-template-columns: 1fr;
   gap: 18px;
   align-items: start;
 }
-@media (max-width: 1200px) {
-  .docs-layout { grid-template-columns: 1fr; }
-}
 .docs-main { min-width: 0; }
-.docs-rail { position: sticky; top: 88px; }
-@media (max-width: 1200px) {
-  .docs-rail { position: static; }
-}
-
-/* Recent activity card --------------------------------------------------- */
-.recent-activity-card { overflow: hidden; }
-.recent-activity-body { padding: 8px 18px 14px; }
-.recent-activity-empty { padding: 12px 0; font-size: 13px; }
-.recent-activity-row {
-  display: flex; gap: 10px; padding: 8px 0; font-size: 12.5px;
-}
-.recent-activity-av {
-  width: 26px; height: 26px; border-radius: 999px;
-  font-size: 10px; flex: 0 0 auto;
-}
-.recent-activity-text { flex: 1; min-width: 0; }
-.recent-activity-verb { font-weight: 500; }
-.recent-activity-when { font-size: 11px; margin-top: 2px; }
 
 /* Application summary — collapsible secondary card ---------------------- */
 .docs-summary-card { margin-top: 22px; }

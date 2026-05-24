@@ -7,7 +7,6 @@ import mortgageService from '../services/mortgageService';
 import { pushRecentLoan } from '../utils/recentLoans';
 import { formatCurrency } from '../utils/formHelpers';
 import DocumentsHero from '../components/design/DocumentsHero';
-import RecentActivityCard from '../components/design/RecentActivityCard';
 import Button from '../components/design/Button';
 import Icon from '../components/design/Icon';
 import Pill from '../components/design/Pill';
@@ -115,13 +114,10 @@ const ApplicationDetails = () => {
         onExportAll={() => toast.info('Bulk export is coming soon — for now, use the file table to download individual files.')}
       />
 
-      <div className="docs-layout">
+      <div className="docs-layout docs-layout--full">
         <div className="docs-main">
           <WorkspaceTab loanId={Number(id)} />
         </div>
-        <aside className="docs-rail">
-          <RecentActivityCard loanId={Number(id)} refreshKey={documents.length} />
-        </aside>
       </div>
 
       {/* Collapsible application summary — secondary data (loan/property/borrower).

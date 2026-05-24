@@ -4,6 +4,7 @@ import { toast } from 'react-toastify';
 
 import WorkspaceTab from '../workspace/WorkspaceTab';
 import mortgageService from '../services/mortgageService';
+import { pushRecentLoan } from '../utils/recentLoans';
 import { formatCurrency } from '../utils/formHelpers';
 import DocumentsHero from '../components/design/DocumentsHero';
 import RecentActivityCard from '../components/design/RecentActivityCard';
@@ -26,6 +27,16 @@ const ApplicationDetails = () => {
     try {
       const data = await mortgageService.getApplication(id);
       setApplication(data);
+      // Cache this loan for the TopBar typeahead's empty state.
+      try {
+        pushRecentLoan({
+          id: data?.id,
+          applicationNumber: data?.applicationNumber,
+          borrowerName: data?.borrowers?.[0]
+            ? `${data.borrowers[0].firstName || ''} ${data.borrowers[0].lastName || ''}`.trim()
+            : null,
+        });
+      } catch { /* never block the page on a cache write */ }
     } catch (error) {
       toast.error('Failed to load application details');
       console.error('Error fetching application:', error);

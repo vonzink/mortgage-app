@@ -22,6 +22,7 @@ import {
 
 import dashboardService from '../services/dashboardService';
 import mortgageService from '../services/mortgageService';
+import { pushRecentLoan } from '../utils/recentLoans';
 import './loanDashboard.css';
 import './LoanDashboardPage.design.css';
 
@@ -133,6 +134,16 @@ export default function LoanDashboardPage() {
     try {
       const payload = await dashboardService.getDashboard(loanId);
       setData(payload);
+      // Cache this loan for the TopBar typeahead's empty state.
+      try {
+        pushRecentLoan({
+          id: payload?.id ?? loanId,
+          applicationNumber: payload?.applicationNumber,
+          borrowerName: payload?.primaryBorrower
+            ? `${payload.primaryBorrower.firstName || ''} ${payload.primaryBorrower.lastName || ''}`.trim()
+            : null,
+        });
+      } catch { /* never block the page on a cache write */ }
     } catch (err) {
       const msg = err?.response?.data?.message || err?.message || 'Failed to load dashboard';
       setError(msg);

@@ -25,8 +25,21 @@ const mortgageService = {
     }
   },
 
-  getApplications: async () => {
-    const { data } = await apiClient.get('/loan-applications');
+  /**
+   * Paged loan list backing the pipeline page. Accepts a backend-ready
+   * query string (see useFilterUrlState.toQueryString()).
+   *
+   * @param {string} [queryString]
+   * @returns {Promise<{ content: any[], totalElements: number, totalPages: number, page: number, size: number }>}
+   */
+  getApplications: async (queryString = '') => {
+    const url = queryString
+      ? `/loan-applications?${queryString}`
+      : '/loan-applications';
+    const { data } = await apiClient.get(url);
+    // Defensive: if a caller still expects an array (legacy callers during
+    // the cutover window), return content[]. After Phase 3 this branch goes.
+    if (Array.isArray(data)) return { content: data, totalElements: data.length, totalPages: 1, page: 0, size: data.length };
     return data;
   },
 

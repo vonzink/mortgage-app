@@ -11,6 +11,7 @@ const EMPTY_FORM = {
   isDeleteFolder: false,
   isActive: true,
   sortOrder: 0,
+  evalPrompt: '',
 };
 
 export default function FolderTemplatesAdmin() {
@@ -53,6 +54,7 @@ export default function FolderTemplatesAdmin() {
       isDeleteFolder: !!row.isDeleteFolder,
       isActive: row.isActive !== false,
       sortOrder: row.sortOrder ?? 0,
+      evalPrompt: row.evalPrompt || '',
     });
   };
   const closeModal = () => { setEditing(null); setForm(EMPTY_FORM); };
@@ -64,7 +66,11 @@ export default function FolderTemplatesAdmin() {
     }
     setSaving(true);
     try {
-      const payload = { ...form, sortOrder: Number(form.sortOrder) || 0 };
+      const payload = {
+        ...form,
+        sortOrder: Number(form.sortOrder) || 0,
+        evalPrompt: form.evalPrompt?.trim() ? form.evalPrompt : null,
+      };
       if (editing && editing.id) {
         await adminService.updateFolderTemplate(editing.id, payload);
         toast.success('Folder template updated');
@@ -164,6 +170,18 @@ export default function FolderTemplatesAdmin() {
             <label><input type="checkbox" checked={form.isDeleteFolder} onChange={e => setForm({ ...form, isDeleteFolder: e.target.checked })} /> Delete folder (singleton)</label>
             <label><input type="checkbox" checked={form.isActive} onChange={e => setForm({ ...form, isActive: e.target.checked })} /> Active</label>
           </div>
+          <Field label="AI evaluation prompt (markdown, optional)">
+            <textarea
+              value={form.evalPrompt}
+              onChange={e => setForm({ ...form, evalPrompt: e.target.value })}
+              placeholder="e.g. Check that all income docs are present and totals match the borrower's stated income."
+              rows={8}
+              style={{ ...input, fontFamily: 'ui-monospace, monospace', fontSize: 12, resize: 'vertical' }}
+            />
+            <p style={{ fontSize: 12, color: '#888', margin: '4px 0 0' }}>
+              Leave empty to hide the Evaluate button on this folder.
+            </p>
+          </Field>
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem', marginTop: '1.5rem' }}>
             <button onClick={closeModal} style={secondaryBtn} disabled={saving}>Cancel</button>
             <button onClick={save} style={primaryBtn} disabled={saving}>{saving ? 'Saving…' : 'Save'}</button>

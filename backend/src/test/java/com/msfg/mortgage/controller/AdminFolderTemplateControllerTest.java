@@ -34,7 +34,7 @@ class AdminFolderTemplateControllerTest {
     private AdminFolderTemplateController.UpsertRequest req(String name, boolean isOldLoanArchive,
                                                               boolean isDeleteFolder) {
         return new AdminFolderTemplateController.UpsertRequest(
-                name, null, isOldLoanArchive, isDeleteFolder, true, 100);
+                name, null, isOldLoanArchive, isDeleteFolder, true, 100, null);
     }
 
     @SuppressWarnings("unchecked")

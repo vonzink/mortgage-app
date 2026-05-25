@@ -50,6 +50,7 @@ public class AdminFolderTemplateController {
                 .isDeleteFolder(Boolean.TRUE.equals(req.isDeleteFolder()))
                 .isActive(req.isActive() == null || req.isActive())
                 .sortOrder(req.sortOrder() != null ? req.sortOrder() : 0)
+                .evalPrompt(req.evalPrompt())
                 .build();
         validateSingletons(t, null);
         return ResponseEntity.ok(toView(folderTemplateRepository.save(t)));
@@ -72,6 +73,9 @@ public class AdminFolderTemplateController {
         if (req.isDeleteFolder() != null) t.setIsDeleteFolder(req.isDeleteFolder());
         if (req.isActive() != null) t.setIsActive(req.isActive());
         if (req.sortOrder() != null) t.setSortOrder(req.sortOrder());
+        // evalPrompt is nullable in the request — pass through directly so
+        // admins can clear a prompt by sending null.
+        t.setEvalPrompt(req.evalPrompt());
 
         validateSingletons(t, id);
         return ResponseEntity.ok(toView(folderTemplateRepository.save(t)));
@@ -119,6 +123,7 @@ public class AdminFolderTemplateController {
         v.put("isDeleteFolder", t.getIsDeleteFolder());
         v.put("isActive", t.getIsActive());
         v.put("sortOrder", t.getSortOrder());
+        v.put("evalPrompt", t.getEvalPrompt());
         v.put("createdAt", t.getCreatedAt());
         v.put("updatedAt", t.getUpdatedAt());
         return v;
@@ -130,6 +135,7 @@ public class AdminFolderTemplateController {
             Boolean isOldLoanArchive,
             Boolean isDeleteFolder,
             Boolean isActive,
-            Integer sortOrder
+            Integer sortOrder,
+            String evalPrompt
     ) {}
 }

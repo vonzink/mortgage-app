@@ -123,6 +123,13 @@
             <artifactId>jackson-databind</artifactId>
         </dependency>
 
+        <!-- PDF text extraction for folder AI evaluation -->
+        <dependency>
+            <groupId>org.apache.pdfbox</groupId>
+            <artifactId>pdfbox</artifactId>
+            <version>3.0.3</version>
+        </dependency>
+
         <!-- Hibernate 6 ↔ Jackson bridge. Without this, returning JPA entities
              with lazy proxies (e.g. Liability.borrower loaded as proxy → ends
              up in LoanApplication.borrowers via session cache) throws

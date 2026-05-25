@@ -14,6 +14,7 @@ import EditDocumentModal from './EditDocumentModal';
 import DocumentHistory from './DocumentHistory';
 import DocumentReviewPanel from './DocumentReviewPanel';
 import UploadTypeModal from './UploadTypeModal';
+import FolderEvaluationCard from './FolderEvaluationCard';
 import './workspace.css';
 
 const STATUS_FILTER_OPTIONS = [
@@ -87,6 +88,14 @@ export default function WorkspaceTab({ loanId }) {
   const [typeFilter, setTypeFilter] = useState('');
   const [partyRoleFilter, setPartyRoleFilter] = useState('');
   const [docTypes, setDocTypes] = useState([]);
+
+  // AI folder evaluation gating — public app settings flag.
+  const [aiEnabled, setAiEnabled] = useState(false);
+  useEffect(() => {
+    mortgageService.getAppSettingsPublic()
+      .then((s) => setAiEnabled(!!s?.aiEvalEnabled))
+      .catch(() => setAiEnabled(false));
+  }, []);
 
   const fileInputRef = useRef(null);
   const downloadUrlCache = useRef(new Map()); // docUuid → { url, expiresAt }
@@ -592,6 +601,15 @@ export default function WorkspaceTab({ loanId }) {
               removed using the trash button. <em>This is the only way to delete documents
               and the action cannot be undone.</em>
             </div>
+          )}
+
+          {selectedFolder && (
+            <FolderEvaluationCard
+              loanId={loanId}
+              folderTemplateId={selectedFolder.folderTemplateId}
+              hasPrompt={!!selectedFolder.evalPrompt}
+              aiEnabled={aiEnabled}
+            />
           )}
 
           <FileTable

@@ -29,4 +29,31 @@ public interface DocumentRepository extends JpaRepository<Document, Long> {
 
     @Query("SELECT d FROM Document d WHERE d.docUuid = :docUuid AND d.deletedAt IS NULL")
     Optional<Document> findByDocUuid(@Param("docUuid") String docUuid);
+
+    /**
+     * Uploaded documents in the loan's folder whose name matches the given folder template.
+     *
+     * <p>Note: {@code folders} has no FK to {@code folder_templates} (V11 vs V21 history).
+     * The linkage convention from {@link com.msfg.mortgage.service.FolderService#ensureSeeded}
+     * is name-based: the seeded folder's {@code name_normalized} equals
+     * {@code lower(trim(template.display_name))}. We mirror that here.
+     */
+    @Query("""
+        SELECT d FROM Document d
+         WHERE d.application.id = :appId
+           AND d.uploadStatus = 'uploaded'
+           AND d.deletedAt IS NULL
+           AND d.folderId IN (
+               SELECT f.id FROM Folder f
+                WHERE f.applicationId = :appId
+                  AND f.deletedAt IS NULL
+                  AND f.nameNormalized = (
+                      SELECT LOWER(TRIM(ft.displayName))
+                        FROM FolderTemplate ft
+                       WHERE ft.id = :folderTemplateId))
+        ORDER BY d.uploadedAt
+        """)
+    List<Document> findUploadedInFolderTemplate(
+            @Param("appId") Long appId,
+            @Param("folderTemplateId") Long folderTemplateId);
 }

@@ -232,6 +232,20 @@
                     </annotationProcessorPaths>
                 </configuration>
             </plugin>
+
+            <!--
+              Java 25 toolchain ahead of Mockito/ByteBuddy support.
+              Setting net.bytebuddy.experimental=true lets ByteBuddy's class-file
+              reader accept JDK 25 bytecode so @MockBean + Mockito's inline
+              mock-maker can retransform Spring beans.
+            -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <configuration>
+                    <argLine>-Dnet.bytebuddy.experimental=true</argLine>
+                </configuration>
+            </plugin>
         </plugins>
     </build>
 </project>

@@ -47,6 +47,9 @@ public class FolderTemplate {
     @Builder.Default
     private Integer sortOrder = 0;
 
+    @Column(name = "eval_prompt", columnDefinition = "TEXT")
+    private String evalPrompt;
+
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;
 

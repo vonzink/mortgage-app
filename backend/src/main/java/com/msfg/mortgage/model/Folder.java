@@ -59,6 +59,15 @@ public class Folder {
     @Column(name = "is_delete_folder", nullable = false)
     private Boolean isDeleteFolder;
 
+    /**
+     * FK to {@code folder_templates.id}. NULL for user-created folders and for
+     * pre-V26 rows that couldn't be matched by name. Populated at seed time
+     * (FolderService.ensureSeeded) for new system folders so cross-template
+     * queries don't need fragile name-matching.
+     */
+    @Column(name = "folder_template_id")
+    private Long folderTemplateId;
+
     @Column(name = "created_by_user_id")
     private Long createdByUserId;
 

@@ -85,6 +85,10 @@ public class FolderService {
                         .isSystem(true)
                         .isOldLoanArchive(Boolean.TRUE.equals(tpl.getIsOldLoanArchive()))
                         .isDeleteFolder(Boolean.TRUE.equals(tpl.getIsDeleteFolder()))
+                        // V26: link back to the template so cross-template
+                        // queries (eg FolderEvaluationService) can join by FK
+                        // instead of by-name.
+                        .folderTemplateId(tpl.getId())
                         .build();
                 folderRepository.save(f);
             }

@@ -33,10 +33,10 @@ public interface DocumentRepository extends JpaRepository<Document, Long> {
     /**
      * Uploaded documents in the loan's folder whose name matches the given folder template.
      *
-     * <p>Note: {@code folders} has no FK to {@code folder_templates} (V11 vs V21 history).
-     * The linkage convention from {@link com.msfg.mortgage.service.FolderService#ensureSeeded}
-     * is name-based: the seeded folder's {@code name_normalized} equals
-     * {@code lower(trim(template.display_name))}. We mirror that here.
+     * <p>V26 added {@code folders.folder_template_id} as a real FK; the JPQL
+     * below joins on it directly. Pre-V26 user-renamed folders that the
+     * backfill couldn't match by name will have NULL here and therefore won't
+     * match — which is the correct fail-closed behavior for AI evaluation.
      */
     @Query("""
         SELECT d FROM Document d
@@ -47,10 +47,7 @@ public interface DocumentRepository extends JpaRepository<Document, Long> {
                SELECT f.id FROM Folder f
                 WHERE f.applicationId = :appId
                   AND f.deletedAt IS NULL
-                  AND f.nameNormalized = (
-                      SELECT LOWER(TRIM(ft.displayName))
-                        FROM FolderTemplate ft
-                       WHERE ft.id = :folderTemplateId))
+                  AND f.folderTemplateId = :folderTemplateId)
         ORDER BY d.uploadedAt
         """)
     List<Document> findUploadedInFolderTemplate(

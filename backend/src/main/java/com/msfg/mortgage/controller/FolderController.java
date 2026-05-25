@@ -31,6 +31,7 @@ public class FolderController {
 
     private final FolderService folderService;
     private final CurrentUserService currentUserService;
+    private final com.msfg.mortgage.repository.FolderTemplateRepository folderTemplateRepository;
 
     /**
      * Returns the loan's folder tree as a flat list. Auto-seeds the root + 15 default
@@ -45,10 +46,20 @@ public class FolderController {
                 .map(Folder::getId)
                 .findFirst()
                 .orElse(null);
+
+        // One template lookup per tree call → keyed by template id so toView()
+        // can attach evalPrompt without a per-row DB hit. Templates are small
+        // (~17 rows), in-memory map is fine.
+        Map<Long, String> evalPromptByTemplateId = folderTemplateRepository.findAll().stream()
+                .filter(t -> t.getEvalPrompt() != null && !t.getEvalPrompt().isBlank())
+                .collect(java.util.stream.Collectors.toMap(
+                        com.msfg.mortgage.model.FolderTemplate::getId,
+                        com.msfg.mortgage.model.FolderTemplate::getEvalPrompt));
+
         return ResponseEntity.ok(Map.of(
                 "rootId", rootId,
                 "count", all.size(),
-                "folders", all.stream().map(this::toView).toList()
+                "folders", all.stream().map(f -> toView(f, evalPromptByTemplateId)).toList()
         ));
     }
 
@@ -109,6 +120,10 @@ public class FolderController {
     // ─── DTO shaping ─────────────────────────────────────────────────────────
 
     private Map<String, Object> toView(Folder f) {
+        return toView(f, java.util.Collections.emptyMap());
+    }
+
+    private Map<String, Object> toView(Folder f, Map<Long, String> evalPromptByTemplateId) {
         Map<String, Object> m = new LinkedHashMap<>();
         m.put("id", f.getId());
         m.put("parentId", f.getParentId());
@@ -117,6 +132,10 @@ public class FolderController {
         m.put("isSystem", f.getIsSystem());
         m.put("isOldLoanArchive", f.getIsOldLoanArchive());
         m.put("isDeleteFolder", f.getIsDeleteFolder());
+        m.put("folderTemplateId", f.getFolderTemplateId());
+        m.put("evalPrompt", f.getFolderTemplateId() != null
+                ? evalPromptByTemplateId.get(f.getFolderTemplateId())
+                : null);
         m.put("createdByUserId", f.getCreatedByUserId());
         m.put("createdAt", f.getCreatedAt());
         m.put("updatedAt", f.getUpdatedAt());

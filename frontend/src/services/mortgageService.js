@@ -240,6 +240,33 @@ const mortgageService = {
     await mortgageService.uploadFileToS3(slot.uploadUrl, file);
     return mortgageService.confirmDocumentUpload(loanId, slot.docUuid);
   },
+
+  // ────────────────── Folder AI evaluation ──────────────────
+
+  /** Public flag — every signed-in user can read. Returns { aiEvalEnabled: boolean }. */
+  getAppSettingsPublic: async () => {
+    const { data } = await apiClient.get('/app-settings/public');
+    return data;
+  },
+
+  /** Fire the eval for one folder. Returns the new folder_evaluations row. */
+  evaluateFolder: async (loanId, folderTemplateId) => {
+    const { data } = await apiClient.post(
+      `/loan-applications/${loanId}/folders/${folderTemplateId}/evaluate`);
+    return data;
+  },
+
+  /** Latest eval row for this (loan, folder), or null when none exists. */
+  getFolderEvaluation: async (loanId, folderTemplateId) => {
+    try {
+      const { data } = await apiClient.get(
+        `/loan-applications/${loanId}/folders/${folderTemplateId}/evaluation`);
+      return data;
+    } catch (e) {
+      if (e?.response?.status === 404) return null;
+      throw e;
+    }
+  },
 };
 
 export default mortgageService;

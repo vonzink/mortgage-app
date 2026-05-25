@@ -22,6 +22,7 @@ Today the workspace is a static file browser — there's no programmatic analysi
 | Q4 | Prompt storage = **`folder_templates.eval_prompt TEXT NULL`**. NULL means no Evaluate button on that folder. Edited inline in the existing FolderTemplatesAdmin page. |
 | Q5 | Result UI = **collapsible card at top of folder pane**, latest-only display, history accumulates in DB. |
 | Reconcile | Result body = **JSON envelope with markdown content** — `{ status, costUsd, markdown: "..." }`. Frontend renders the markdown field. Keeps prompt-writing free-form. |
+| Q6 | **Global feature toggle**, default **OFF**. Admin-controlled (sits next to the provider dropdown in `AppSettingsAdmin`). When OFF, no Evaluate buttons render and the evaluate endpoint refuses (400 `feature_disabled`). When ON, the feature works for every internal role that has folder access (LO, Processor, Admin) — no per-role restriction beyond the existing `LoanAccessGuard`. Ships dark; admin flips it on. |
 
 ## Goals
 
@@ -52,16 +53,17 @@ One new migration `V25__folder_ai_evaluations.sql`.
 ALTER TABLE folder_templates ADD COLUMN eval_prompt TEXT;
 -- NULL means no Evaluate button surfaces on that folder.
 
--- 2. Single-row tenant settings (default provider).
+-- 2. Single-row tenant settings (default provider + feature toggle).
 CREATE TABLE app_settings (
-    id                   SERIAL  PRIMARY KEY,
-    llm_default_provider VARCHAR(32) NOT NULL DEFAULT 'anthropic',
-    llm_default_model    VARCHAR(64),
-    updated_at           TIMESTAMP   NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_by_user_id   INTEGER
+    id                       SERIAL  PRIMARY KEY,
+    ai_eval_enabled          BOOLEAN     NOT NULL DEFAULT FALSE,  -- Q6: ships dark
+    llm_default_provider     VARCHAR(32) NOT NULL DEFAULT 'anthropic',
+    llm_default_model        VARCHAR(64),
+    updated_at               TIMESTAMP   NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_by_user_id       INTEGER
 );
-INSERT INTO app_settings (llm_default_provider, llm_default_model)
-VALUES ('anthropic', 'claude-sonnet-4-20250514');
+INSERT INTO app_settings (ai_eval_enabled, llm_default_provider, llm_default_model)
+VALUES (FALSE, 'anthropic', 'claude-sonnet-4-20250514');
 
 -- 3. Per-eval cost-log / audit trail / display source.
 CREATE TABLE folder_evaluations (
@@ -153,6 +155,10 @@ Non-PDF MIME types (text/plain, text/csv) read directly as UTF-8 with `pageCount
 `FolderEvaluationService.evaluate(loanId, folderTemplateId, userId)` enforces the steps in order. **No provider call happens until every check before it passes.**
 
 ```
+0.  Check app_settings.ai_eval_enabled (Q6 global toggle).
+    → If FALSE: persist row {status:'feature_disabled', provider_called:false,
+                              reason:"AI evaluation toggle is OFF"}, return.
+
 1.  Look up folder_templates row.
     → If eval_prompt IS NULL: throw 400 "no_prompt_for_folder".
 
@@ -234,6 +240,7 @@ If the model returns non-JSON or fails to parse, status = `provider_failed` with
 | status | provider_called | notes |
 |---|---|---|
 | `success` | true | normal path |
+| `feature_disabled` | false | global ai_eval_enabled toggle is OFF |
 | `no_documents` | false | nothing to evaluate |
 | `too_many_pages` | false | enforces `APP_MAX_PAGES_PER_EVAL` |
 | `needs_ocr` | false | scanned PDF detected, OCR disabled |
@@ -261,8 +268,13 @@ GET  /api/loan-applications/{loanId}/folders/{folderTemplateId}/evaluation
 GET  /api/admin/app-settings
 PUT  /api/admin/app-settings
    → @PreAuthorize("hasRole('Admin')")
-   → PUT body: { llmDefaultProvider, llmDefaultModel }. Rejects unknown
-     provider names. Returns updated row.
+   → PUT body: { aiEvalEnabled, llmDefaultProvider, llmDefaultModel }. Rejects
+     unknown provider names. Returns updated row.
+
+GET  /api/app-settings/public
+   → Read-only, non-admin. Returns just { aiEvalEnabled: true|false } so the
+     workspace can decide whether to render the FolderEvaluationCard at all.
+   → @PreAuthorize("isAuthenticated()") — every signed-in user can read.
 ```
 
 `FolderEvaluationDTO` is the wire shape — flat mapping of the entity. No nested LoanApplication / FolderTemplate.
@@ -276,7 +288,12 @@ PUT  /api/admin/app-settings
 
 ## §7 — Frontend: provider toggle in a new AdminAppSettings page
 
-`frontend/src/pages/admin/AppSettingsAdmin.js` (new). Single screen: provider dropdown (Anthropic / OpenAI / DeepSeek), model text input (with placeholder showing the default), Save button. Routed at `/admin/settings`. Linked from `AdminHome`.
+`frontend/src/pages/admin/AppSettingsAdmin.js` (new). Single screen with two controls:
+
+- **AI evaluation: ON / OFF** (Q6 global toggle, default OFF). Big visible switch at the top. When OFF, a notice underneath reads "AI evaluation is disabled — no Evaluate buttons will appear in workspaces."
+- **Default provider** dropdown (Anthropic / OpenAI / DeepSeek) + model text input. Greyed out when the toggle is OFF — no point picking a provider for a disabled feature.
+
+Routed at `/admin/settings`. Linked from `AdminHome`.
 
 DeepSeek shows a small banner: "DeepSeek is disabled in production by default. Set `APP_ALLOW_DEEPSEEK_IN_PROD=true` to enable."
 
@@ -284,6 +301,7 @@ DeepSeek shows a small banner: "DeepSeek is disabled in production by default. S
 
 New component `frontend/src/workspace/FolderEvaluationCard.jsx`. Rendered inside `WorkspaceTab.jsx` at the top of the file-pane, above the file table. Visible only when:
 
+- The global `ai_eval_enabled` toggle is ON (workspace fetches the public `app_settings` flag on mount — `GET /api/app-settings/public` returning just `{ aiEvalEnabled: true|false }` so non-admins can read it) AND
 - A folder is selected AND
 - That folder's `folder_template.eval_prompt` is non-null (the workspace already fetches folder metadata; the prompt presence is one new field on the response).
 

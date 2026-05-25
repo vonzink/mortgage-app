@@ -31,6 +31,11 @@ export default function AdminHome() {
           description="Edit the default subfolder set seeded into every loan workspace."
           to="/admin/folder-templates"
         />
+        <AdminCard
+          title="App Settings"
+          description="AI evaluation toggle, default provider, and model."
+          to="/admin/settings"
+        />
       </div>
     </div>
   );

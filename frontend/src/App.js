@@ -18,6 +18,7 @@ import LoanDashboardPage from './pages/LoanDashboardPage';
 import AdminHome from './pages/admin/AdminHome';
 import DocumentTypesAdmin from './pages/admin/DocumentTypesAdmin';
 import FolderTemplatesAdmin from './pages/admin/FolderTemplatesAdmin';
+import AppSettingsAdmin from './pages/admin/AppSettingsAdmin';
 
 // Styles
 import './App.css';
@@ -105,6 +106,7 @@ function App() {
             <Route path="/admin" element={<RequireAuth><AdminHome /></RequireAuth>} />
             <Route path="/admin/document-types" element={<RequireAuth><DocumentTypesAdmin /></RequireAuth>} />
             <Route path="/admin/folder-templates" element={<RequireAuth><FolderTemplatesAdmin /></RequireAuth>} />
+            <Route path="/admin/settings" element={<RequireAuth><AppSettingsAdmin /></RequireAuth>} />
           </Routes>
         </main>
         <ToastContainer

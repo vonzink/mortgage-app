@@ -49,7 +49,12 @@ export default function PipelineRow({ row }) {
       <td className="pipe-cell">
         <Pill tone={statusTone(row.status)} dot>{row.status || '—'}</Pill>
         {age != null && (
-          <div className={`pipe-age pipe-age--${tone}`}>day {age}</div>
+          <div
+            className={`pipe-age pipe-age--${tone}`}
+            title={`In current stage for ${age} day${age === 1 ? '' : 's'}`}
+          >
+            in stage {age}d
+          </div>
         )}
       </td>
       <td className="pipe-cell pipe-cell--num">
@@ -60,8 +65,14 @@ export default function PipelineRow({ row }) {
       <td className="pipe-cell pipe-cell--num">
         <span className="pipe-money">{formatMoneyShort(row.loanAmount)}</span>
         {' '}
-        <span className={`pipe-ltv${ltvHigh ? ' pipe-ltv--high' : ''}`}>
+        <span
+          className={`pipe-ltv${ltvHigh ? ' pipe-ltv--high' : ''}`}
+          title={ltvHigh
+            ? `LTV ${row.ltvPct?.toFixed(1)}% — above 80% threshold (MI / pricing impact)`
+            : `Loan-to-Value ratio`}
+        >
           / {row.ltvPct != null ? `${row.ltvPct.toFixed(1)}%` : '—'}
+          {ltvHigh && <span aria-hidden> ⚠</span>}
         </span>
       </td>
       <td className="pipe-cell">{formatMonthDay(row.estClosingDate)}</td>

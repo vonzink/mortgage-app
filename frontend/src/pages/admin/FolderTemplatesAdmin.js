@@ -138,7 +138,7 @@ export default function FolderTemplatesAdmin() {
                 <td style={td}>
                   {row.isDeleteFolder && <span style={badge('#fee2e2', '#b91c1c')}>Delete</span>}
                   {row.isOldLoanArchive && <span style={badge('#fef3c7', '#92400e')}>Archive</span>}
-                  {!row.isDeleteFolder && !row.isOldLoanArchive && <span style={{ color: '#999' }}>Standard</span>}
+                  {!row.isDeleteFolder && !row.isOldLoanArchive && <span style={{ color: '#bbb' }}>—</span>}
                 </td>
                 <td style={td}>{row.isActive ? 'Active' : 'Inactive'}</td>
                 <td style={{ ...td, textAlign: 'right' }}>
@@ -194,11 +194,11 @@ export default function FolderTemplatesAdmin() {
 
 const tableStyle = { width: '100%', borderCollapse: 'collapse', background: 'var(--bg-card, white)', borderRadius: 8, overflow: 'hidden', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' };
 const th = { padding: '0.75rem 1rem', textAlign: 'left', borderBottom: '2px solid var(--border-color, #e5e7eb)', fontSize: '0.85rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-secondary, #666)' };
-const td = { padding: '0.75rem 1rem', borderBottom: '1px solid var(--border-color, #f1f5f9)', fontSize: '0.9rem' };
+const td = { padding: '0.9rem 1rem', borderBottom: '1px solid #d1d5db', fontSize: '0.9rem', verticalAlign: 'top' };
 const primaryBtn = { padding: '0.5rem 1rem', background: '#2563eb', color: 'white', border: 'none', borderRadius: 6, cursor: 'pointer', marginLeft: 'auto' };
 const secondaryBtn = { padding: '0.5rem 1rem', background: 'transparent', border: '1px solid var(--border-color, #d1d5db)', borderRadius: 6, cursor: 'pointer' };
-const linkBtn = { background: 'transparent', border: 'none', color: '#2563eb', cursor: 'pointer', marginRight: '0.5rem' };
-const dangerLinkBtn = { background: 'transparent', border: 'none', color: '#b91c1c', cursor: 'pointer' };
+const linkBtn = { background: 'transparent', border: 'none', color: '#2563eb', cursor: 'pointer', marginRight: '1rem', padding: '4px 8px', borderRadius: 4 };
+const dangerLinkBtn = { background: 'transparent', border: 'none', color: '#b91c1c', cursor: 'pointer', padding: '4px 8px', borderRadius: 4 };
 const input = { width: '100%', padding: '0.5rem 0.75rem', border: '1px solid var(--border-color, #d1d5db)', borderRadius: 6, fontSize: '0.9rem' };
 
 function badge(bg, fg) {

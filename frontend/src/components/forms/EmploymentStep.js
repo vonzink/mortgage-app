@@ -383,6 +383,12 @@ const EmploymentStep = ({
               );
             })}
 
+            {empFields.length === 0 && (
+              <p className="muted" style={{ marginBottom: 12, fontSize: 13 }}>
+                Add each job and income source for this borrower so we can
+                verify their ability to repay.
+              </p>
+            )}
             {empFields.length < 5 && (
               <div className="form-row">
                 <div className="form-group">

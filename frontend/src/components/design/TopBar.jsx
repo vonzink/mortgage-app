@@ -112,7 +112,7 @@ export default function TopBar() {
       <Link to="/applications" className="brand">
         <div className="brand-mark">M</div>
         <span>MSFG</span>
-        <small>Mortgage Suite</small>
+        <small className="brand-subtitle">Mortgage Suite</small>
       </Link>
 
       <nav className="topnav">

@@ -104,8 +104,13 @@ export default function AppSettingsAdmin() {
       </section>
 
       <div style={{ marginTop: 32 }}>
-        <button onClick={save} disabled={saving}>
-          {saving ? 'Saving…' : 'Save'}
+        <button
+          type="button"
+          className="btn btn-primary"
+          onClick={save}
+          disabled={saving}
+        >
+          {saving ? 'Saving…' : 'Save settings'}
         </button>
       </div>
     </div>

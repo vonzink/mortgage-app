@@ -111,6 +111,12 @@
 .msfg .brand small {
   font-weight: 400; opacity: .55; letter-spacing: .04em; font-size: 11px;
   text-transform: uppercase; margin-left: 4px;
+  white-space: nowrap;
+}
+/* Hide the brand subtitle below 1280px — preserves space for nav + search +
+   account pill before the topbar starts clipping the right edge. */
+@media (max-width: 1280px) {
+  .msfg .brand-subtitle { display: none; }
 }
 .msfg .topnav { display: flex; gap: 4px; margin-left: 36px; }
 .msfg .topnav a {

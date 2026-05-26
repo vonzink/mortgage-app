@@ -107,6 +107,8 @@ function App() {
             <Route path="/admin/document-types" element={<RequireAuth><DocumentTypesAdmin /></RequireAuth>} />
             <Route path="/admin/folder-templates" element={<RequireAuth><FolderTemplatesAdmin /></RequireAuth>} />
             <Route path="/admin/settings" element={<RequireAuth><AppSettingsAdmin /></RequireAuth>} />
+            {/* Common typo / link-out — canonical route is /admin/settings */}
+            <Route path="/admin/app-settings" element={<Navigate to="/admin/settings" replace />} />
           </Routes>
         </main>
         <ToastContainer

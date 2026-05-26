@@ -38,7 +38,10 @@
 
 /* Dark note-amount card. Text contrast bumped — old #f1ede0 + opacity:.6 on
    labels left the value barely readable against the forest gradient. */
-.dash-note-card {
+/* `.msfg .card` (design system) wins on specificity against a single-class
+   selector and was painting this card cream-on-cream. Prefix with .msfg to
+   restore the dark gradient. */
+.msfg .dash-note-card {
   background: linear-gradient(160deg, var(--forest-800), var(--forest-900));
   color: #fff;
   border: 0;

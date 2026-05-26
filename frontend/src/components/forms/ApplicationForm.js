@@ -497,10 +497,19 @@ const ApplicationForm = () => {
         <ApplyHero
           applicationNumber={applicationNumber}
           isEditing={isEditing}
+          isViewing={isViewing}
           lastSavedAt={lastSavedAt}
           onSaveAndExit={isViewing ? null : handleSaveAndExit}
-          onContinue={!isLastStep && !isViewing ? handleNextStep : null}
-          continueLabel={currentStep === totalSteps - 1 ? 'Continue to review' : 'Continue'}
+          onContinue={
+            isViewing ? null
+            : !isLastStep ? handleNextStep
+            : handleSubmit(onSubmit)   // step 7: header CTA submits the application
+          }
+          continueLabel={
+            isLastStep ? (isEditing ? 'Save changes' : 'Submit application')
+            : currentStep === totalSteps - 1 ? 'Continue to review'
+            : 'Continue'
+          }
         />
 
         <ApplyProgressStrip

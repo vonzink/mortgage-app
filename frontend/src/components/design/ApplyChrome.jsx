@@ -26,23 +26,30 @@ export const APPLY_STEPS = STEPS;
 export function ApplyHero({
   applicationNumber,
   isEditing,
+  isViewing = false,
   lastSavedAt,
   onSaveAndExit,
   onContinue,
   continueLabel = 'Continue',
 }) {
-  const eyebrow = isEditing
-    ? `Editing · ${applicationNumber ? `APP${applicationNumber}` : 'application'}`
-    : 'New application';
+  const eyebrow = isViewing
+    ? `Viewing · ${applicationNumber ? `APP${applicationNumber}` : 'application'} · read-only`
+    : isEditing
+      ? `Editing · ${applicationNumber ? `APP${applicationNumber}` : 'application'}`
+      : 'New application';
   return (
     <div className="apply-hero">
       <div>
         <div className="eyebrow">{eyebrow}</div>
         <h1 className="apply-h1">
-          {isEditing ? 'Continue your application' : "Let's build your mortgage application"}
+          {isViewing
+            ? 'Application (read-only)'
+            : isEditing ? 'Continue your application' : "Let's build your mortgage application"}
         </h1>
         <div className="muted apply-subtitle">
-          Seven short sections. Your progress saves automatically — pick up anywhere, any time.
+          {isViewing
+            ? 'Read-only — fields are locked. Open this application from the apps list to edit.'
+            : 'Seven short sections. Your progress saves automatically — pick up anywhere, any time.'}
         </div>
       </div>
       <div className="apply-hero-actions">

@@ -290,3 +290,31 @@ textarea[readonly] {
   -webkit-appearance: none;
   margin: 0;
 }
+
+/* ─── SSN reveal toggle ─────────────────────────────────────────────────── */
+.ssn-input-wrap {
+  position: relative;
+  display: flex;
+  align-items: stretch;
+}
+.ssn-input-wrap > input {
+  flex: 1;
+  padding-right: 36px;
+}
+.ssn-reveal {
+  position: absolute;
+  right: 4px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: transparent;
+  border: 0;
+  width: 32px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+  color: var(--ink-500, #888);
+  cursor: pointer;
+  border-radius: 4px;
+}
+.ssn-reveal:hover { color: var(--ink-900, #222); background: rgba(0,0,0,0.04); }
+.ssn-reveal:focus-visible { outline: 2px solid var(--copper); outline-offset: -1px; }

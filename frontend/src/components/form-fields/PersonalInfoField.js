@@ -2,8 +2,8 @@
  * Personal Information Field Component
  * Reusable personal information input component
  */
-import React from 'react';
-import { FaMinus, FaPlus } from 'react-icons/fa';
+import React, { useState } from 'react';
+import { FaMinus, FaPlus, FaEye, FaEyeSlash } from 'react-icons/fa';
 import { formatSSN, formatPhone } from '../../utils/formHelpers';
 
 const DEPENDENTS_MIN = 0;
@@ -20,6 +20,11 @@ const PersonalInfoField = ({
 }) => {
   const getFieldName = (field) => prefix ? `${prefix}.${field}` : field;
   const getError = (field) => prefix ? errors[prefix]?.[field] : errors[field];
+
+  // SSN reveal toggle — input renders as `password` by default so the value
+  // doesn't sit visible during shoulder-surfing / screen-share. The eye
+  // toggle flips to `text` so the LO can verify the formatted value.
+  const [showSsn, setShowSsn] = useState(false);
 
   /**
    * Wire react-hook-form's register into a controlled input that reformats on every keystroke.
@@ -95,20 +100,31 @@ const PersonalInfoField = ({
           <label htmlFor={getFieldName('ssn')}>
             Social Security Number
           </label>
-          <input
-            type="text"
-            id={getFieldName('ssn')}
-            {...maskedRegister(getFieldName('ssn'), {
-              pattern: {
-                value: /^\d{3}-\d{2}-\d{4}$/,
-                message: 'Invalid SSN format'
-              }
-            }, formatSSN)}
-            placeholder="xxx-xx-xxxx"
-            inputMode="numeric"
-            autoComplete="off"
-            className={getError('ssn') ? 'error' : ''}
-          />
+          <div className="ssn-input-wrap">
+            <input
+              type={showSsn ? 'text' : 'password'}
+              id={getFieldName('ssn')}
+              {...maskedRegister(getFieldName('ssn'), {
+                pattern: {
+                  value: /^\d{3}-\d{2}-\d{4}$/,
+                  message: 'Invalid SSN format'
+                }
+              }, formatSSN)}
+              placeholder="xxx-xx-xxxx"
+              inputMode="numeric"
+              autoComplete="off"
+              className={getError('ssn') ? 'error' : ''}
+            />
+            <button
+              type="button"
+              className="ssn-reveal"
+              onClick={() => setShowSsn(v => !v)}
+              aria-label={showSsn ? 'Hide SSN' : 'Show SSN'}
+              tabIndex={-1}
+            >
+              {showSsn ? <FaEyeSlash aria-hidden /> : <FaEye aria-hidden />}
+            </button>
+          </div>
           {getError('ssn') && (
             <span className="error-message" role="alert">{getError('ssn').message}</span>
           )}

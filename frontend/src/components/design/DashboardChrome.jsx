@@ -38,6 +38,7 @@ export function DashboardHero({
   statusLabel,
   outstandingCount = 0,   // surfaces next to the status pill — most actionable signal
   subline,                // node — { loanType, estClose, processorName } style
+  identifiers,            // { lendingpadLoanNumber, mersMin, investorLoanNumber }
   onAllLoans,
   onExportMismo,
   onViewApplication,
@@ -45,6 +46,11 @@ export function DashboardHero({
   onAdvanceStatus,        // replaces the old in-grid status dropdown (deliberate action)
 }) {
   const tone = dashboardStatusTone(status);
+  const idParts = [];
+  if (identifiers?.lendingpadLoanNumber) idParts.push(identifiers.lendingpadLoanNumber);
+  if (identifiers?.mersMin) idParts.push(`MERS ${identifiers.mersMin}`);
+  if (identifiers?.investorLoanNumber) idParts.push(`Inv ${identifiers.investorLoanNumber}`);
+
   return (
     <div className="dash-hero">
       <div className="dash-hero-text">
@@ -60,7 +66,19 @@ export function DashboardHero({
             </Pill>
           )}
         </div>
-        {subline && <div className="muted dash-subline">{subline}</div>}
+        {(subline || idParts.length > 0) && (
+          <div className="muted dash-subline">
+            {idParts.length > 0 && (
+              <span className="dash-subline-row mono dash-subline-ids">
+                {idParts.map((p, i) => (
+                  <React.Fragment key={i}>{i > 0 && <span className="dash-subline-sep">·</span>}<span>{p}</span></React.Fragment>
+                ))}
+              </span>
+            )}
+            {idParts.length > 0 && subline && <span className="dash-subline-sep">·</span>}
+            {subline}
+          </div>
+        )}
       </div>
       <div className="dash-hero-actions">
         {onAllLoans && (

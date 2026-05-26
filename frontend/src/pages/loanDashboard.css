@@ -85,6 +85,7 @@
 /* ── Definition list ──────────────────────────────────────────── */
 .dashboard-dl {
   margin: 0;
+  padding: 0 0.5rem;
   display: flex;
   flex-direction: column;
   gap: 0.4rem;
@@ -94,7 +95,7 @@
   justify-content: space-between;
   align-items: baseline;
   gap: 1rem;
-  padding: 0.3rem 0;
+  padding: 0.35rem 0;
   border-bottom: 1px dotted #f3f4f6;
 }
 .dashboard-dl-row:last-child { border-bottom: none; }
@@ -117,6 +118,7 @@
   font-size: 0.9rem;
   font-style: italic;
   margin: 0.5rem 0 0;
+  padding: 0 0.5rem;
 }
 
 /* ── Housing expense table ────────────────────────────────────── */
@@ -196,7 +198,7 @@
 }
 
 /* ── Generic list rows for agents ─────────────────────────────────────────── */
-.dashboard-list { list-style: none; padding: 0; margin: 0; }
+.dashboard-list { list-style: none; padding: 0 0.5rem; margin: 0; }
 .dashboard-list-row {
   display: flex;
   justify-content: space-between;
@@ -213,7 +215,7 @@
 /* ── Status timeline ─────────────────────────────────────────────────────── */
 .dashboard-timeline {
   list-style: none;
-  padding: 0;
+  padding: 0 0.5rem;
   margin: 0;
   display: flex;
   flex-direction: column;
@@ -232,7 +234,7 @@
 /* ── Conditions list ─────────────────────────────────────────────────────── */
 .dashboard-conditions {
   list-style: none;
-  padding: 0;
+  padding: 0 0.5rem;
   margin: 0;
   display: flex;
   flex-direction: column;

@@ -7,7 +7,6 @@ import {
   FaUser,
   FaFileSignature,
   FaCalendarAlt,
-  FaIdBadge,
   FaCheckCircle,
   FaTimesCircle,
   FaPlus,
@@ -32,7 +31,7 @@ import { AddConditionModal } from './loanDashboard/AddConditionModal';
 import { AdvanceStatusModal } from './loanDashboard/AdvanceStatusModal';
 import {
   formatMoney, formatRate, formatDate,
-  hasAnyIdentifier, sumExpenses, sumCredits, prettyEnum,
+  sumExpenses, sumCredits, prettyEnum,
 } from './loanDashboard/format';
 import {
   DashboardHero, NoteAmountCard, DashboardKpis, MilestoneTimeline,
@@ -285,6 +284,7 @@ export default function LoanDashboardPage() {
         status={data.status}
         statusLabel={statusLabel}
         outstandingCount={outstandingCount}
+        identifiers={data.identifiers}
         subline={subline.length > 0 ? (
           <span className="dash-subline-row">
             {subline.map((s, i) => (
@@ -294,9 +294,6 @@ export default function LoanDashboardPage() {
         ) : null}
         onAllLoans={() => navigate('/applications')}
         onExportMismo={handleExportMismo}
-        // "Open 1003" opens the form in read-only mode. Going to
-        // /applications/:id would land on the document workspace instead,
-        // which is what "Files" is for — separate concept.
         onViewApplication={() => navigate(`/apply?edit=${loanId}&view=1`)}
         onOpenDocuments={() => navigate(`/applications/${loanId}`)}
         onAdvanceStatus={() => setShowAdvanceStatus(true)}
@@ -498,14 +495,33 @@ export default function LoanDashboardPage() {
           ) : <EmptyHint>No borrower yet.</EmptyHint>}
         </DashCard>
 
-        <DashCard icon={<FaIdBadge />} title="Loan Identifiers">
-          {hasAnyIdentifier(data.identifiers) ? (
+        <DashCard icon={<FaCalendarAlt />} title="Key Dates">
+          <DefinitionList rows={[
+            ['Application received', data.loanTerms?.applicationReceivedDate
+              ? formatDate(data.loanTerms.applicationReceivedDate) : null],
+            ['Disclosures sent', (() => {
+              const h = (data.statusHistory || []).find(s => s.status === 'DISCLOSURES_SENT');
+              return h ? formatDate(h.transitionedAt) : null;
+            })()],
+            ['Disclosures signed', (() => {
+              const h = (data.statusHistory || []).find(s => s.status === 'DISCLOSURES_SIGNED');
+              return h ? formatDate(h.transitionedAt) : null;
+            })()],
+            ['Closing date', data.closingInformation?.closingDate
+              ? formatDate(data.closingInformation.closingDate) : null],
+            ['Funded', (() => {
+              const h = (data.statusHistory || []).find(s => s.status === 'FUNDED');
+              return h ? formatDate(h.transitionedAt) : null;
+            })()],
+          ]} />
+          <div style={{ borderTop: '1px dotted #f3f4f6', marginTop: '0.4rem', paddingTop: '0.4rem' }}>
             <DefinitionList rows={[
-              ['LendingPad', data.identifiers.lendingpadLoanNumber],
-              ['Investor', data.identifiers.investorLoanNumber],
-              ['MERS MIN', data.identifiers.mersMin],
+              ['Created', data.createdDate ? formatDate(data.createdDate) : null],
+              ['Last updated', data.updatedDate ? formatDate(data.updatedDate) : null],
+              ['Days in stage', daysElapsed != null
+                ? `${daysElapsed} day${daysElapsed !== 1 ? 's' : ''}` : null],
             ]} />
-          ) : <EmptyHint>No external identifiers yet.</EmptyHint>}
+          </div>
         </DashCard>
 
         <DashCard icon={<FaUserTie />} title="Loan Agents">

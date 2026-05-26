@@ -21,6 +21,7 @@
 .dash-subline { margin-top: 6px; font-size: 14px; }
 .dash-subline-row { display: inline-flex; gap: 8px; align-items: center; flex-wrap: wrap; }
 .dash-subline-sep { color: var(--ink-400); }
+.dash-subline-ids { font-size: 13px; letter-spacing: 0.01em; }
 .dash-hero-actions { display: flex; gap: 10px; flex-wrap: wrap; }
 
 /* Top stat row ------------------------------------------------------------- */

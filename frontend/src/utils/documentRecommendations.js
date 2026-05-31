@@ -1,28 +1,88 @@
 /**
  * Document Recommendations Logic
- * Based on MISMO 3.4 standards and loan application data
+ * Based on MISMO 3.4 standards and loan application data.
+ *
+ * Static rule data lives in documentRecommendations.data.js.
+ * This file contains the matching/filtering engine.
  */
+
+import {
+  PURCHASE_GENERAL_DOCS,
+  REFINANCE_GENERAL_DOCS,
+  BORROWER_ID_DOC,
+  EMPLOYMENT_GAP_DOCS,
+  EMPLOYMENT_OK_DOC,
+  RESIDENCE_GAP_DOC,
+  RESIDENCE_OK_DOC,
+  PERMANENT_RESIDENT_DOC,
+  NON_PERMANENT_RESIDENT_DOC,
+  BANKRUPTCY_DOC,
+  FORECLOSURE_DOC,
+  OUTSTANDING_JUDGMENTS_DOC,
+  W2_INCOME_DOCS,
+  VARIABLE_INCOME_DOC,
+  VARIABLE_INCOME_TYPES,
+  SELF_EMPLOYED_BASE_DOCS,
+  LLC_DOCS,
+  SCORP_DOCS,
+  CCORP_DOCS,
+  PARTNERSHIP_DOCS,
+  SELF_EMPLOYED_CONDITIONAL_DOC,
+  RENTAL_INCOME_DOC,
+  CREDIT_INQUIRY_DOC,
+  ASSET_STATEMENT_DOC,
+  NO_ASSETS_PURCHASE_DOC,
+  NO_ASSETS_REFI_DOC,
+  PAYOFF_LIABILITIES_DOC,
+  REO_MORTGAGE_STATEMENT_DOC,
+  REO_MORTGAGE_GENERIC_DOC,
+  REO_INSURANCE_DOC,
+  REO_TAX_DOC,
+  REO_LEASE_DOC,
+  REO_SCHEDULE_E_DOC,
+  REO_INFERRED_DOCS,
+  HELOC_DOC,
+  REQUIRED_HISTORY_MONTHS,
+} from './documentRecommendations.data';
+
+// ── Helpers ──────────────────────────────────────────────────────────
+
+/**
+ * Interpolate {{key}} placeholders in a rule template.
+ * Returns a new object with the `name` field resolved.
+ */
+const applyTemplate = (rule, vars) => ({
+  ...rule,
+  name: rule.name.replace(/\{\{(\w+)\}\}/g, (_, key) => vars[key] ?? ''),
+});
+
+/**
+ * Apply a template to every rule in an array.
+ */
+const applyTemplates = (rules, vars) => rules.map(r => applyTemplate(r, vars));
 
 /**
  * Helper to calculate months between two dates
  */
 const monthsBetween = (startDate, endDate) => {
   if (!startDate || !endDate) return 0;
-  
+
   const start = new Date(startDate);
   const end = new Date(endDate);
-  
+
   if (isNaN(start.getTime()) || isNaN(end.getTime())) return 0;
-  
+
   let months = (end.getFullYear() - start.getFullYear()) * 12;
   months += end.getMonth() - start.getMonth();
-  
+
   if (end.getDate() < start.getDate()) {
     months--;
   }
-  
+
   return Math.max(0, months);
 };
+
+// ── Main recommendation engine ───────────────────────────────────────
 
 /**
  * Generate document recommendations based on loan application data
@@ -32,486 +92,278 @@ export const generateDocumentRecommendations = (applicationData) => {
     general: [],
     income: [],
     assets: [],
-    credit: []
+    credit: [],
   };
 
   const borrowers = applicationData.borrowers || [];
   const loanPurpose = (applicationData.loanPurpose || '').toLowerCase();
   const liabilities = applicationData.liabilities || [];
-  
+
   // Calculate REO count
-  const reoCount = borrowers.reduce((sum, b) => 
-    sum + (b.reoProperties ? b.reoProperties.length : 0), 0);
-  
-  const mortgageLienCount = liabilities.filter(l => 
-    (l.liabilityType || '').match(/mortgage/i)).length;
-  const helocCount = liabilities.filter(l => 
-    (l.liabilityType || '').match(/heloc/i)).length;
-  
-  const inferredREOCount = reoCount === 0 ? (mortgageLienCount + helocCount) : 0;
+  const reoCount = borrowers.reduce(
+    (sum, b) => sum + (b.reoProperties ? b.reoProperties.length : 0),
+    0,
+  );
+
+  const mortgageLienCount = liabilities.filter((l) =>
+    (l.liabilityType || '').match(/mortgage/i),
+  ).length;
+  const helocCount = liabilities.filter((l) =>
+    (l.liabilityType || '').match(/heloc/i),
+  ).length;
+
+  const inferredREOCount = reoCount === 0 ? mortgageLienCount + helocCount : 0;
   const hasREO = reoCount > 0 || inferredREOCount > 0;
 
   // ========== GENERAL DOCUMENTS ==========
-  
-  // Purchase-specific docs
+
   if (loanPurpose === 'purchase') {
-    recommendations.general.push({
-      name: 'Executed purchase contract',
-      status: 'required',
-      reason: 'Loan purpose is Purchase.'
-    });
-    
-    recommendations.general.push({
-      name: 'Earnest money proof (canceled check / statement)',
-      status: 'required',
-      reason: 'Shows source of EMD.'
-    });
-    
-    recommendations.general.push({
-      name: '(Conditional) Gift letter + donor ability evidence',
-      status: 'conditional',
-      reason: 'If gift funds are used.'
-    });
+    recommendations.general.push(...PURCHASE_GENERAL_DOCS);
   }
-  
-  // Refinance-specific docs
+
   if (loanPurpose === 'refinance' || loanPurpose === 'cashout') {
-    recommendations.general.push({
-      name: 'Current mortgage statement (subject property)',
-      status: 'required',
-      reason: 'Refinance.'
-    });
-    
-    recommendations.general.push({
-      name: 'Promissory Note (copy)',
-      status: 'required',
-      reason: 'Refinance.'
-    });
-    
-    recommendations.general.push({
-      name: 'Insurance declaration page (subject)',
-      status: 'required',
-      reason: 'Verify hazard coverage.'
-    });
+    recommendations.general.push(...REFINANCE_GENERAL_DOCS);
   }
 
   // ========== PER-BORROWER DOCUMENTS ==========
-  
-  borrowers.forEach((borrower, index) => {
+
+  borrowers.forEach((borrower) => {
     const tag = `[${borrower.firstName} ${borrower.lastName}]`;
-    
+    const vars = { tag };
+
     // Government-issued ID (always required)
-    recommendations.general.push({
-      name: `${tag} Government-issued photo ID`,
-      status: 'required',
-      reason: 'Always required per borrower.'
-    });
+    recommendations.general.push(applyTemplate(BORROWER_ID_DOC, vars));
 
     // ===== EMPLOYMENT COVERAGE =====
     const employmentHistory = borrower.employmentHistory || [];
-    let empMonths = 0;
     const now = new Date();
-    
-    employmentHistory.forEach(emp => {
+    let empMonths = 0;
+
+    employmentHistory.forEach((emp) => {
       const startDate = emp.startDate;
       const endDate = emp.endDate || now.toISOString().split('T')[0];
       empMonths += monthsBetween(startDate, endDate);
     });
-    
-    const needEmpMonths = Math.max(0, 24 - empMonths);
-    
+
+    const needEmpMonths = Math.max(0, REQUIRED_HISTORY_MONTHS - empMonths);
+
     if (needEmpMonths > 0) {
-      recommendations.general.push({
-        name: `${tag} Prior employment history to cover missing ${needEmpMonths} months`,
-        status: 'required',
-        reason: 'Must document 24 months employment.'
-      });
-      
-      recommendations.general.push({
-        name: `${tag} Letter of explanation for any gaps > 30 days`,
-        status: 'review',
-        reason: 'Request if gaps are identified.'
-      });
+      recommendations.general.push(
+        ...applyTemplates(EMPLOYMENT_GAP_DOCS, { ...vars, months: needEmpMonths }),
+      );
     } else {
-      recommendations.general.push({
-        name: `${tag} Employment history coverage (24 months)`,
-        status: 'ok',
-        reason: 'Sufficient based on employment dates.'
-      });
+      recommendations.general.push(applyTemplate(EMPLOYMENT_OK_DOC, vars));
     }
 
     // ===== RESIDENCE COVERAGE =====
     const residences = borrower.residences || [];
     let resMonths = 0;
-    
-    residences.forEach(res => {
+
+    residences.forEach((res) => {
       resMonths += Number(res.durationMonths || 0);
     });
-    
-    const needResMonths = Math.max(0, 24 - resMonths);
-    
+
+    const needResMonths = Math.max(0, REQUIRED_HISTORY_MONTHS - resMonths);
+
     if (needResMonths > 0) {
-      recommendations.general.push({
-        name: `${tag} Prior residence addresses to cover missing ${needResMonths} months`,
-        status: 'required',
-        reason: 'Must provide 24 months address history.'
-      });
+      recommendations.general.push(
+        applyTemplate(RESIDENCE_GAP_DOC, { ...vars, months: needResMonths }),
+      );
     } else {
-      recommendations.general.push({
-        name: `${tag} Residence history coverage (24 months)`,
-        status: 'ok',
-        reason: 'Sufficient based on durations.'
-      });
+      recommendations.general.push(applyTemplate(RESIDENCE_OK_DOC, vars));
     }
 
     // ===== CITIZENSHIP / RESIDENCY =====
     const citizenshipType = (borrower.citizenshipType || '').toLowerCase();
-    
+
     if (citizenshipType && !citizenshipType.match(/citizen|us/i)) {
       if (citizenshipType.match(/permanent|resident/i)) {
-        recommendations.general.push({
-          name: `${tag} I-551 (Permanent Resident/Green Card) – front & back`,
-          status: 'required',
-          reason: 'Non-US citizen (permanent resident).'
-        });
+        recommendations.general.push(applyTemplate(PERMANENT_RESIDENT_DOC, vars));
       } else {
-        recommendations.general.push({
-          name: `${tag} Valid EAD card (I-766) or visa with work authorization + I-94`,
-          status: 'required',
-          reason: 'Non-permanent resident alien.'
-        });
+        recommendations.general.push(applyTemplate(NON_PERMANENT_RESIDENT_DOC, vars));
       }
     }
 
     // ===== DECLARATIONS =====
     const declaration = borrower.declaration || {};
-    
+
     if (declaration.bankruptcy) {
-      recommendations.credit.push({
-        name: `${tag} Bankruptcy documents (petition, schedules, discharge). If Ch. 13: 12 months trustee payment history`,
-        status: 'required',
-        reason: 'BK indicated on declarations.'
-      });
+      recommendations.credit.push(applyTemplate(BANKRUPTCY_DOC, vars));
     }
-    
+
     if (declaration.foreclosure) {
-      recommendations.credit.push({
-        name: `${tag} Foreclosure / short sale documents + LOE`,
-        status: 'required',
-        reason: 'History of foreclosure/short sale.'
-      });
+      recommendations.credit.push(applyTemplate(FORECLOSURE_DOC, vars));
     }
-    
+
     if (declaration.outstandingJudgments) {
-      recommendations.credit.push({
-        name: `${tag} Court payoff / release for outstanding judgments or liens`,
-        status: 'required',
-        reason: 'Outstanding judgments indicated.'
-      });
+      recommendations.credit.push(applyTemplate(OUTSTANDING_JUDGMENTS_DOC, vars));
     }
 
     // ===== INCOME DOCUMENTS =====
     const incomeSources = borrower.incomeSources || [];
-    const hasEmploymentIncome = employmentHistory.some(emp => 
-      emp.monthlyIncome > 0 && emp.employmentStatus === 'Present');
-    
-    // Check for self-employment and business types
-    let isSelfEmployed = employmentHistory.some(emp => 
-      emp.selfEmployed === true);
-    
-    // Check business types from employment history
+    const hasEmploymentIncome = employmentHistory.some(
+      (emp) => emp.monthlyIncome > 0 && emp.employmentStatus === 'Present',
+    );
+
+    const isSelfEmployed = employmentHistory.some((emp) => emp.selfEmployed === true);
+
     const businessTypes = employmentHistory
-      .filter(emp => emp.selfEmployed && emp.businessType)
-      .map(emp => emp.businessType);
-    
+      .filter((emp) => emp.selfEmployed && emp.businessType)
+      .map((emp) => emp.businessType);
+
     const hasLLC = businessTypes.includes('LLC');
     const hasSCorp = businessTypes.includes('SCorp');
     const hasCCorp = businessTypes.includes('Corporation');
-    
-    // Also check income sources for backwards compatibility
-    const hasPartnershipIncome = incomeSources.some(inc => 
-      (inc.incomeType || '').match(/partnership/i));
-    
+
+    const hasPartnershipIncome = incomeSources.some((inc) =>
+      (inc.incomeType || '').match(/partnership/i),
+    );
+
     // W-2 Employment
     if (hasEmploymentIncome && !isSelfEmployed) {
-      recommendations.income.push({
-        name: `${tag} 30 days most recent pay stubs`,
-        status: 'required',
-        reason: 'W-2 employment income present.'
-      });
-      
-      recommendations.income.push({
-        name: `${tag} W-2s for last 2 years`,
-        status: 'required',
-        reason: 'Standard for W-2 income.'
-      });
+      recommendations.income.push(...applyTemplates(W2_INCOME_DOCS, vars));
     }
-    
+
     // Variable income (bonus, OT, commission)
-    const hasVariableIncome = incomeSources.some(inc => 
-      ['Bonus', 'Overtime', 'Commission'].includes(inc.incomeType));
-    
+    const hasVariableIncome = incomeSources.some((inc) =>
+      VARIABLE_INCOME_TYPES.includes(inc.incomeType),
+    );
+
     if (hasVariableIncome) {
-      recommendations.income.push({
-        name: `${tag} VOE confirming 2-year history of bonus/OT/commission`,
-        status: 'required',
-        reason: 'Needed to use variable income.'
-      });
+      recommendations.income.push(applyTemplate(VARIABLE_INCOME_DOC, vars));
     }
 
     // Self-employment
     if (isSelfEmployed) {
-      recommendations.income.push({
-        name: `${tag} 1040 personal tax returns – last 2 years`,
-        status: 'required',
-        reason: 'Self-employment indicated.'
-      });
-      
-      recommendations.income.push({
-        name: `${tag} Year-to-date P&L and balance sheet`,
-        status: 'required',
-        reason: 'Support current year performance.'
-      });
-      
-      // LLC (Partnership treatment)
+      recommendations.income.push(...applyTemplates(SELF_EMPLOYED_BASE_DOCS, vars));
+
       if (hasLLC) {
-        recommendations.income.push({
-          name: `${tag} K-1s (LLC) – last 2 years`,
-          status: 'required',
-          reason: 'LLC ownership present.'
-        });
-        
-        recommendations.income.push({
-          name: `${tag} 1065 partnership tax returns – last 2 years`,
-          status: 'required',
-          reason: 'LLC treated as partnership.'
-        });
+        recommendations.income.push(...applyTemplates(LLC_DOCS, vars));
       }
-      
-      // S-Corp
+
       if (hasSCorp) {
-        recommendations.income.push({
-          name: `${tag} K-1s (S-Corp) – last 2 years`,
-          status: 'required',
-          reason: 'S-Corporation ownership present.'
-        });
-        
-        recommendations.income.push({
-          name: `${tag} 1120S business tax returns – last 2 years`,
-          status: 'required',
-          reason: 'S-Corporation ownership.'
-        });
-        
-        // W-2s if applicable for S-Corp owners
-        recommendations.income.push({
-          name: `${tag} W-2s – last 2 years (if applicable)`,
-          status: 'conditional',
-          reason: 'S-Corp owners typically receive W-2 wages.'
-        });
+        recommendations.income.push(...applyTemplates(SCORP_DOCS, vars));
       }
-      
-      // C-Corporation
+
       if (hasCCorp) {
-        recommendations.income.push({
-          name: `${tag} K-1s (C-Corp) – last 2 years`,
-          status: 'required',
-          reason: 'C-Corporation ownership present.'
-        });
-        
-        recommendations.income.push({
-          name: `${tag} 1120 corporate tax returns – last 2 years`,
-          status: 'required',
-          reason: 'C-Corporation ownership.'
-        });
+        recommendations.income.push(...applyTemplates(CCORP_DOCS, vars));
       }
-      
-      // Partnership (from income sources)
+
       if (hasPartnershipIncome) {
-        recommendations.income.push({
-          name: `${tag} K-1s (Partnership) – last 2 years`,
-          status: 'required',
-          reason: 'Partnership income present.'
-        });
-        
-        recommendations.income.push({
-          name: `${tag} 1065 partnership tax returns – last 2 years`,
-          status: 'required',
-          reason: 'Partnership ownership.'
-        });
+        recommendations.income.push(...applyTemplates(PARTNERSHIP_DOCS, vars));
       }
-      
-      recommendations.income.push({
-        name: `${tag} (Conditional) Business bank statements (2-3 months)`,
-        status: 'conditional',
-        reason: 'If needed to support cash flow/P&L.'
-      });
+
+      recommendations.income.push(applyTemplate(SELF_EMPLOYED_CONDITIONAL_DOC, vars));
     }
 
     // Rental income
-    if (incomeSources.some(inc => (inc.incomeType || '').match(/rental/i))) {
-      recommendations.income.push({
-        name: `${tag} Current lease(s) + 2 months rent receipts`,
-        status: 'conditional',
-        reason: 'Rental income present.'
-      });
+    if (incomeSources.some((inc) => (inc.incomeType || '').match(/rental/i))) {
+      recommendations.income.push(applyTemplate(RENTAL_INCOME_DOC, vars));
     }
 
     // Credit inquiry explanation (always conditional per borrower)
-    recommendations.credit.push({
-      name: `${tag} Letter of explanation for any recent credit inquiries`,
-      status: 'conditional',
-      reason: 'Requested for underwriting clarity.'
-    });
+    recommendations.credit.push(applyTemplate(CREDIT_INQUIRY_DOC, vars));
   });
 
   // ========== ASSETS ==========
-  
-  const totalAssets = borrowers.reduce((sum, b) => 
-    sum + (b.assets || []).length, 0);
-  
+
+  const totalAssets = borrowers.reduce((sum, b) => sum + (b.assets || []).length, 0);
+
   if (totalAssets > 0) {
-    borrowers.forEach(b => {
+    borrowers.forEach((b) => {
       const tag = `[${b.firstName} ${b.lastName}]`;
-      (b.assets || []).forEach(asset => {
-        recommendations.assets.push({
-          name: `${tag} Account statements (2 months) – ${asset.assetType || 'Asset'} ${asset.accountNumber ? '****' + asset.accountNumber.slice(-4) : ''}`,
-          status: 'required',
-          reason: 'Verify funds to close & reserves.'
-        });
+      (b.assets || []).forEach((asset) => {
+        recommendations.assets.push(
+          applyTemplate(ASSET_STATEMENT_DOC, {
+            tag,
+            assetType: asset.assetType || 'Asset',
+            accountSuffix: asset.accountNumber
+              ? '****' + asset.accountNumber.slice(-4)
+              : '',
+          }),
+        );
       });
     });
   } else if (loanPurpose === 'purchase') {
-    recommendations.assets.push({
-      name: 'Proof of funds for down payment & closing',
-      status: 'required',
-      reason: 'No assets listed in application.'
-    });
+    recommendations.assets.push(NO_ASSETS_PURCHASE_DOC);
   } else {
-    recommendations.assets.push({
-      name: 'Asset statements (if cash-to-close required)',
-      status: 'conditional',
-      reason: 'Provide if needed.'
-    });
+    recommendations.assets.push(NO_ASSETS_REFI_DOC);
   }
 
   // ========== CREDIT & REO ==========
-  
-  // Payoff liabilities
-  const hasPayoffLiabilities = liabilities.some(l => l.toBePaidOff || l.payoffStatus);
+
+  const hasPayoffLiabilities = liabilities.some((l) => l.toBePaidOff || l.payoffStatus);
   if (hasPayoffLiabilities) {
-    recommendations.credit.push({
-      name: 'Payoff statements for debts to be paid at closing',
-      status: 'required',
-      reason: 'Flagged in liabilities.'
-    });
+    recommendations.credit.push(PAYOFF_LIABILITIES_DOC);
   }
 
   // REO Properties
   if (hasREO) {
-    const allREOProperties = borrowers.flatMap(b => 
-      (b.reoProperties || []).map(reo => ({
+    const allREOProperties = borrowers.flatMap((b) =>
+      (b.reoProperties || []).map((reo) => ({
         ...reo,
-        borrowerName: `${b.firstName} ${b.lastName}`
-      }))
+        borrowerName: `${b.firstName} ${b.lastName}`,
+      })),
     );
-    
+
     if (allREOProperties.length > 0) {
       allREOProperties.forEach((reo, idx) => {
-        const label = reo.addressLine 
+        const label = reo.addressLine
           ? ` – ${reo.addressLine}, ${reo.city}, ${reo.state}`
           : ` #${idx + 1}`;
-        
+        const reoVars = { label };
+
         // Find associated mortgage or secured loan liability
-        const associatedLiability = liabilities.find(l => 
-          (l.liabilityType === 'Mortgage' || l.liabilityType === 'Secured Loan') &&
-          l.associatedREO === reo.id
+        const associatedLiability = liabilities.find(
+          (l) =>
+            (l.liabilityType === 'Mortgage' || l.liabilityType === 'Secured Loan') &&
+            l.associatedREO === reo.id,
         );
-        
+
         if (associatedLiability) {
-          recommendations.credit.push({
-            name: `${associatedLiability.liabilityType} statement${label}`,
-            status: 'required',
-            reason: 'REO property with associated liability.'
-          });
+          recommendations.credit.push(
+            applyTemplate(REO_MORTGAGE_STATEMENT_DOC, {
+              ...reoVars,
+              liabilityType: associatedLiability.liabilityType,
+            }),
+          );
         } else {
-          recommendations.credit.push({
-            name: `Mortgage/Secured Loan statement${label}`,
-            status: 'required',
-            reason: 'REO property identified.'
-          });
+          recommendations.credit.push(applyTemplate(REO_MORTGAGE_GENERIC_DOC, reoVars));
         }
-        
-        recommendations.credit.push({
-          name: `Hazard insurance declaration page${label}`,
-          status: 'required',
-          reason: 'Verify coverage.'
-        });
-        
-        recommendations.credit.push({
-          name: `Property tax bill${label}`,
-          status: 'conditional',
-          reason: 'Provide if taxes are not escrowed.'
-        });
-        
+
+        recommendations.credit.push(applyTemplate(REO_INSURANCE_DOC, reoVars));
+        recommendations.credit.push(applyTemplate(REO_TAX_DOC, reoVars));
+
         // Check if rental/investment property
-        const isRental = (reo.propertyType || '').match(/invest|rental/i) || 
-                        reo.monthlyRentalIncome > 0;
-        
+        const isRental =
+          (reo.propertyType || '').match(/invest|rental/i) ||
+          reo.monthlyRentalIncome > 0;
+
         if (isRental) {
-          // Calculate ownership duration in months (assuming createdAt is available)
-          // For now, we'll check if we can infer ownership duration
           const ownershipMonths = reo.ownershipMonths || 0;
-          
+
           if (ownershipMonths > 0 && ownershipMonths < 12) {
-            // Owned less than 12 months - need lease agreement
-            recommendations.income.push({
-              name: `Lease agreement${label}`,
-              status: 'required',
-              reason: 'Rental property owned less than 12 months.'
-            });
+            recommendations.income.push(applyTemplate(REO_LEASE_DOC, reoVars));
           } else {
-            // Owned 12+ months or unknown - need tax returns with Schedule E
-            recommendations.income.push({
-              name: `Personal tax returns with Schedule E${label}`,
-              status: 'required',
-              reason: 'Rental property income verification.'
-            });
+            recommendations.income.push(applyTemplate(REO_SCHEDULE_E_DOC, reoVars));
           }
         }
       });
     } else {
       // Inferred from liabilities
-      recommendations.credit.push({
-        name: 'Mortgage/Secured Loan statement(s) – each REO property',
-        status: 'required',
-        reason: 'Mortgage/Secured Loan liabilities present.'
-      });
-      
-      recommendations.credit.push({
-        name: 'Hazard insurance declaration page – each REO property',
-        status: 'required',
-        reason: 'Verify coverage on owned properties.'
-      });
-      
-      recommendations.credit.push({
-        name: 'Property tax bill – each REO property',
-        status: 'conditional',
-        reason: 'Provide if taxes not escrowed.'
-      });
+      recommendations.credit.push(...REO_INFERRED_DOCS);
     }
   }
 
   // HELOC-specific
   if (helocCount > 0) {
-    recommendations.credit.push({
-      name: 'HELOC statement(s) (most recent)',
-      status: 'required',
-      reason: 'HELOC liability detected.'
-    });
+    recommendations.credit.push(HELOC_DOC);
   }
 
   return recommendations;
 };
+
+// ── Coverage stats ───────────────────────────────────────────────────
 
 /**
  * Calculate coverage statistics for borrowers
@@ -521,40 +373,40 @@ export const calculateCoverageStats = (borrowers) => {
     employmentCoverage: { needed: 0, covered: 0 },
     residenceCoverage: { needed: 0, covered: 0 },
     hasDeclarationFlags: false,
-    reoCount: 0
+    reoCount: 0,
   };
 
   const now = new Date();
-  
-  borrowers.forEach(borrower => {
+
+  borrowers.forEach((borrower) => {
     // Employment coverage
     let empMonths = 0;
-    (borrower.employmentHistory || []).forEach(emp => {
+    (borrower.employmentHistory || []).forEach((emp) => {
       const startDate = emp.startDate;
       const endDate = emp.endDate || now.toISOString().split('T')[0];
       empMonths += monthsBetween(startDate, endDate);
     });
     stats.employmentCoverage.covered = Math.min(
-      stats.employmentCoverage.covered || empMonths, 
-      empMonths
+      stats.employmentCoverage.covered || empMonths,
+      empMonths,
     );
     stats.employmentCoverage.needed = Math.max(
-      stats.employmentCoverage.needed, 
-      Math.max(0, 24 - empMonths)
+      stats.employmentCoverage.needed,
+      Math.max(0, REQUIRED_HISTORY_MONTHS - empMonths),
     );
 
     // Residence coverage
     let resMonths = 0;
-    (borrower.residences || []).forEach(res => {
+    (borrower.residences || []).forEach((res) => {
       resMonths += Number(res.durationMonths || 0);
     });
     stats.residenceCoverage.covered = Math.min(
       stats.residenceCoverage.covered || resMonths,
-      resMonths
+      resMonths,
     );
     stats.residenceCoverage.needed = Math.max(
       stats.residenceCoverage.needed,
-      Math.max(0, 24 - resMonths)
+      Math.max(0, REQUIRED_HISTORY_MONTHS - resMonths),
     );
 
     // Declaration flags
@@ -562,7 +414,7 @@ export const calculateCoverageStats = (borrowers) => {
     if (decl.bankruptcy || decl.foreclosure || decl.outstandingJudgments) {
       stats.hasDeclarationFlags = true;
     }
-    
+
     // REO count
     stats.reoCount += (borrower.reoProperties || []).length;
   });
@@ -570,26 +422,28 @@ export const calculateCoverageStats = (borrowers) => {
   return stats;
 };
 
+// ── CSV export ───────────────────────────────────────────────────────
+
 /**
  * Export recommendations to CSV
  */
 export const exportToCSV = (recommendations) => {
   const escape = (str) => `"${String(str).replace(/"/g, '""')}"`;
-  
+
   const lines = [['Section', 'Item', 'Status', 'Reason']];
-  
+
   Object.entries(recommendations).forEach(([section, items]) => {
-    items.forEach(item => {
+    items.forEach((item) => {
       lines.push([
         section.charAt(0).toUpperCase() + section.slice(1),
         item.name,
         item.status.charAt(0).toUpperCase() + item.status.slice(1),
-        item.reason
+        item.reason,
       ]);
     });
   });
-  
-  return lines.map(row => row.map(escape).join(',')).join('\n');
+
+  return lines.map((row) => row.map(escape).join(',')).join('\n');
 };
 
 /**
@@ -607,4 +461,3 @@ export const downloadCSV = (recommendations, applicationNumber) => {
   document.body.removeChild(link);
   URL.revokeObjectURL(url);
 };
-

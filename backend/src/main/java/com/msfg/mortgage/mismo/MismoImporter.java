@@ -2,36 +2,17 @@ package com.msfg.mortgage.mismo;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.msfg.mortgage.model.Asset;
 import com.msfg.mortgage.model.Borrower;
-import com.msfg.mortgage.model.ClosingFee;
-import com.msfg.mortgage.model.ClosingInformation;
-import com.msfg.mortgage.model.Declaration;
-import com.msfg.mortgage.model.Employment;
-import com.msfg.mortgage.model.IncomeSource;
 import com.msfg.mortgage.model.Liability;
 import com.msfg.mortgage.model.LoanApplication;
-import com.msfg.mortgage.model.Property;
-import com.msfg.mortgage.model.REOProperty;
-import com.msfg.mortgage.model.Residence;
 import com.msfg.mortgage.mismo.parse.LinkContext;
 
-import static com.msfg.mortgage.mismo.parse.MismoCoerce.firstNonNull;
-import static com.msfg.mortgage.mismo.parse.MismoCoerce.normalizeAssetType;
-import static com.msfg.mortgage.mismo.parse.MismoCoerce.normalizePhone;
-import static com.msfg.mortgage.mismo.parse.MismoCoerce.normalizeZip;
-import static com.msfg.mortgage.mismo.parse.MismoCoerce.parseBool;
 import static com.msfg.mortgage.mismo.parse.MismoCoerce.parseDecimal;
 import static com.msfg.mortgage.mismo.parse.MismoNodes.first;
-import static com.msfg.mortgage.mismo.parse.MismoNodes.parseSeq;
 import static com.msfg.mortgage.mismo.parse.MismoNodes.pluck;
-import static com.msfg.mortgage.mismo.parse.MismoNodes.pluckTaxId;
 import static com.msfg.mortgage.mismo.parse.MismoNodes.textOf;
 import com.msfg.mortgage.mismo.parse.MismoXml;
-import com.msfg.mortgage.repository.BorrowerRepository;
-import com.msfg.mortgage.repository.LiabilityRepository;
 import com.msfg.mortgage.repository.LoanApplicationRepository;
-import com.msfg.mortgage.repository.PropertyRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -45,10 +26,8 @@ import javax.xml.xpath.XPathExpressionException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.math.BigDecimal;
-import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -77,13 +56,12 @@ import java.util.Objects;
 public class MismoImporter {
 
     private final LoanApplicationRepository loanApplicationRepository;
-    private final BorrowerRepository borrowerRepository;
-    private final PropertyRepository propertyRepository;
-    private final LiabilityRepository liabilityRepository;
-    private final com.msfg.mortgage.repository.LoanTermsRepository loanTermsRepository;
     private final com.msfg.mortgage.repository.HousingExpenseRepository housingExpenseRepository;
     private final com.msfg.mortgage.repository.PurchaseCreditRepository purchaseCreditRepository;
     private final BorrowerSectionImporter borrowerSectionImporter;
+    private final PropertySectionImporter propertySectionImporter;
+    private final AssetSectionImporter assetSectionImporter;
+    private final ReoSectionImporter reoSectionImporter;
     private final ClosingSectionImporter closingSectionImporter;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
@@ -131,12 +109,11 @@ public class MismoImporter {
 
             applyLoanIdentifiers(doc, la, changes);
             applyLoanFields(doc, la, changes);
-            applyProperty(doc, la, changes);
+            propertySectionImporter.apply(doc, la, changes);  // property + loan terms
             borrowerSectionImporter.apply(doc, la, links, changes);
-            applyAssets(doc, la, links, changes);   // after borrowers — needs them to exist
-            applyReoFromAssets(doc, la, links, changes);  // REOs live inside DEAL/ASSETS, not PARTY
+            assetSectionImporter.apply(doc, la, links, changes);   // after borrowers — needs them to exist
+            reoSectionImporter.apply(doc, la, links, changes);     // REOs live inside DEAL/ASSETS, not PARTY
             applyLiabilities(doc, la, links, changes);
-            applyLoanTerms(doc, la, changes);       // populates the dashboard's "this loan" row
             applyHousingExpenses(doc, la, changes); // dashboard PITIA breakdown
             applyPurchaseCredits(doc, la, changes); // earnest money, seller credit, etc.
             // Closing-stage import (closing date, MI, hazard insurance, FEE_INFORMATION/FEES).
@@ -210,322 +187,6 @@ public class MismoImporter {
         }
     }
 
-    private void applyProperty(Document doc, LoanApplication la, List<FieldChange> changes)
-            throws XPathExpressionException {
-        Element subj = first(doc, "//*[local-name()='SUBJECT_PROPERTY']");
-        if (subj == null) return;
-
-        Property p = la.getProperty();
-        if (p == null) {
-            p = new Property();
-            p.setApplication(la);
-            la.setProperty(p);
-        }
-
-        Element addr = (Element) MismoXml.xp().evaluate(".//*[local-name()='ADDRESS']", subj, XPathConstants.NODE);
-        if (addr != null) {
-            stringSet(p::getAddressLine, p::setAddressLine,
-                    pluck(addr, "*[local-name()='AddressLineText']"), "property.addressLine", changes);
-            stringSet(p::getCity, p::setCity,
-                    pluck(addr, "*[local-name()='CityName']"), "property.city", changes);
-            stringSet(p::getState, p::setState,
-                    pluck(addr, "*[local-name()='StateCode']"), "property.state", changes);
-            stringSet(p::getZipCode, p::setZipCode,
-                    pluck(addr, "*[local-name()='PostalCode']"), "property.zipCode", changes);
-            stringSet(p::getCounty, p::setCounty,
-                    pluck(addr, "*[local-name()='CountyName']"), "property.county", changes);
-        }
-        stringSet(p::getPropertyType, p::setPropertyType,
-                pluck(subj, ".//*[local-name()='PropertyUsageType']"), "property.propertyType", changes);
-        stringSet(p::getConstructionType, p::setConstructionType,
-                pluck(subj, ".//*[local-name()='ConstructionMethodType']"), "property.constructionType", changes);
-
-        String yr = pluck(subj, ".//*[local-name()='PropertyStructureBuiltYear']");
-        if (yr != null) {
-            try {
-                Integer newY = Integer.valueOf(yr);
-                if (!Objects.equals(p.getYearBuilt(), newY)) {
-                    changes.add(new FieldChange("property.yearBuilt",
-                            String.valueOf(p.getYearBuilt()), newY.toString()));
-                    p.setYearBuilt(newY);
-                }
-            } catch (NumberFormatException ignored) { }
-        }
-
-        String units = pluck(subj, ".//*[local-name()='FinancedUnitCount']");
-        if (units != null) {
-            try {
-                Integer newU = Integer.valueOf(units);
-                if (!Objects.equals(p.getUnitsCount(), newU)) {
-                    changes.add(new FieldChange("property.unitsCount",
-                            String.valueOf(p.getUnitsCount()), newU.toString()));
-                    p.setUnitsCount(newU);
-                }
-            } catch (NumberFormatException ignored) { }
-        }
-
-        // Property value: priority order matches what LendingPad's exports actually contain.
-        //   1. PropertyValuationAmount (formal appraisal — only present after appraisal)
-        //   2. PropertyEstimatedValueAmount (LP's initial estimate, always present)
-        //   3. SalesContractAmount (purchase price, useful for new purchases)
-        String pv = firstNonNull(
-                pluck(subj, ".//*[local-name()='PropertyValuationAmount']"),
-                pluck(subj, ".//*[local-name()='PropertyEstimatedValueAmount']"),
-                pluck(subj, ".//*[local-name()='SalesContractAmount']")
-        );
-        if (pv != null) {
-            try {
-                BigDecimal newV = new BigDecimal(pv);
-                if (!Objects.equals(p.getPropertyValue(), newV)) {
-                    changes.add(new FieldChange("property.propertyValue",
-                            p.getPropertyValue() == null ? null : p.getPropertyValue().toPlainString(),
-                            newV.toPlainString()));
-                    p.setPropertyValue(newV);
-                }
-                // Mirror onto LoanApplication.propertyValue. The form reads this
-                // top-level field for the "Purchase Price / Property Value" input,
-                // so without the mirror the imported value never shows up in the UI.
-                if (!Objects.equals(la.getPropertyValue(), newV)) {
-                    changes.add(new FieldChange("propertyValue",
-                            la.getPropertyValue() == null ? null : la.getPropertyValue().toPlainString(),
-                            newV.toPlainString()));
-                    la.setPropertyValue(newV);
-                }
-            } catch (NumberFormatException ignored) { }
-        }
-
-        // Purchase price (separate from estimated/appraised value). Only present on purchase loans.
-        BigDecimal salesAmt = parseDecimal(pluck(subj, ".//*[local-name()='SalesContractAmount']"));
-        if (salesAmt != null && !Objects.equals(p.getPurchasePrice(), salesAmt)) {
-            changes.add(new FieldChange("property.purchasePrice",
-                    p.getPurchasePrice() == null ? null : p.getPurchasePrice().toPlainString(),
-                    salesAmt.toPlainString()));
-            p.setPurchasePrice(salesAmt);
-        }
-
-        // Attached/Detached + project structure (Condominium / PUD / Cooperative / None).
-        stringSet(p::getAttachmentType, p::setAttachmentType,
-                pluck(subj, ".//*[local-name()='AttachmentType']"), "property.attachmentType", changes);
-        stringSet(p::getProjectType, p::setProjectType,
-                pluck(subj, ".//*[local-name()='ProjectLegalStructureType']"), "property.projectType", changes);
-
-        propertyRepository.save(p);
-    }
-
-
-    /**
-     * Walk DEAL/ASSETS/ASSET (the canonical MISMO 3.4 location) and route each asset to
-     * its owning borrower. Routing strategy:
-     *   1. xlink:label of the ASSET → arcsByFrom → label of the linked ROLE → walk up
-     *      to that ROLE's parent PARTY → match by SequenceNumber to a borrower we've
-     *      already created.
-     *   2. Single-borrower fallback: when only one borrower exists on the loan, every
-     *      asset maps to that borrower (LP often omits the relationship arc in this case).
-     *   3. Multi-borrower with no resolvable arc → log a warning and skip.
-     *
-     * Wholesale-replace: each borrower's asset list is cleared on the first asset that
-     * lands for them, so re-importing the same MISMO is idempotent.
-     */
-    private void applyAssets(Document doc, LoanApplication la, LinkContext links,
-                             List<FieldChange> changes) throws XPathExpressionException {
-        NodeList nodes = (NodeList) MismoXml.xp().evaluate(
-                "//*[local-name()='ASSETS']/*[local-name()='ASSET']", doc, XPathConstants.NODESET);
-        if (nodes.getLength() == 0) return;
-
-        List<Borrower> borrowers = la.getBorrowers();
-        if (borrowers == null || borrowers.isEmpty()) return;
-
-        Map<Long, List<Asset>> bucket = new HashMap<>();
-        for (Borrower b : borrowers) bucket.put(b.getId() == null ? -1L : b.getId(), new ArrayList<>());
-
-        int kept = 0;
-        for (int i = 0; i < nodes.getLength(); i++) {
-            Element a = (Element) nodes.item(i);
-            String type = pluck(a, ".//*[local-name()='AssetType']");
-            BigDecimal value = parseDecimal(pluck(a, ".//*[local-name()='AssetCashOrMarketValueAmount']"));
-            if (type == null && value == null) continue;
-
-            Borrower owner = resolveAssetOwner(a, links, borrowers);
-            if (owner == null) {
-                log.warn("MISMO ASSET could not be routed to a borrower; skipping. label={}",
-                        a.getAttributeNS(LinkContext.XLINK_NS, "label"));
-                continue;
-            }
-
-            Asset asset = new Asset();
-            asset.setBorrower(owner);
-            asset.setAssetType(normalizeAssetType(type));
-            asset.setAccountNumber(pluck(a, ".//*[local-name()='AssetAccountIdentifier']"));
-            asset.setBankName(pluck(a, ".//*[local-name()='FullName']"));
-            // assets.asset_value is NOT NULL in the schema; some LP exports omit the value
-            // on identification-only assets (e.g. life insurance with no cash value listed).
-            // Default to zero so the row persists; downstream UI shows "$0" which is correct
-            // for those cases and surfaces "this asset needs an amount" to the LO.
-            asset.setAssetValue(value != null ? value : BigDecimal.ZERO);
-            String used = pluck(a, ".//*[local-name()='AssetEntryUsedForDownPaymentIndicator']");
-            asset.setUsedForDownpayment(used != null && Boolean.parseBoolean(used));
-
-            bucket.get(owner.getId() == null ? -1L : owner.getId()).add(asset);
-            kept++;
-        }
-
-        // Replace strategy: only borrowers who got new assets have their list reset.
-        // Borrowers with no assets in this MISMO keep what was there (common when only
-        // primary borrower has bank statements on file).
-        for (Borrower b : borrowers) {
-            List<Asset> incoming = bucket.get(b.getId() == null ? -1L : b.getId());
-            if (incoming.isEmpty()) continue;
-            if (b.getAssets() == null) b.setAssets(new ArrayList<>());
-            b.getAssets().clear();
-            b.getAssets().addAll(incoming);
-        }
-
-        if (kept > 0) {
-            changes.add(new FieldChange("assets", "<replaced>", kept + " row(s)"));
-        }
-    }
-
-    /**
-     * Routes an ASSET / LIABILITY / REO node to its owning Borrower via xlink.
-     * Strategy:
-     *   1. Read the node's xlink:label (e.g. "ASSET_2") and follow the
-     *      RELATIONSHIPS arc to the linked ROLE label (e.g. "BORROWER_2").
-     *   2. The ROLE element carries SequenceNumber — match THAT to the
-     *      borrower's sequenceNumber. (Earlier code walked up to PARTY and
-     *      read PARTY.SequenceNumber, but LP omits it on the borrower
-     *      parties, so every multi-borrower routing fell through.)
-     *   3. Fallback when the relationship is absent: single-borrower loans
-     *      assign everything to the sole borrower.
-     */
-    private Borrower resolveAssetOwner(Element asset, LinkContext links, List<Borrower> borrowers) {
-        String assetLabel = asset.getAttributeNS(LinkContext.XLINK_NS, "label");
-        if (!assetLabel.isEmpty()) {
-            String roleLabel = links.arcsByFrom.get(assetLabel);
-            if (roleLabel != null) {
-                Element role = links.elementsByLabel.get(roleLabel);
-                if (role != null) {
-                    int seq = parseSeq(role, 0);
-                    for (Borrower b : borrowers) {
-                        if (b.getSequenceNumber() != null && b.getSequenceNumber() == seq) return b;
-                    }
-                    // Defensive: walk up to PARTY and try PARTY.SequenceNumber too,
-                    // in case a future export carries it on the party rather than the role.
-                    org.w3c.dom.Node n = role;
-                    while (n != null && !"PARTY".equals(n.getLocalName())) n = n.getParentNode();
-                    if (n != null) {
-                        int partySeq = parseSeq((Element) n, 0);
-                        if (partySeq != seq) {
-                            for (Borrower b : borrowers) {
-                                if (b.getSequenceNumber() != null && b.getSequenceNumber() == partySeq) return b;
-                            }
-                        }
-                    }
-                }
-            }
-        }
-        if (borrowers.size() == 1) return borrowers.get(0);
-        return null;
-    }
-
-
-    /**
-     * REO properties — LP puts these inside DEAL/ASSETS as ASSET[AssetType=RealEstateOwned]
-     * with an OWNED_PROPERTY child, NOT inside the borrower PARTY. That's why
-     * BorrowerSectionImporter.replaceReoProperties (which scans within a party) never
-     * finds anything in real LP exports.
-     *
-     * <p>Routing strategy mirrors {@link #applyAssets}: xlink arc from ASSET → ROLE →
-     * PARTY → match by sequence to a borrower; single-borrower fallback otherwise.
-     *
-     * <p>Wholesale-replace per borrower on first incoming REO.
-     */
-    private void applyReoFromAssets(Document doc, LoanApplication la, LinkContext links,
-                                     List<FieldChange> changes) throws XPathExpressionException {
-        NodeList nodes = (NodeList) MismoXml.xp().evaluate(
-                "//*[local-name()='ASSETS']/*[local-name()='ASSET']" +
-                "[.//*[local-name()='AssetType' and text()='RealEstateOwned']]",
-                doc, XPathConstants.NODESET);
-        if (nodes.getLength() == 0) return;
-
-        List<Borrower> borrowers = la.getBorrowers();
-        if (borrowers == null || borrowers.isEmpty()) return;
-
-        Map<Long, List<REOProperty>> bucket = new HashMap<>();
-        for (Borrower b : borrowers) bucket.put(b.getId() == null ? -1L : b.getId(), new ArrayList<>());
-
-        int kept = 0;
-        for (int i = 0; i < nodes.getLength(); i++) {
-            Element asset = (Element) nodes.item(i);
-            Element owned = first(asset, ".//*[local-name()='OWNED_PROPERTY']");
-            if (owned == null) continue;
-
-            // Skip the subject property — it's already represented as the loan's Property
-            String isSubject = pluck(owned,
-                    ".//*[local-name()='OwnedPropertySubjectIndicator']");
-            if ("true".equalsIgnoreCase(isSubject)) continue;
-
-            Borrower owner = resolveAssetOwner(asset, links, borrowers);
-            if (owner == null) {
-                log.warn("MISMO REO ASSET could not be routed to a borrower; skipping. label={}",
-                        asset.getAttributeNS(LinkContext.XLINK_NS, "label"));
-                continue;
-            }
-
-            String addr = pluck(owned, ".//*[local-name()='AddressLineText']");
-            String city = pluck(owned, ".//*[local-name()='CityName']");
-            // reo_properties.address_line is NOT NULL — skip placeholder REO blocks
-            // (LP emits PRIMARY-residence ASSET[RealEstateOwned] with only
-            // PropertyEstimatedValueAmount and no ADDRESS). Carrying these as a
-            // separate REO row would also be wrong: the borrower's primary IS
-            // the subject property, not a separately-owned asset.
-            if (addr == null && city == null) continue;
-
-            REOProperty reo = new REOProperty();
-            reo.setBorrower(owner);
-            reo.setSequenceNumber(parseSeq(asset, i + 1));
-            reo.setAddressLine(addr);
-            reo.setCity(city);
-            reo.setState(pluck(owned, ".//*[local-name()='StateCode']"));
-            reo.setZipCode(pluck(owned, ".//*[local-name()='PostalCode']"));
-            // PropertyUsageType / PropertyCurrentUsageType — keep raw MISMO value
-            // (PrimaryResidence / SecondHome / Investment) so the UI can map it.
-            reo.setPropertyType(firstNonNull(
-                    pluck(owned, ".//*[local-name()='PropertyCurrentUsageType']"),
-                    pluck(owned, ".//*[local-name()='PropertyUsageType']")));
-            reo.setPropertyValue(parseDecimal(firstNonNull(
-                    pluck(owned, ".//*[local-name()='PropertyValuationAmount']"),
-                    pluck(owned, ".//*[local-name()='PropertyEstimatedValueAmount']"))));
-            reo.setUnpaidBalance(parseDecimal(
-                    pluck(owned, ".//*[local-name()='OwnedPropertyLienUPBAmount']")));
-            reo.setMonthlyPayment(parseDecimal(
-                    pluck(owned, ".//*[local-name()='OwnedPropertyMaintenanceExpenseAmount']")));
-            // OwnedPropertyRentalIncomeNetAmount is NET (income minus expenses)
-            // and CAN be negative (rental losing money). The form/entity treats
-            // monthlyRentalIncome as gross income and forbids negatives via bean
-            // validation, so clamp to zero — the loss side is already captured
-            // by OwnedPropertyMaintenanceExpenseAmount above.
-            BigDecimal netRent = parseDecimal(
-                    pluck(owned, ".//*[local-name()='OwnedPropertyRentalIncomeNetAmount']"));
-            if (netRent != null && netRent.signum() < 0) netRent = BigDecimal.ZERO;
-            reo.setMonthlyRentalIncome(netRent);
-
-            bucket.get(owner.getId() == null ? -1L : owner.getId()).add(reo);
-            kept++;
-        }
-
-        // Replace strategy: only borrowers who got new REOs have their list reset.
-        for (Borrower b : borrowers) {
-            List<REOProperty> incoming = bucket.get(b.getId() == null ? -1L : b.getId());
-            if (incoming.isEmpty()) continue;
-            if (b.getReoProperties() == null) b.setReoProperties(new ArrayList<>());
-            b.getReoProperties().clear();
-            b.getReoProperties().addAll(incoming);
-        }
-        if (kept > 0) {
-            changes.add(new FieldChange("reoProperties", "<replaced>", kept + " row(s)"));
-        }
-    }
-
     /**
      * Liabilities are wholesale-replaced on import — these come from LendingPad's credit pull
      * after the borrower submits, and represent the authoritative set. Borrowers don't curate
@@ -563,7 +224,7 @@ public class MismoImporter {
             // machinery used for assets. LP labels each LIABILITY (e.g. xlink:label=
             // "LIABILITY_5") and adds an arc to the owning Borrower's ROLE.
             if (borrowers != null && !borrowers.isEmpty()) {
-                Borrower owner = resolveAssetOwner(li, links, borrowers);
+                Borrower owner = AssetSectionImporter.resolveAssetOwner(li, links, borrowers);
                 if (owner != null) l.setBorrower(owner);
             }
 
@@ -588,67 +249,6 @@ public class MismoImporter {
         } else {
             changes.add(new FieldChange("liabilities", "<replaced>", "<replaced (count unchanged)>"));
         }
-    }
-
-    /**
-     * Loan Dashboard: terms (rate, amount, amortization, lien priority, app-received date).
-     * Single row per application; upsert semantics. The borrower-facing
-     * {@code LoanApplication.loanAmount} keeps mirroring {@code BaseLoanAmount} so the
-     * application list view continues to work; this entity is the LO's authoritative copy.
-     */
-    private void applyLoanTerms(org.w3c.dom.Document doc, LoanApplication la, List<FieldChange> changes)
-            throws XPathExpressionException {
-        Element loan = first(doc, "//*[local-name()='LOAN']");
-        if (loan == null || la.getId() == null) return;
-
-        com.msfg.mortgage.model.LoanTerms terms = loanTermsRepository
-                .findByApplicationId(la.getId())
-                .orElseGet(() -> com.msfg.mortgage.model.LoanTerms.builder()
-                        .applicationId(la.getId())
-                        .build());
-
-        BigDecimal baseAmt = parseDecimal(pluck(loan, ".//*[local-name()='BaseLoanAmount']"));
-        if (baseAmt != null) terms.setBaseLoanAmount(baseAmt);
-
-        BigDecimal noteAmt = parseDecimal(pluck(loan, ".//*[local-name()='NoteAmount']"));
-        if (noteAmt != null) terms.setNoteAmount(noteAmt);
-
-        BigDecimal rate = parseDecimal(pluck(loan, ".//*[local-name()='NoteRatePercent']"));
-        if (rate != null) terms.setNoteRatePercent(rate);
-
-        String amortType = pluck(loan, ".//*[local-name()='AmortizationType']");
-        if (amortType != null) terms.setAmortizationType(amortType);
-
-        String periodCount = pluck(loan, ".//*[local-name()='LoanAmortizationPeriodCount']");
-        if (periodCount != null) {
-            try { terms.setAmortizationTermMonths(Integer.parseInt(periodCount)); }
-            catch (NumberFormatException ignored) { }
-        }
-
-        String lien = pluck(loan, ".//*[local-name()='LienPriorityType']");
-        if (lien != null) terms.setLienPriorityType(lien);
-
-        String received = pluck(loan, ".//*[local-name()='ApplicationReceivedDate']");
-        if (received != null) {
-            try { terms.setApplicationReceivedDate(LocalDate.parse(received)); }
-            catch (Exception ignored) { }
-        }
-
-        // Down payment: prefer an explicit MISMO field if present, else compute.
-        // MISMO 3.4 carries it on the LOAN's DOWN_PAYMENTS/DOWN_PAYMENT/DownPaymentAmount;
-        // some LP exports omit it. When missing, derive from the property/value/loan delta.
-        BigDecimal explicitDown = parseDecimal(pluck(loan, ".//*[local-name()='DownPaymentAmount']"));
-        if (explicitDown != null) {
-            terms.setDownPaymentAmount(explicitDown);
-        } else if (la.getProperty() != null && la.getProperty().getPropertyValue() != null
-                && terms.getBaseLoanAmount() != null) {
-            BigDecimal derived = la.getProperty().getPropertyValue().subtract(terms.getBaseLoanAmount());
-            // Don't store negatives — that would be a bad MISMO file or a refi shape.
-            if (derived.signum() >= 0) terms.setDownPaymentAmount(derived);
-        }
-
-        loanTermsRepository.save(terms);
-        changes.add(new FieldChange("loanTerms", "<upserted>", "1 row"));
     }
 
     /**
@@ -742,18 +342,6 @@ public class MismoImporter {
                     oldValue == null ? null : oldValue.toString(),
                     newValue == null ? null : newValue.toString()));
             setter.accept(newValue);
-        }
-    }
-
-    /** String version — handles "" → null normalization. */
-    private static void stringSet(java.util.function.Supplier<String> getter,
-                                  java.util.function.Consumer<String> setter,
-                                  String newValue, String path, List<FieldChange> changes) {
-        String normalized = (newValue == null || newValue.isBlank()) ? null : newValue;
-        String oldValue = getter.get();
-        if (!Objects.equals(oldValue, normalized)) {
-            changes.add(new FieldChange(path, oldValue, normalized));
-            setter.accept(normalized);
         }
     }
 

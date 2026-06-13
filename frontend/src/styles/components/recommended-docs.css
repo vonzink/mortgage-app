@@ -15,7 +15,6 @@
   justify-content: center;
   z-index: var(--z-modal);
   padding: var(--spacing-lg);
-  backdrop-filter: blur(4px);
 }
 
 .modal-content {
@@ -144,20 +143,20 @@
 
 .coverage-chip.ok {
   border-color: var(--success-color);
-  background: rgba(46, 125, 50, 0.1);
-  color: var(--success-color);
+  background: var(--spring-soft);
+  color: var(--moss);
 }
 
 .coverage-chip.warn {
   border-color: var(--warning-color);
-  background: rgba(245, 124, 0, 0.1);
-  color: var(--warning-color);
+  background: var(--amber-bg);
+  color: var(--amber);
 }
 
 .coverage-chip.need {
   border-color: var(--danger-color);
-  background: rgba(198, 40, 40, 0.1);
-  color: var(--danger-color);
+  background: var(--rose-bg);
+  color: var(--rose);
 }
 
 /* Document Sections */
@@ -249,26 +248,26 @@
 }
 
 .status-required {
-  background: rgba(198, 40, 40, 0.15);
-  color: var(--danger-color);
+  background: var(--rose-bg);
+  color: var(--rose);
   border-color: var(--danger-color);
 }
 
 .status-conditional {
-  background: rgba(245, 124, 0, 0.15);
-  color: var(--warning-color);
+  background: var(--amber-bg);
+  color: var(--amber);
   border-color: var(--warning-color);
 }
 
 .status-review {
-  background: rgba(2, 119, 189, 0.15);
-  color: var(--info-color);
+  background: var(--azure-bg);
+  color: var(--azure);
   border-color: var(--info-color);
 }
 
 .status-ok {
-  background: rgba(46, 125, 50, 0.15);
-  color: var(--success-color);
+  background: var(--spring-soft);
+  color: var(--moss);
   border-color: var(--success-color);
 }
 

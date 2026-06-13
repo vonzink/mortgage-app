@@ -25,9 +25,8 @@
 .dropzone:hover,
 .dropzone.active {
   border-color: var(--primary-color);
-  background-color: rgba(101, 84, 57, 0.05);
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  background-color: var(--spring-soft);
+  box-shadow: var(--shadow-md);
 }
 
 .dropzone-icon {
@@ -78,15 +77,14 @@
   justify-content: space-between;
   align-items: center;
   padding: var(--spacing-md);
-  background-color: white;
+  background-color: var(--bg-card);
   border: 1px solid var(--border-color);
   border-radius: var(--border-radius);
   transition: all 0.2s ease;
 }
 
 .pending-file-item:hover {
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-  transform: translateY(-1px);
+  box-shadow: var(--shadow-md);
 }
 
 .pending-file-info {
@@ -133,7 +131,7 @@
   padding: 0.5rem 0.75rem;
   border: 1px solid var(--border-color);
   border-radius: var(--border-radius);
-  background-color: white;
+  background-color: var(--bg-card);
   color: var(--text-primary);
   font-size: 0.9rem;
   cursor: pointer;
@@ -147,7 +145,7 @@
 .document-type-select:focus {
   outline: none;
   border-color: var(--primary-color);
-  box-shadow: 0 0 0 2px rgba(101, 84, 57, 0.1);
+  box-shadow: 0 0 0 2px var(--spring-soft);
 }
 
 .btn-upload-all {
@@ -190,15 +188,14 @@
   justify-content: space-between;
   align-items: center;
   padding: var(--spacing-md);
-  background-color: white;
+  background-color: var(--bg-card);
   border: 1px solid var(--border-color);
   border-radius: var(--border-radius);
   transition: all 0.2s ease;
 }
 
 .uploaded-document-item:hover {
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-  transform: translateY(-1px);
+  box-shadow: var(--shadow-md);
 }
 
 .document-info {
@@ -240,7 +237,7 @@
   display: inline-block;
   padding: 0.25rem 0.5rem;
   background-color: var(--primary-color);
-  color: white;
+  color: var(--bg-card);
   font-size: 0.75rem;
   font-weight: 600;
   border-radius: 3px;
@@ -277,24 +274,22 @@
 
 .btn-icon.btn-secondary {
   background-color: var(--secondary-color);
-  color: white;
+  color: var(--bg-card);
 }
 
 .btn-icon.btn-secondary:hover {
   background-color: var(--secondary-dark);
-  transform: translateY(-2px);
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+  box-shadow: var(--shadow-md);
 }
 
 .btn-icon.btn-danger {
   background-color: var(--error-color);
-  color: white;
+  color: var(--bg-card);
 }
 
 .btn-icon.btn-danger:hover {
-  background-color: #c0392b;
-  transform: translateY(-2px);
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+  background-color: var(--rose);
+  box-shadow: var(--shadow-md);
 }
 
 .btn-icon:disabled {

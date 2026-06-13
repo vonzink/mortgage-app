@@ -15,8 +15,8 @@ import { buildCognitoLogoutUrl } from '../auth/cognitoConfig';
  */
 const buttonStyle = {
   background: 'transparent',
-  border: '1px solid rgba(255,255,255,0.4)',
-  color: 'white',
+  border: '1px solid #ffffff1f',
+  color: '#ffffffeb',
   cursor: 'pointer',
   padding: '0.4rem 0.85rem',
   borderRadius: '4px',
@@ -30,7 +30,7 @@ export default function AuthControls() {
   const auth = useAuth();
 
   if (auth.isLoading) {
-    return <span style={{ color: 'rgba(255,255,255,0.7)', fontSize: '0.85rem' }}>…</span>;
+    return <span style={{ color: '#ffffff9e', fontSize: '0.85rem' }}>…</span>;
   }
 
   if (auth.error) {
@@ -63,7 +63,7 @@ export default function AuthControls() {
 
   return (
     <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.6rem' }}>
-      <span style={{ color: 'white', fontSize: '0.9rem', display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}>
+      <span style={{ color: '#ffffffeb', fontSize: '0.9rem', display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}>
         <FaUserCircle />
         {displayName}
       </span>

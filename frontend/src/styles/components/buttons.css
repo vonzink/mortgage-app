@@ -56,22 +56,21 @@
 }
 
 /* Primary Button */
-.btn-primary {
-  background: linear-gradient(135deg, var(--primary-color), var(--primary-light));
-  color: var(--text-white);
-  border-color: var(--primary-color);
-  box-shadow: var(--shadow-sm);
+.btn-primary, .btn-success {
+  background: var(--primary-color);   /* spring #1fb463 */
+  color: #0b231c;                     /* ink — NOT white */
+  border: none;
+  box-shadow: 0 3px 0 var(--lip), 0 8px 18px #07271e1a;
+  transition: transform .12s cubic-bezier(0,0,.2,1), box-shadow .12s cubic-bezier(0,0,.2,1);
 }
-
-.btn-primary:hover {
-  background: linear-gradient(135deg, var(--primary-dark), var(--primary-color));
-  transform: translateY(-2px);
-  box-shadow: var(--shadow-md);
+.btn-primary:hover, .btn-success:hover {
+  background: var(--primary-color);
+  box-shadow: 0 5px 0 var(--lip), 0 12px 44px #07271e33;
+  transform: translateY(-1px);
 }
-
-.btn-primary:active {
-  transform: translateY(0);
-  box-shadow: var(--shadow-sm);
+.btn-primary:active, .btn-success:active {
+  box-shadow: 0 1px 0 var(--lip), 0 4px 10px #07271e14;
+  transform: translateY(2px);
 }
 
 /* Secondary Button */
@@ -85,7 +84,6 @@
 .btn-secondary:hover {
   background: var(--bg-glass);
   border-color: var(--primary-color);
-  transform: translateY(-2px);
 }
 
 /* Outline Button */
@@ -97,8 +95,7 @@
 
 .btn-outline-primary:hover {
   background: var(--primary-color);
-  color: var(--text-white);
-  transform: translateY(-2px);
+  color: #0b231c;
 }
 
 .btn-outline-secondary {
@@ -111,7 +108,6 @@
   background: var(--bg-card);
   color: var(--text-primary);
   border-color: var(--primary-color);
-  transform: translateY(-2px);
 }
 
 .btn-outline-danger {
@@ -123,34 +119,18 @@
 .btn-outline-danger:hover {
   background: var(--danger-color);
   color: var(--text-white);
-  transform: translateY(-2px);
 }
 
 /* Danger Button */
 .btn-danger {
-  background: linear-gradient(135deg, var(--danger-color), #e74c3c);
-  color: var(--text-white);
-  border-color: var(--danger-color);
+  background: var(--danger-color);    /* rose #a8423a */
+  color: #fff;
+  border: none;
+  box-shadow: 0 3px 0 #7e2f29, 0 8px 18px #07271e1a;
+  transition: transform .12s cubic-bezier(0,0,.2,1), box-shadow .12s cubic-bezier(0,0,.2,1);
 }
-
-.btn-danger:hover {
-  background: linear-gradient(135deg, #c82333, var(--danger-color));
-  transform: translateY(-2px);
-  box-shadow: var(--shadow-md);
-}
-
-/* Success Button */
-.btn-success {
-  background: linear-gradient(135deg, var(--success-color), var(--primary-light));
-  color: var(--text-white);
-  border-color: var(--success-color);
-}
-
-.btn-success:hover {
-  background: linear-gradient(135deg, var(--primary-dark), var(--success-color));
-  transform: translateY(-2px);
-  box-shadow: var(--shadow-md);
-}
+.btn-danger:hover { box-shadow: 0 5px 0 #7e2f29, 0 12px 44px #07271e33; transform: translateY(-1px); }
+.btn-danger:active { box-shadow: 0 1px 0 #7e2f29, 0 4px 10px #07271e14; transform: translateY(2px); }
 
 /* Spinner for loading states */
 .spinner {

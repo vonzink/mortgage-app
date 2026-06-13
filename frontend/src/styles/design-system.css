@@ -89,31 +89,23 @@
 .msfg .topbar {
   height: 64px;
   background: linear-gradient(180deg, var(--forest-800) 0%, var(--forest-900) 100%);
-  color: #f1ede0;
+  color: var(--on-dark);
   display: flex; align-items: center; padding: 0 28px;
-  border-bottom: 1px solid rgba(255,255,255,.05);
+  border-bottom: 1px solid var(--hairline-dark);
   position: relative;
-}
-.msfg .topbar::after {
-  content: "";
-  position: absolute; inset: 0;
-  background:
-    radial-gradient(700px 200px at 12% 120%, rgba(255,255,255,.04), transparent 60%),
-    radial-gradient(800px 240px at 100% -60%, rgba(255,255,255,.06), transparent 60%);
-  pointer-events: none;
 }
 .msfg .topbar > * { position: relative; z-index: 1; }
 .msfg .brand {
   display: flex; align-items: center; gap: 10px;
   font-weight: 600; letter-spacing: -0.01em; font-size: 16px;
-  color: #f1ede0; text-decoration: none;
+  color: var(--on-dark); text-decoration: none;
 }
 .msfg .brand-mark {
   width: 28px; height: 28px; border-radius: 7px;
-  background: linear-gradient(135deg, #cfa15b 0%, #8d5a26 100%);
+  background: linear-gradient(135deg, #34d17e, #18a359);
   display: grid; place-items: center; color: var(--forest-900);
   font-weight: 700; font-size: 13px; letter-spacing: .02em;
-  box-shadow: inset 0 1px 0 rgba(255,255,255,.3);
+  box-shadow: inset 0 1px 0 var(--hairline-dark);
 }
 .msfg .brand small {
   font-weight: 400; opacity: .55; letter-spacing: .04em; font-size: 11px;
@@ -127,34 +119,34 @@
 }
 .msfg .topnav { display: flex; gap: 4px; margin-left: 36px; }
 .msfg .topnav a {
-  color: rgba(241,237,224,.7); text-decoration: none;
+  color: var(--on-dark-muted); text-decoration: none;
   padding: 8px 14px; border-radius: 8px; font-size: 13.5px; font-weight: 500;
   display: inline-flex; align-items: center; gap: 8px;
   transition: background .15s, color .15s;
 }
-.msfg .topnav a:hover { background: rgba(255,255,255,.06); color: #fff; }
-.msfg .topnav a.active { background: rgba(255,255,255,.09); color: #fff; }
+.msfg .topnav a:hover { background: var(--hairline-dark); color: var(--on-dark); }
+.msfg .topnav a.active { background: var(--hairline-dark); color: var(--on-dark); }
 .msfg .topnav a.active::before {
-  content: ""; width: 4px; height: 4px; border-radius: 50%; background: #cfa15b;
+  content: ""; width: 4px; height: 4px; border-radius: 50%; background: var(--spring);
 }
 .msfg .top-right { margin-left: auto; display: flex; gap: 10px; align-items: center; }
 .msfg .top-user {
   display: flex; align-items: center; gap: 10px;
   padding: 5px 10px 5px 5px; border-radius: 999px;
-  background: rgba(255,255,255,.06); color: #f1ede0; font-size: 13px;
+  background: var(--hairline-dark); color: var(--on-dark); font-size: 13px;
 }
 .msfg .top-user .av {
   width: 28px; height: 28px; border-radius: 999px;
-  background: linear-gradient(135deg, #d8b878, #8d5a26);
+  background: linear-gradient(135deg, #34d17e, #18a359);
   display: grid; place-items: center; color: var(--forest-900); font-weight: 600; font-size: 12px;
 }
 .msfg .top-icon-btn {
   width: 36px; height: 36px; border-radius: 10px;
-  background: rgba(255,255,255,.06); display: grid; place-items: center;
-  color: rgba(241,237,224,.7); cursor: pointer; border: 0;
+  background: var(--hairline-dark); display: grid; place-items: center;
+  color: var(--on-dark-muted); cursor: pointer; border: 0;
   position: relative;
 }
-.msfg .top-icon-btn:hover { background: rgba(255,255,255,.1); color: #fff; }
+.msfg .top-icon-btn:hover { background: var(--hairline-dark); color: var(--on-dark); }
 
 /* Top-bar settings dropdown ------------------------------------------------- */
 .msfg .topbar-menu {
@@ -181,10 +173,7 @@
 
 /* Page shell ---------------------------------------------------------------- */
 .msfg .page {
-  background:
-    radial-gradient(800px 400px at 0% 0%, rgba(14,58,46,.04), transparent 60%),
-    radial-gradient(900px 500px at 100% 100%, rgba(177,107,58,.04), transparent 60%),
-    var(--parchment-soft);
+  background: var(--parchment-soft);
   min-height: calc(100vh - 64px);
   padding: 28px 32px 40px;
 }
@@ -203,14 +192,22 @@
 .msfg .btn:active { transform: translateY(0.5px); }
 .msfg .btn:disabled { opacity: .55; cursor: not-allowed; }
 .msfg .btn-primary {
-  background: var(--forest-800); color: #fff; border-color: var(--forest-800);
-  box-shadow: 0 1px 0 rgba(0,0,0,.05), inset 0 1px 0 rgba(255,255,255,.08);
+  background: var(--primary-color); color: #0b231c; border-color: var(--primary-color);
+  box-shadow: 0 3px 0 var(--lip), 0 8px 18px #07271e1a;
 }
-.msfg .btn-primary:hover { background: var(--forest-700); color: #fff; }
+.msfg .btn-primary:hover {
+  background: var(--primary-color); color: #0b231c;
+  box-shadow: 0 5px 0 var(--lip), 0 12px 44px #07271e33;
+  transform: translateY(-1px);
+}
+.msfg .btn-primary:active {
+  box-shadow: 0 1px 0 var(--lip), 0 4px 10px #07271e14;
+  transform: translateY(2px);
+}
 .msfg .btn-ghost { background: transparent; border-color: transparent; box-shadow: none; color: var(--ink-700); }
 .msfg .btn-ghost:hover { background: rgba(14,58,46,.05); color: var(--ink-900); }
-.msfg .btn-danger { color: var(--rose); border-color: #ecd6d3; background: #fbf1f0; }
-.msfg .btn-danger:hover { background: #f6e3e1; color: var(--rose); }
+.msfg .btn-danger { color: var(--rose); border-color: var(--rose-bg); background: var(--rose-bg); }
+.msfg .btn-danger:hover { background: var(--rose-bg); color: var(--rose); }
 .msfg .btn-sm { height: 30px; padding: 0 11px; font-size: 12.5px; border-radius: 7px; }
 .msfg .btn-lg { height: 44px; padding: 0 20px; font-size: 14px; border-radius: 10px; }
 
@@ -228,7 +225,7 @@
 .msfg .pill.active  { background: var(--moss-bg);  color: var(--moss); }
 .msfg .pill.warn    { background: var(--copper-bg); color: var(--copper); }
 .msfg .pill.danger  { background: var(--rose-bg);  color: var(--rose); }
-.msfg .pill.muted   { background: #ece8da; color: var(--ink-500); }
+.msfg .pill.muted   { background: var(--bg-secondary); color: var(--ink-500); }
 
 /* Cards --------------------------------------------------------------------- */
 .msfg .card {
@@ -287,13 +284,13 @@
 /* Avatars ------------------------------------------------------------------- */
 .msfg .av-brand {
   background: linear-gradient(135deg, var(--forest-700), var(--forest-900));
-  color: #f1ede0;
+  color: var(--on-dark);
   display: grid; place-items: center;
   font-weight: 600;
-  box-shadow: inset 0 1px 0 rgba(255,255,255,.1);
+  box-shadow: inset 0 1px 0 var(--hairline-dark);
 }
 .msfg .av-copper {
-  background: linear-gradient(135deg, #d8b878, #8d5a26);
+  background: linear-gradient(135deg, #34d17e, #18a359);
   color: var(--forest-900);
   display: grid; place-items: center;
   font-weight: 600;
@@ -306,9 +303,7 @@
 
 /* Striped placeholder ------------------------------------------------------- */
 .msfg .ph {
-  background:
-    repeating-linear-gradient(135deg, rgba(14,58,46,.05) 0 6px, transparent 6px 14px),
-    var(--cream);
+  background: var(--bg-secondary);
   border: 1px dashed var(--ink-line);
   color: var(--ink-400);
   display: grid; place-items: center;

@@ -136,7 +136,7 @@ const EmploymentStep = ({
                           padding: '0.25rem 0.5rem',
                           borderRadius: '12px',
                           background: employmentStatus === 'Present' ? 'var(--success-color)' : 'var(--warning-color)',
-                          color: '#fff',
+                          color: '#0b231c',
                           fontWeight: '600'
                         }}>
                           {employmentStatus}

@@ -240,10 +240,10 @@ const BorrowerInformationStep = ({
                           >
                             {resIndex === 0 ? 'Primary Address' : `Address ${resIndex + 1}`}
                             {resIndex === 0 && (
-                              <span style={{ 
-                                background: 'var(--primary-color)', 
-                                color: 'white', 
-                                padding: '0.125rem 0.5rem', 
+                              <span style={{
+                                background: 'var(--primary-color)',
+                                color: '#0b231c',
+                                padding: '0.125rem 0.5rem',
                                 borderRadius: '8px',
                                 fontSize: '0.65rem',
                                 fontWeight: '600'

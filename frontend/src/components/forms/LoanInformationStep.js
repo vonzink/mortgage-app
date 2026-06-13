@@ -82,7 +82,7 @@ const LoanInformationStep = ({ register, errors, watch, setValue, getValues }) =
     padding: '0.4rem 0.75rem',
     border: '1px solid var(--primary-color, #1fb463)',
     background: active ? 'var(--primary-color, #1fb463)' : 'white',
-    color: active ? 'white' : 'var(--primary-color, #1fb463)',
+    color: active ? '#0b231c' : 'var(--primary-color, #1fb463)',
     cursor: 'pointer',
     fontWeight: 500,
   });

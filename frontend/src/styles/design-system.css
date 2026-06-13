@@ -76,7 +76,7 @@
 
 /* Typography ---------------------------------------------------------------- */
 .msfg h1, .msfg h2, .msfg h3, .msfg h4 {
-  font-weight: 600; letter-spacing: -0.02em; margin: 0; color: var(--ink-900);
+  font-weight: 700; letter-spacing: -0.02em; margin: 0; color: var(--ink-900);
 }
 .msfg .eyebrow {
   font-size: 11px; text-transform: uppercase; letter-spacing: .12em;

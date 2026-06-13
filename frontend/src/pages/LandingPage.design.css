@@ -126,7 +126,7 @@
   width: 44px; height: 44px;
   border-radius: 11px;
   background: linear-gradient(135deg, var(--forest-700), var(--forest-900));
-  color: #f1ede0;
+  color: var(--on-dark);
   display: grid;
   place-items: center;
   margin-bottom: 4px;

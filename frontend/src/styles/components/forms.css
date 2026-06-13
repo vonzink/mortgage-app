@@ -318,3 +318,9 @@ textarea[readonly] {
 }
 .ssn-reveal:hover { color: var(--ink-900, #222); background: rgba(0,0,0,0.04); }
 .ssn-reveal:focus-visible { outline: 2px solid var(--copper); outline-offset: -1px; }
+
+/* Pill tab hover (Borrower / Employment / Residence / REO sub-tabs).
+   bubbleTabStyle sets the base look inline; this expresses the hover that the
+   old onMouseEnter/Leave handlers used to set imperatively. !important is
+   required to win over the inline background the factory applies. */
+.form-tab:hover { background: #e7f6ee !important; }

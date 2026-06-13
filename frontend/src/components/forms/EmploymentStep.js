@@ -75,20 +75,9 @@ const EmploymentStep = ({
           <button
             key={borrowerField.id}
             type="button"
+            className="form-tab"
             onClick={() => setActiveBorrowerTab(borrowerIndex)}
             style={bubbleTabStyle(activeBorrowerTab === borrowerIndex)}
-            onMouseEnter={(e) => {
-              if (activeBorrowerTab !== borrowerIndex) {
-                e.target.style.background = '#e0e0e0';
-                e.target.style.transform = 'translateY(-1px)';
-              }
-            }}
-            onMouseLeave={(e) => {
-              if (activeBorrowerTab !== borrowerIndex) {
-                e.target.style.background = '#f0f0f0';
-                e.target.style.transform = 'translateY(0)';
-              }
-            }}
           >
             {getBorrowerName(borrowerIndex)}
           </button>
@@ -136,28 +125,9 @@ const EmploymentStep = ({
                     <button
                       key={empField.id}
                       type="button"
+                      className="form-tab"
                       onClick={() => setActiveEmploymentTab(empIndex)}
-                      style={{
-                        ...bubbleTabStyle(activeEmploymentTab === empIndex),
-                        background: activeEmploymentTab === empIndex 
-                          ? 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)' 
-                          : '#f0f0f0',
-                        boxShadow: activeEmploymentTab === empIndex 
-                          ? '0 4px 15px rgba(79, 172, 254, 0.4)' 
-                          : '0 2px 5px rgba(0,0,0,0.1)',
-                      }}
-                      onMouseEnter={(e) => {
-                        if (activeEmploymentTab !== empIndex) {
-                          e.target.style.background = '#e0e0e0';
-                          e.target.style.transform = 'translateY(-1px)';
-                        }
-                      }}
-                      onMouseLeave={(e) => {
-                        if (activeEmploymentTab !== empIndex) {
-                          e.target.style.background = '#f0f0f0';
-                          e.target.style.transform = 'translateY(0)';
-                        }
-                      }}
+                      style={bubbleTabStyle(activeEmploymentTab === empIndex)}
                     >
                       {displayName}
                       {employmentStatus && (

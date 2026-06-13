@@ -1,32 +1,25 @@
 /**
  * Pill-style tab look used by the legacy form steps (Borrower / Employment /
- * Assets sub-tabs). The purple-gradient styling predates the design refresh
- * and was duplicated in three files before audit item M-4.
+ * Assets sub-tabs). Restyled to the MSFG brand palette: active tabs are a
+ * flat spring fill with ink text and a copper lip shadow; inactive tabs are a
+ * flat paper-2 chip with a hairline border. Hover is expressed via the CSS
+ * `.form-tab:hover` rule in forms.css (callers add the `form-tab` class), not
+ * a DOM-mutating handler.
  *
  * Returns a style object that callers can spread directly or pass to
  * {@code style={...}}. Pure — no React, no state.
- *
- * NOTE: this doesn't match the new design-system token palette; it's
- * preserved as-is so the existing forms keep visual continuity. When the
- * form steps migrate to the design system, replace usages with the design
- * Pill / Button primitives.
  */
 export const bubbleTabStyle = (isActive) => ({
   padding: '0.6rem 1.2rem',
-  border: 'none',
+  border: isActive ? 'none' : '1px solid #e2e6dd',
   borderRadius: '20px',
-  background: isActive
-    ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
-    : '#f0f0f0',
-  color: isActive ? 'white' : '#666',
+  background: isActive ? '#1fb463' : '#f2f4ef',
+  color: isActive ? '#0b231c' : '#5a6b61',
   cursor: 'pointer',
   fontWeight: isActive ? '600' : '500',
   fontSize: '0.9rem',
-  transition: 'all 0.3s ease',
-  boxShadow: isActive
-    ? '0 4px 15px rgba(102, 126, 234, 0.4)'
-    : '0 2px 5px rgba(0,0,0,0.1)',
-  transform: isActive ? 'translateY(-2px)' : 'translateY(0)',
+  transition: 'background 0.15s ease, color 0.15s ease',
+  boxShadow: isActive ? '0 3px 0 #0c6b39' : 'none',
   marginRight: '0.75rem',
   marginBottom: '0.5rem',
   display: 'inline-flex',

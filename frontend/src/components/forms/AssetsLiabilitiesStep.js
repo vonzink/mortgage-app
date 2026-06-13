@@ -220,28 +220,9 @@ const AssetsLiabilitiesStep = ({
                       <button
                         key={reoField.id}
                         type="button"
+                        className="form-tab"
                         onClick={() => setActiveREOTab(reoIndex)}
-                        style={{
-                          ...bubbleTabStyle(activeREOTab === reoIndex),
-                          background: activeREOTab === reoIndex 
-                            ? 'linear-gradient(135deg, #fa709a 0%, #fee140 100%)' 
-                            : '#f0f0f0',
-                          boxShadow: activeREOTab === reoIndex 
-                            ? '0 4px 15px rgba(250, 112, 154, 0.4)' 
-                            : '0 2px 5px rgba(0,0,0,0.1)',
-                        }}
-                        onMouseEnter={(e) => {
-                          if (activeREOTab !== reoIndex) {
-                            e.target.style.background = '#e0e0e0';
-                            e.target.style.transform = 'translateY(-1px)';
-                          }
-                        }}
-                        onMouseLeave={(e) => {
-                          if (activeREOTab !== reoIndex) {
-                            e.target.style.background = '#f0f0f0';
-                            e.target.style.transform = 'translateY(0)';
-                          }
-                        }}
+                        style={bubbleTabStyle(activeREOTab === reoIndex)}
                       >
                         {getREOPropertyName(reoIndex)}
                       </button>
@@ -487,10 +468,10 @@ const AssetsLiabilitiesStep = ({
                                           alignItems: 'center', 
                                           gap: '0.75rem',
                                           padding: '0.5rem',
-                                          background: isChecked ? '#e8f4f8' : 'white',
+                                          background: isChecked ? '#1fb46324' : 'white',
                                           borderRadius: '4px',
                                           cursor: 'pointer',
-                                          border: isChecked ? '2px solid #667eea' : '1px solid #ddd'
+                                          border: isChecked ? '2px solid #1fb463' : '1px solid #e2e6dd'
                                         }}
                                       >
                                         <input

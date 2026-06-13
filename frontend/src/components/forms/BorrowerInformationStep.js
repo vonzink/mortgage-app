@@ -234,28 +234,9 @@ const BorrowerInformationStep = ({
                           <button
                             key={resField.id}
                             type="button"
+                            className="form-tab"
                             onClick={() => setActiveResidenceTab(0, resIndex)}
-                            style={{
-                              ...bubbleTabStyle(activeResidenceTab === resIndex),
-                              background: activeResidenceTab === resIndex 
-                                ? 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)' 
-                                : '#f0f0f0',
-                              boxShadow: activeResidenceTab === resIndex 
-                                ? '0 4px 15px rgba(240, 147, 251, 0.4)' 
-                                : '0 2px 5px rgba(0,0,0,0.1)',
-                            }}
-                            onMouseEnter={(e) => {
-                              if (activeResidenceTab !== resIndex) {
-                                e.target.style.background = '#e0e0e0';
-                                e.target.style.transform = 'translateY(-1px)';
-                              }
-                            }}
-                            onMouseLeave={(e) => {
-                              if (activeResidenceTab !== resIndex) {
-                                e.target.style.background = '#f0f0f0';
-                                e.target.style.transform = 'translateY(0)';
-                              }
-                            }}
+                            style={bubbleTabStyle(activeResidenceTab === resIndex)}
                           >
                             {resIndex === 0 ? 'Primary Address' : `Address ${resIndex + 1}`}
                             {resIndex === 0 && (

@@ -16,6 +16,15 @@
   --light-color: #fafafa;
   --dark-color: #2c2c2c;
 
+  /* Brand tokens (MSFG restyle) */
+  --spring: #1fb463;
+  --spring-soft: #1fb46324;
+  --mint: #7fe3a8;
+  --lip: #0c6b39;
+  --on-dark: #ffffffeb;
+  --on-dark-muted: #ffffff9e;
+  --hairline-dark: #ffffff1f;
+
   /* Background Colors - Paper-like theme */
   --bg-primary: linear-gradient(135deg, #f5f1e8 0%, #f9f6f0 25%, #fdfcf9 50%, #f7f4ed 75%, #f3efe6 100%);
   --bg-secondary: #fefdfb;
@@ -54,8 +63,7 @@
   --spacing-xxl: 3rem;
 
   /* Typography */
-  --font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
-    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+  --font-family: 'Hanken Grotesk', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   --font-size-xs: 0.75rem;
   --font-size-sm: 0.875rem;
   --font-size-md: 1rem;

@@ -5,16 +5,16 @@
 
 :root {
   /* Colors */
-  --primary-color: #2c5f2d;
-  --primary-dark: #1a3d1b;
-  --primary-light: #4a7c4d;
-  --secondary-color: #5a5a5a;
-  --success-color: #2e7d32;
-  --danger-color: #c62828;
-  --warning-color: #f57c00;
-  --info-color: #0277bd;
-  --light-color: #fafafa;
-  --dark-color: #2c2c2c;
+  --primary-color: #1fb463;
+  --primary-dark: #18a359;
+  --primary-light: #34d17e;
+  --secondary-color: #5a6b61;
+  --success-color: #1fb463;
+  --danger-color: #a8423a;
+  --warning-color: #c08527;
+  --info-color: #2e5d8a;
+  --light-color: #f2f4ef;
+  --dark-color: #0b231c;
 
   /* Brand tokens (MSFG restyle) */
   --spring: #1fb463;
@@ -26,31 +26,31 @@
   --hairline-dark: #ffffff1f;
 
   /* Background Colors - Paper-like theme */
-  --bg-primary: linear-gradient(135deg, #f5f1e8 0%, #f9f6f0 25%, #fdfcf9 50%, #f7f4ed 75%, #f3efe6 100%);
-  --bg-secondary: #fefdfb;
+  --bg-primary: #fbfbf7;
+  --bg-secondary: #f2f4ef;
   --bg-card: #ffffff;
-  --bg-glass: #fcfbf8;
+  --bg-glass: #f2f4ef;
 
   /* Text Colors - High contrast for readability */
-  --text-primary: #2c2c2c;
-  --text-secondary: #4a4a4a;
-  --text-muted: #757575;
+  --text-primary: #0b231c;
+  --text-secondary: #2b332e;
+  --text-muted: #5a6b61;
   --text-white: #ffffff;
 
   /* Border Colors - Subtle but visible */
-  --border-primary: #d4c5a9;
-  --border-secondary: #e0ddd5;
-  --border-light: #e8e6df;
+  --border-primary: #e2e6dd;
+  --border-secondary: #e2e6dd;
+  --border-light: #e2e6dd;
 
   /* Shadows - Paper-like depth */
-  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.08);
-  --shadow-md: 0 2px 6px rgba(0, 0, 0, 0.1);
-  --shadow-lg: 0 4px 12px rgba(0, 0, 0, 0.12);
-  --shadow-glow: 0 0 0 1px rgba(44, 95, 45, 0.1);
+  --shadow-sm: 0 2px 4px #07271e14, 0 8px 18px #07271e1a;
+  --shadow-md: 0 2px 4px #07271e14, 0 8px 18px #07271e1a;
+  --shadow-lg: 0 12px 44px #07271e33;
+  --shadow-glow: 0 0 0 4px #1fb46324;
 
   /* Border Radius */
-  --radius-sm: 4px;
-  --radius-md: 8px;
+  --radius-sm: 6px;
+  --radius-md: 9px;
   --radius-lg: 12px;
   --radius-xl: 16px;
 

@@ -20,7 +20,7 @@ const generateURLAHTML = (formData) => {
     }
 
     body {
-      font-family: 'Arial', 'Helvetica', sans-serif;
+      font-family: 'Hanken Grotesk', Arial, Helvetica, sans-serif;
       font-size: 10pt;
       line-height: 1.3;
       color: #000;
@@ -110,7 +110,7 @@ const generateURLAHTML = (formData) => {
       font-weight: bold;
       font-size: 10pt;
       margin-bottom: 10px;
-      color: #2c5f2d;
+      color: #07271e;
     }
 
     table {

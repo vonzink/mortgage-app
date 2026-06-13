@@ -6,50 +6,50 @@
 
 :root {
   /* Brand */
-  --forest-900: #0a2a20;
-  --forest-800: #0e3a2e;
-  --forest-700: #154d3d;
-  --forest-600: #1e6650;
-  --forest-500: #2a8268;
-  --forest-50:  #e8f0ec;
-  --forest-25:  #f1f6f2;
+  --forest-900: #07271e;
+  --forest-800: #0b3d30;
+  --forest-700: #0e4a39;
+  --forest-600: #135e48;
+  --forest-500: #1d7a55;
+  --forest-50:  #e7f6ee;
+  --forest-25:  #f2f4ef;
 
   /* Surfaces */
-  --parchment: #f6f2e8;
-  --parchment-soft: #faf7ef;
-  --cream: #fbf9f3;
+  --parchment: #f2f4ef;
+  --parchment-soft: #fbfbf7;
+  --cream: #f2f4ef;
   --paper: #ffffff;
-  --ink-line: #e8e3d4;
-  --ink-line-soft: #efeadb;
+  --ink-line: #e2e6dd;
+  --ink-line-soft: #eef0ea;
 
   /* Text */
-  --ink-900: #131815;
+  --ink-900: #0b231c;
   --ink-700: #2b332e;
-  --ink-500: #5a625b;
-  --ink-400: #828a83;
-  --ink-300: #a8aea7;
+  --ink-500: #5a6b61;
+  --ink-400: #828f86;
+  --ink-300: #a8b0a8;
 
   /* Accents (status) */
-  --copper: #b16b3a;
-  --copper-bg: #f6e9dc;
+  --copper: #1fb463;
+  --copper-bg: #1fb46324;
   --amber: #c08527;
   --amber-bg: #faecd0;
   --rose:   #a8423a;
   --rose-bg: #f6dfdd;
   --azure:  #2e5d8a;
   --azure-bg: #dee9f4;
-  --moss:   #3f7553;
-  --moss-bg: #dde9df;
+  --moss:   #18a359;
+  --moss-bg: #1fb46324;
 
   /* Shadows */
-  --sh-1: 0 1px 0 rgba(15, 40, 30, .04), 0 1px 2px rgba(15, 40, 30, .04);
-  --sh-2: 0 1px 0 rgba(15, 40, 30, .04), 0 4px 14px rgba(15, 40, 30, .06);
-  --sh-3: 0 1px 0 rgba(15, 40, 30, .04), 0 18px 40px -18px rgba(15, 40, 30, .25);
+  --sh-1: 0 1px 0 #07271e0f, 0 1px 2px #07271e14;
+  --sh-2: 0 2px 4px #07271e14, 0 8px 18px #07271e1a;
+  --sh-3: 0 12px 44px #07271e33;
 
   --radius-sm: 6px;
-  --radius-md: 10px;
-  --radius-lg: 14px;
-  --radius-xl: 20px;
+  --radius-md: 9px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
 
   /* Brand tokens (MSFG restyle) */
   --spring: #1fb463;

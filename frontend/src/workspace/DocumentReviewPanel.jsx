@@ -90,7 +90,7 @@ export default function DocumentReviewPanel({ loanId, doc, onClose, onReviewed }
           {action && (
             <>
               <label className="ws-form-row" style={{ marginTop: '1rem' }}>
-                <span>Notes {requiresNotes && <em style={{ color: '#b91c1c' }}>(required)</em>}</span>
+                <span>Notes {requiresNotes && <em style={{ color: '#a8423a' }}>(required)</em>}</span>
                 <textarea
                   rows={4}
                   value={notes}
@@ -118,9 +118,9 @@ export default function DocumentReviewPanel({ loanId, doc, onClose, onReviewed }
 
 function ActionButton({ kind, active, onClick, icon, label }) {
   const palette = {
-    accept:   { bg: '#dcfce7', fg: '#166534', border: '#16a34a' },
-    revision: { bg: '#fef3c7', fg: '#92400e', border: '#d97706' },
-    reject:   { bg: '#fee2e2', fg: '#991b1b', border: '#dc2626' },
+    accept:   { bg: '#1fb46324', fg: '#135e48', border: '#1fb463' },
+    revision: { bg: '#faecd0', fg: '#92400e', border: '#c08527' },
+    reject:   { bg: '#f6dfdd', fg: '#991b1b', border: '#a8423a' },
   }[kind];
 
   return (

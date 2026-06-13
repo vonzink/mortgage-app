@@ -52,13 +52,13 @@ export default function UploadTypeModal({ files, defaultPartyRole = 'lo', onCanc
             {files.slice(0, 6).map((f, i) => (
               <li key={i}><span className="ws-file-name" title={f.name}>{f.name}</span></li>
             ))}
-            {files.length > 6 && <li style={{ color: '#666', fontStyle: 'italic' }}>+ {files.length - 6} more…</li>}
+            {files.length > 6 && <li style={{ color: '#5a6b61', fontStyle: 'italic' }}>+ {files.length - 6} more…</li>}
           </ul>
 
           <label className="ws-form-row">
             <span>Document type</span>
             {loadingTypes ? (
-              <span style={{ fontSize: '0.85rem', color: '#666' }}>Loading…</span>
+              <span style={{ fontSize: '0.85rem', color: '#5a6b61' }}>Loading…</span>
             ) : types.length > 0 ? (
               <select value={typeName} onChange={(e) => setTypeName(e.target.value)}>
                 {types.map((t) => (
@@ -75,7 +75,7 @@ export default function UploadTypeModal({ files, defaultPartyRole = 'lo', onCanc
             )}
           </label>
 
-          <p style={{ fontSize: '0.8rem', color: '#666', margin: '0.5rem 0 0' }}>
+          <p style={{ fontSize: '0.8rem', color: '#5a6b61', margin: '0.5rem 0 0' }}>
             Add a description after upload via the file's edit menu.
           </p>
 

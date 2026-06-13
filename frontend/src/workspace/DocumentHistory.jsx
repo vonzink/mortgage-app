@@ -36,7 +36,7 @@ export default function DocumentHistory({ loanId, doc, onClose }) {
         <div className="ws-modal-head">
           <div>
             <h3 style={{ margin: 0 }}>History</h3>
-            <p style={{ margin: '0.25rem 0 0', color: 'var(--text-secondary, #666)', fontSize: '0.85rem' }}>
+            <p style={{ margin: '0.25rem 0 0', color: 'var(--text-secondary, #5a6b61)', fontSize: '0.85rem' }}>
               {doc.fileName}
             </p>
           </div>
@@ -44,9 +44,9 @@ export default function DocumentHistory({ loanId, doc, onClose }) {
         </div>
         <div className="ws-modal-body">
           {loading && <p>Loading…</p>}
-          {error && <p style={{ color: '#b91c1c' }}>{error}</p>}
+          {error && <p style={{ color: '#a8423a' }}>{error}</p>}
           {!loading && !error && entries.length === 0 && (
-            <p style={{ color: 'var(--text-secondary, #666)' }}>No history entries yet.</p>
+            <p style={{ color: 'var(--text-secondary, #5a6b61)' }}>No history entries yet.</p>
           )}
           {!loading && entries.length > 0 && (
             <ol className="ws-history-list">

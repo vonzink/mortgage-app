@@ -39,7 +39,7 @@ export default function RequireAuth({ children }) {
     return (
       <div style={{ padding: '2rem' }}>
         <h2>Sign-in error</h2>
-        <p style={{ color: '#b91c1c' }}>{auth.error.message}</p>
+        <p style={{ color: '#a8423a' }}>{auth.error.message}</p>
         <button onClick={() => auth.signinRedirect()}>Sign in again</button>
       </div>
     );

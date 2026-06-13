@@ -31,7 +31,7 @@
 }
 .apply-step-card {
   border: 1px solid var(--ink-line);
-  background: #fff;
+  background: var(--paper);
   border-radius: 10px;
   padding: 10px 12px;
   text-align: left;
@@ -43,8 +43,8 @@
 .apply-step-card--clickable:hover { background: var(--cream); }
 .apply-step-card--active {
   border-color: var(--forest-700);
-  background: rgba(30,102,80,.06);
-  box-shadow: 0 0 0 4px rgba(30,102,80,.06);
+  background: var(--spring-soft);
+  box-shadow: 0 0 0 4px var(--spring-soft);
 }
 .apply-step-card--done {
   background: var(--forest-25);
@@ -59,7 +59,7 @@
 .apply-step-icon {
   width: 22px; height: 22px; border-radius: 6px;
   background: var(--forest-800);
-  color: #fff;
+  color: var(--paper);
   display: grid; place-items: center;
   flex: 0 0 auto;
 }
@@ -99,7 +99,7 @@
 /* Sidebar — indicative quote (dark) -------------------------------------- */
 .apply-quote-card {
   background: linear-gradient(160deg, var(--forest-800), var(--forest-900));
-  color: #f1ede0;
+  color: var(--on-dark);
   border: 0;
 }
 .apply-quote-eyebrow {
@@ -111,7 +111,7 @@
 .apply-quote-pct { font-size: 22px; }
 .apply-quote-sub { opacity: .7; font-size: 12.5px; margin-top: 6px; }
 .apply-quote-hr {
-  margin: 16px 0; height: 1px; background: rgba(255,255,255,.08);
+  margin: 16px 0; height: 1px; background: var(--hairline-dark);
 }
 .apply-quote-stats {
   display: grid; grid-template-columns: 1fr 1fr; gap: 12px; font-size: 13px;
@@ -131,7 +131,7 @@
 }
 .apply-checklist-box {
   width: 18px; height: 18px; border-radius: 5px;
-  background: #fff; border: 1px solid var(--ink-line);
+  background: var(--paper); border: 1px solid var(--ink-line);
   flex: 0 0 auto;
 }
 .apply-checklist-count { font-size: 12px; }

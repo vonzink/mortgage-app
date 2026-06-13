@@ -465,7 +465,7 @@
 
 /* Address Display */
 .address-display-section {
-  background: linear-gradient(135deg, rgba(40, 167, 69, 0.03), rgba(52, 206, 87, 0.03));
+  background: var(--bg-secondary);
   border: 1px solid var(--border-primary);
   border-radius: var(--radius-md);
   padding: var(--spacing-md);
@@ -507,21 +507,21 @@
 }
 
 .alert-warning {
-  background: rgba(255, 193, 7, 0.1);
-  border-color: rgba(255, 193, 7, 0.3);
-  color: #856404;
+  background: var(--amber-bg);
+  border-color: var(--amber);
+  color: var(--amber);
 }
 
 .alert-danger {
-  background: rgba(220, 53, 69, 0.1);
-  border-color: rgba(220, 53, 69, 0.3);
-  color: #721c24;
+  background: var(--rose-bg);
+  border-color: var(--rose);
+  color: var(--rose);
 }
 
 .alert-success {
-  background: rgba(40, 167, 69, 0.1);
-  border-color: rgba(40, 167, 69, 0.3);
-  color: #155724;
+  background: var(--spring-soft);
+  border-color: var(--primary-color);
+  color: var(--primary-color);
 }
 
 /* Loading States */
@@ -553,8 +553,8 @@
 .hmda-section {
   margin-top: 1.75rem;
   padding: 1.25rem 1.25rem 1rem;
-  background: var(--bg-secondary, #f6f4ee);
-  border: 1px solid var(--border-light, #e5e2d6);
+  background: var(--bg-secondary, #f2f4ef);
+  border: 1px solid var(--border-light, #e2e6dd);
   border-radius: 10px;
 }
 
@@ -588,7 +588,7 @@
   margin: 0;
   padding: 0.85rem 1rem 0.95rem;
   background: var(--bg-primary, #fff);
-  border: 1px solid var(--border-light, #e5e2d6);
+  border: 1px solid var(--border-light, #e2e6dd);
   border-radius: 8px;
   min-width: 0;
 }
@@ -636,7 +636,7 @@
 .hmda-refusal {
   margin-top: 0.7rem;
   padding-top: 0.55rem;
-  border-top: 1px dashed var(--border-light, #e5e2d6);
+  border-top: 1px dashed var(--border-light, #e2e6dd);
   color: var(--text-secondary, #666);
   font-size: 0.82rem;
 }
@@ -646,7 +646,7 @@
   margin-top: 0.5rem;
   padding: 0.45rem 0.6rem;
   font-size: 0.9rem;
-  border: 1px solid var(--border-light, #e5e2d6);
+  border: 1px solid var(--border-light, #e2e6dd);
   border-radius: 6px;
   background: var(--bg-primary, #fff);
 }

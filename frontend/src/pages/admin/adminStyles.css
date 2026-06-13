@@ -1,0 +1,7 @@
+/* Admin card hover — replaces the former JS mouse-hover border mutation.
+   The inline style on .admin-card carries the transition + base border; this rule
+   supplies the brand-spring hover accent and lift. */
+.admin-card:hover {
+  border-color: #1fb463 !important;
+  transform: translateY(-2px);
+}

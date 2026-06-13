@@ -3,6 +3,10 @@ import { Link } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import adminService from '../../services/adminService';
 import useRoles from '../../hooks/useRoles';
+import {
+  tableStyle, th, td, monoCell, primaryBtn, secondaryBtn, linkBtn, dangerLinkBtn,
+  input, mutedText, dangerText, fieldLabel,
+} from './adminStyles';
 
 const EMPTY_FORM = {
   name: '',
@@ -98,13 +102,13 @@ export default function DocumentTypesAdmin() {
   };
 
   if (!isAdmin) {
-    return <div style={{ padding: '2rem' }}><p style={{ color: '#b91c1c' }}>Admin access required.</p></div>;
+    return <div style={{ padding: '2rem' }}><p style={dangerText}>Admin access required.</p></div>;
   }
 
   return (
     <div style={{ padding: '2rem', maxWidth: 1200, margin: '0 auto' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '1.5rem' }}>
-        <Link to="/admin" style={{ color: 'var(--text-secondary, #666)' }}>← Admin</Link>
+        <Link to="/admin" style={mutedText}>← Admin</Link>
         <h2 style={{ margin: 0 }}>Document Types</h2>
         <button onClick={openCreate} style={primaryBtn}>+ New type</button>
       </div>
@@ -128,7 +132,7 @@ export default function DocumentTypesAdmin() {
               <tr key={row.id} style={{ opacity: row.isActive ? 1 : 0.5 }}>
                 <td style={td}>{row.sortOrder}</td>
                 <td style={td}>{row.name}</td>
-                <td style={{ ...td, fontFamily: 'monospace', fontSize: '0.85rem' }}>{row.slug}</td>
+                <td style={monoCell}>{row.slug}</td>
                 <td style={td}>{row.defaultFolderName || '—'}</td>
                 <td style={td}>{row.maxFileSizeBytes ? `${(row.maxFileSizeBytes / 1024 / 1024).toFixed(1)} MB` : '—'}</td>
                 <td style={td}>{row.borrowerVisibleDefault ? 'Yes' : 'No'}</td>
@@ -139,7 +143,7 @@ export default function DocumentTypesAdmin() {
                 </td>
               </tr>
             ))}
-            {!items.length && <tr><td colSpan={8} style={{ ...td, textAlign: 'center', color: '#999' }}>No document types yet.</td></tr>}
+            {!items.length && <tr><td colSpan={8} style={{ ...td, textAlign: 'center', ...mutedText }}>No document types yet.</td></tr>}
           </tbody>
         </table>
       )}
@@ -181,21 +185,12 @@ export default function DocumentTypesAdmin() {
   );
 }
 
-// ── Shared styles + small components (kept inline to avoid new CSS files) ────
-
-const tableStyle = { width: '100%', borderCollapse: 'collapse', background: 'var(--bg-card, white)', borderRadius: 8, overflow: 'hidden', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' };
-const th = { padding: '0.75rem 1rem', textAlign: 'left', borderBottom: '2px solid var(--border-color, #e5e7eb)', fontSize: '0.85rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-secondary, #666)' };
-const td = { padding: '0.9rem 1rem', borderBottom: '1px solid #d1d5db', fontSize: '0.9rem', verticalAlign: 'top' };
-const primaryBtn = { padding: '0.5rem 1rem', background: '#2563eb', color: 'white', border: 'none', borderRadius: 6, cursor: 'pointer', marginLeft: 'auto' };
-const secondaryBtn = { padding: '0.5rem 1rem', background: 'transparent', border: '1px solid var(--border-color, #d1d5db)', borderRadius: 6, cursor: 'pointer' };
-const linkBtn = { background: 'transparent', border: 'none', color: '#2563eb', cursor: 'pointer', marginRight: '1rem', padding: '4px 8px', borderRadius: 4 };
-const dangerLinkBtn = { background: 'transparent', border: 'none', color: '#b91c1c', cursor: 'pointer', padding: '4px 8px', borderRadius: 4 };
-const input = { width: '100%', padding: '0.5rem 0.75rem', border: '1px solid var(--border-color, #d1d5db)', borderRadius: 6, fontSize: '0.9rem' };
+// ── Small components (styles imported from ./adminStyles) ────────────────────
 
 function Field({ label, children }) {
   return (
     <div style={{ marginBottom: '0.75rem' }}>
-      <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 500, marginBottom: '0.25rem', color: 'var(--text-secondary, #555)' }}>{label}</label>
+      <label style={fieldLabel}>{label}</label>
       {children}
     </div>
   );

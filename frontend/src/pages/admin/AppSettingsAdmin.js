@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import adminService from '../../services/adminService';
 import useRoles from '../../hooks/useRoles';
+import { helpText, amberText } from './adminStyles';
 
 const PROVIDERS = [
   { value: 'anthropic', label: 'Anthropic (Claude)' },
@@ -68,7 +69,7 @@ export default function AppSettingsAdmin() {
           AI evaluation
         </label>
         {!form.aiEvalEnabled && (
-          <p style={{ color: '#888', marginTop: 6 }}>
+          <p style={{ ...helpText, marginTop: 6 }}>
             AI evaluation is disabled — no Evaluate buttons will appear in workspaces.
           </p>
         )}
@@ -97,7 +98,7 @@ export default function AppSettingsAdmin() {
         />
 
         {form.llmDefaultProvider === 'deepseek' && (
-          <p style={{ color: '#b16b3a', marginTop: 12, fontSize: 13 }}>
+          <p style={{ ...amberText, marginTop: 12, fontSize: 13 }}>
             DeepSeek is disabled in production by default. Set <code>APP_ALLOW_DEEPSEEK_IN_PROD=true</code> to enable.
           </p>
         )}

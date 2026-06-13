@@ -1,6 +1,8 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import useRoles from '../../hooks/useRoles';
+import { mutedText, dangerText } from './adminStyles';
+import './adminStyles.css';
 
 export default function AdminHome() {
   const { isAdmin } = useRoles();
@@ -9,7 +11,7 @@ export default function AdminHome() {
     return (
       <div style={{ padding: '2rem', maxWidth: 720, margin: '0 auto' }}>
         <h2>Admin</h2>
-        <p style={{ color: '#b91c1c' }}>You need the Admin role to access this area.</p>
+        <p style={dangerText}>You need the Admin role to access this area.</p>
       </div>
     );
   }
@@ -17,7 +19,7 @@ export default function AdminHome() {
   return (
     <div style={{ padding: '2rem', maxWidth: 960, margin: '0 auto' }}>
       <h2>Admin</h2>
-      <p style={{ color: 'var(--text-secondary, #5a6b61)' }}>
+      <p style={mutedText}>
         Manage system configuration for document workflows.
       </p>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '1rem', marginTop: '1.5rem' }}>
@@ -55,17 +57,10 @@ function AdminCard({ title, description, to }) {
         color: 'inherit',
         transition: 'border-color 0.15s, transform 0.15s',
       }}
-      onMouseEnter={(e) => {
-        e.currentTarget.style.borderColor = '#2563eb';
-        e.currentTarget.style.transform = 'translateY(-2px)';
-      }}
-      onMouseLeave={(e) => {
-        e.currentTarget.style.borderColor = 'var(--border-color, #e2e6dd)';
-        e.currentTarget.style.transform = 'translateY(0)';
-      }}
+      className="admin-card"
     >
       <h3 style={{ margin: '0 0 0.5rem 0', fontSize: '1.1rem' }}>{title}</h3>
-      <p style={{ margin: 0, fontSize: '0.875rem', color: 'var(--text-secondary, #5a6b61)' }}>{description}</p>
+      <p style={{ margin: 0, fontSize: '0.875rem', ...mutedText }}>{description}</p>
     </Link>
   );
 }

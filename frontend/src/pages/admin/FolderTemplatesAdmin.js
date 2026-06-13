@@ -3,6 +3,10 @@ import { Link } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import adminService from '../../services/adminService';
 import useRoles from '../../hooks/useRoles';
+import {
+  tableStyle, th, td, monoCell, primaryBtn, secondaryBtn, linkBtn, dangerLinkBtn,
+  input, monoTextarea, badge, mutedText, dangerText, helpText, fieldLabel,
+} from './adminStyles';
 
 const EMPTY_FORM = {
   displayName: '',
@@ -103,17 +107,17 @@ export default function FolderTemplatesAdmin() {
   };
 
   if (!isAdmin) {
-    return <div style={{ padding: '2rem' }}><p style={{ color: '#b91c1c' }}>Admin access required.</p></div>;
+    return <div style={{ padding: '2rem' }}><p style={dangerText}>Admin access required.</p></div>;
   }
 
   return (
     <div style={{ padding: '2rem', maxWidth: 1000, margin: '0 auto' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '1rem' }}>
-        <Link to="/admin" style={{ color: 'var(--text-secondary, #666)' }}>← Admin</Link>
+        <Link to="/admin" style={mutedText}>← Admin</Link>
         <h2 style={{ margin: 0 }}>Folder Templates</h2>
         <button onClick={openCreate} style={primaryBtn}>+ New template</button>
       </div>
-      <p style={{ color: 'var(--text-secondary, #666)', fontSize: '0.875rem', marginTop: 0 }}>
+      <p style={{ ...mutedText, fontSize: '0.875rem', marginTop: 0 }}>
         These folders are seeded into every loan workspace on first access. Changes apply to new loans and gap-fill existing ones.
       </p>
 
@@ -134,11 +138,11 @@ export default function FolderTemplatesAdmin() {
               <tr key={row.id} style={{ opacity: row.isActive ? 1 : 0.5 }}>
                 <td style={td}>{row.sortOrder}</td>
                 <td style={td}>{row.displayName}</td>
-                <td style={{ ...td, fontFamily: 'monospace', fontSize: '0.85rem' }}>{row.sortKey || '—'}</td>
+                <td style={monoCell}>{row.sortKey || '—'}</td>
                 <td style={td}>
-                  {row.isDeleteFolder && <span style={badge('#fee2e2', '#b91c1c')}>Delete</span>}
-                  {row.isOldLoanArchive && <span style={badge('#fef3c7', '#92400e')}>Archive</span>}
-                  {!row.isDeleteFolder && !row.isOldLoanArchive && <span style={{ color: '#bbb' }}>—</span>}
+                  {row.isDeleteFolder && <span style={badge('rose')}>Delete</span>}
+                  {row.isOldLoanArchive && <span style={badge('amber')}>Archive</span>}
+                  {!row.isDeleteFolder && !row.isOldLoanArchive && <span style={mutedText}>—</span>}
                 </td>
                 <td style={td}>{row.isActive ? 'Active' : 'Inactive'}</td>
                 <td style={{ ...td, textAlign: 'right' }}>
@@ -149,7 +153,7 @@ export default function FolderTemplatesAdmin() {
                 </td>
               </tr>
             ))}
-            {!items.length && <tr><td colSpan={6} style={{ ...td, textAlign: 'center', color: '#999' }}>No folder templates yet.</td></tr>}
+            {!items.length && <tr><td colSpan={6} style={{ ...td, textAlign: 'center', ...mutedText }}>No folder templates yet.</td></tr>}
           </tbody>
         </table>
       )}
@@ -176,9 +180,9 @@ export default function FolderTemplatesAdmin() {
               onChange={e => setForm({ ...form, evalPrompt: e.target.value })}
               placeholder="e.g. Check that all income docs are present and totals match the borrower's stated income."
               rows={8}
-              style={{ ...input, fontFamily: 'ui-monospace, monospace', fontSize: 12, resize: 'vertical' }}
+              style={monoTextarea}
             />
-            <p style={{ fontSize: 12, color: '#888', margin: '4px 0 0' }}>
+            <p style={{ fontSize: 12, ...helpText, margin: '4px 0 0' }}>
               Leave empty to hide the Evaluate button on this folder.
             </p>
           </Field>
@@ -192,23 +196,10 @@ export default function FolderTemplatesAdmin() {
   );
 }
 
-const tableStyle = { width: '100%', borderCollapse: 'collapse', background: 'var(--bg-card, white)', borderRadius: 8, overflow: 'hidden', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' };
-const th = { padding: '0.75rem 1rem', textAlign: 'left', borderBottom: '2px solid var(--border-color, #e5e7eb)', fontSize: '0.85rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-secondary, #666)' };
-const td = { padding: '0.9rem 1rem', borderBottom: '1px solid #d1d5db', fontSize: '0.9rem', verticalAlign: 'top' };
-const primaryBtn = { padding: '0.5rem 1rem', background: '#2563eb', color: 'white', border: 'none', borderRadius: 6, cursor: 'pointer', marginLeft: 'auto' };
-const secondaryBtn = { padding: '0.5rem 1rem', background: 'transparent', border: '1px solid var(--border-color, #d1d5db)', borderRadius: 6, cursor: 'pointer' };
-const linkBtn = { background: 'transparent', border: 'none', color: '#2563eb', cursor: 'pointer', marginRight: '1rem', padding: '4px 8px', borderRadius: 4 };
-const dangerLinkBtn = { background: 'transparent', border: 'none', color: '#b91c1c', cursor: 'pointer', padding: '4px 8px', borderRadius: 4 };
-const input = { width: '100%', padding: '0.5rem 0.75rem', border: '1px solid var(--border-color, #d1d5db)', borderRadius: 6, fontSize: '0.9rem' };
-
-function badge(bg, fg) {
-  return { display: 'inline-block', padding: '0.15rem 0.5rem', borderRadius: 4, background: bg, color: fg, fontSize: '0.75rem', fontWeight: 600 };
-}
-
 function Field({ label, children }) {
   return (
     <div style={{ marginBottom: '0.75rem' }}>
-      <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 500, marginBottom: '0.25rem', color: 'var(--text-secondary, #555)' }}>{label}</label>
+      <label style={fieldLabel}>{label}</label>
       {children}
     </div>
   );

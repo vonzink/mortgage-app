@@ -6,15 +6,15 @@
 .loan-search-input {
   width: 100%; padding: 7px 10px 7px 30px;
   border: 1px solid var(--ink-line); border-radius: 999px;
-  background: #fff; font-size: 13px; color: var(--ink-900);
+  background: var(--paper); font-size: 13px; color: var(--ink-900);
 }
 .loan-search-input:focus {
   outline: 2px solid var(--copper); outline-offset: 1px;
 }
 .loan-search-panel {
   position: absolute; top: calc(100% + 6px); left: 0; right: 0;
-  background: #fff; border: 1px solid var(--ink-line); border-radius: 10px;
-  box-shadow: 0 8px 24px rgba(0,0,0,0.08);
+  background: var(--paper); border: 1px solid var(--ink-line); border-radius: 10px;
+  box-shadow: var(--shadow-lg);
   max-height: 380px; overflow-y: auto; z-index: 50;
   padding: 6px 0;
 }
@@ -28,9 +28,9 @@
   background: transparent; border: 0; text-align: left; cursor: pointer;
   font-family: inherit;
 }
-.loan-search-row.is-highlighted { background: var(--bg-secondary, #f2f4ef); }
+.loan-search-row.is-highlighted { background: var(--bg-secondary); }
 .loan-search-row-name { font-size: 14px; font-weight: 600; color: var(--ink-900); }
-.loan-search-row-name mark { background: rgba(177,107,58,.22); color: inherit; padding: 0 2px; border-radius: 2px; }
+.loan-search-row-name mark { background: var(--spring-soft); color: inherit; padding: 0 2px; border-radius: 2px; }
 .loan-search-row-sub { font-size: 12px; color: var(--ink-500); margin-top: 1px; }
 .loan-search-empty { padding: 10px 14px; font-size: 13px; color: var(--ink-500); }
 .loan-search-link { color: var(--copper); text-decoration: none; font-weight: 600; }

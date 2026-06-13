@@ -3,7 +3,7 @@
 .ws-root {
   display: flex;
   flex-direction: column;
-  background: #fff;
+  background: var(--paper, #fff);
   border-radius: 8px;
   border: 1px solid var(--border-color, #e2e6dd);
   overflow: hidden;
@@ -16,7 +16,7 @@
   gap: 0.5rem;
   padding: 0.75rem 1rem;
   border-bottom: 1px solid var(--border-color, #e2e6dd);
-  background: #fafafa;
+  background: var(--bg-secondary, #f2f4ef);
 }
 
 .ws-body {
@@ -29,7 +29,7 @@
   border-right: 1px solid var(--border-color, #e2e6dd);
   padding: 0.5rem 0;
   overflow-y: auto;
-  background: #fdfdfd;
+  background: var(--paper, #fff);
 }
 
 .ws-main {
@@ -59,7 +59,7 @@
   font-weight: 600;
   color: var(--primary-color, #1fb463);
   pointer-events: none;
-  background: var(--bg-primary, #fff);
+  background: var(--paper, #fff);
   padding: 0.6rem 1rem;
   border-radius: 6px;
   box-shadow: 0 2px 12px rgba(0,0,0,0.1);
@@ -88,14 +88,14 @@
   border-radius: 4px;
   cursor: default;
 }
-.ws-tree-row:hover { background: #f3f4f6; }
-.ws-tree-row--selected { background: #e6efe7; }
+.ws-tree-row:hover { background: var(--bg-secondary, #f2f4ef); }
+.ws-tree-row--selected { background: var(--spring-soft); }
 .ws-tree-row--selected .ws-tree-name { font-weight: 600; }
 
 /* Drag-hover: a folder is the prospective drop target for files being dragged. */
 .ws-tree-row--drophover {
-  background: #d1e7d2;
-  outline: 2px solid #2c5f2d;
+  background: var(--spring-soft);
+  outline: 2px solid var(--primary-color);
   outline-offset: -2px;
 }
 .ws-tree-row--drophover .ws-tree-name { font-weight: 600; }
@@ -107,26 +107,26 @@
 .ws-tree-row--delete .ws-tree-label svg { color: var(--ink-500); }
 .ws-tree-row--delete .ws-tree-name { color: var(--ink-500); font-weight: 500; }
 .ws-tree-row--delete.ws-tree-row--drophover {
-  background: #fee2e2;
-  outline-color: #b91c1c;
+  background: var(--rose-bg);
+  outline-color: var(--rose);
 }
 .ws-tree-row--delete.ws-tree-row--drophover .ws-tree-label svg,
 .ws-tree-row--delete.ws-tree-row--drophover .ws-tree-name {
-  color: #b91c1c;
+  color: var(--rose);
 }
 
 /* Banner shown above the file list when the LO is viewing the Delete folder.
  * Explains the irreversible nature of the trash button shown in each row. */
 .ws-delete-warning {
-  background: #fee2e2;
-  border: 1px solid #fca5a5;
+  background: var(--rose-bg);
+  border: 1px solid var(--rose);
   border-radius: 6px;
   padding: 10px 14px;
   margin: 0 0 12px;
-  color: #7f1d1d;
+  color: var(--rose);
   font-size: 0.875rem;
 }
-.ws-delete-warning strong { color: #991b1b; }
+.ws-delete-warning strong { color: var(--rose); }
 .ws-delete-warning em { font-style: normal; font-weight: 600; }
 
 .ws-tree-toggle {
@@ -167,7 +167,7 @@
 
 /* Larger folder icon for an easier drop target — 18px with a touch more
  * row height than before so drag-onto is forgiving. */
-.ws-tree-label svg { color: #2c5f2d; flex-shrink: 0; font-size: 18px; }
+.ws-tree-label svg { color: var(--primary-color); flex-shrink: 0; font-size: 18px; }
 
 /* ── Breadcrumbs ───────────────────────────────────────── */
 .ws-crumbs {
@@ -188,13 +188,13 @@
   color: inherit;
   font: inherit;
 }
-.ws-crumb:hover { background: #f3f4f6; color: #111827; }
+.ws-crumb:hover { background: var(--bg-secondary, #f2f4ef); color: var(--ink-900, #0b231c); }
 .ws-crumb--current {
   font-weight: 600;
-  color: #111827;
+  color: var(--ink-900, #0b231c);
   cursor: default;
 }
-.ws-crumb-sep { font-size: 0.6rem; color: #9ca3af; }
+.ws-crumb-sep { font-size: 0.6rem; color: var(--text-muted, #5a6b61); }
 
 /* ── File table ────────────────────────────────────────── */
 .ws-file-table {
@@ -205,7 +205,7 @@
 .ws-file-table th {
   text-align: left;
   padding: 0.5rem;
-  background: #f9fafb;
+  background: var(--bg-secondary, #f2f4ef);
   border-bottom: 1px solid var(--border-color, #e2e6dd);
   font-weight: 600;
   color: var(--text-muted, #5a6b61);
@@ -215,11 +215,11 @@
 }
 .ws-file-table td {
   padding: 0.6rem 0.5rem;
-  border-bottom: 1px solid #f3f4f6;
+  border-bottom: 1px solid var(--ink-line, #e2e6dd);
 }
-.ws-file-table tr:hover td { background: #fafbfc; }
-.ws-file-table tr.ws-row--selected td { background: #eef6ef; }
-.ws-file-table tr.ws-row--selected:hover td { background: #e3eee3; }
+.ws-file-table tr:hover td { background: var(--bg-secondary, #f2f4ef); }
+.ws-file-table tr.ws-row--selected td { background: var(--spring-soft); }
+.ws-file-table tr.ws-row--selected:hover td { background: var(--spring-soft); }
 .ws-file-table tr[draggable="true"] { cursor: grab; }
 .ws-file-table tr[draggable="true"]:active { cursor: grabbing; }
 
@@ -231,8 +231,8 @@
 .ws-selection-count {
   display: inline-flex;
   align-items: center;
-  background: #e6efe7;
-  color: #2c5f2d;
+  background: var(--spring-soft);
+  color: var(--primary-color);
   padding: 4px 10px;
   border-radius: 999px;
   font-size: 0.8rem;
@@ -250,7 +250,7 @@
   bottom: 24px;
   width: 320px;
   max-height: calc(100vh - 80px);
-  background: #fff;
+  background: var(--paper, #fff);
   border: 1px solid var(--border-color, #e2e6dd);
   border-radius: 8px;
   box-shadow: 0 12px 32px rgba(0, 0, 0, 0.18);
@@ -271,8 +271,8 @@
 .ws-tray--drophover {
   opacity: 1;
   transform: scale(1.02);
-  border-color: #2c5f2d;
-  box-shadow: 0 0 0 3px rgba(44, 95, 45, 0.18), 0 12px 32px rgba(0, 0, 0, 0.2);
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 3px var(--spring-soft), 0 12px 32px rgba(0, 0, 0, 0.2);
 }
 
 .ws-tray-head {
@@ -280,14 +280,14 @@
   justify-content: space-between;
   align-items: center;
   padding: 0.6rem 0.85rem;
-  background: #fafafa;
+  background: var(--bg-secondary, #f2f4ef);
   border-bottom: 1px solid var(--border-color, #e2e6dd);
   font-size: 0.85rem;
 }
 .ws-tray-count {
   margin-left: 0.5rem;
-  background: #2c5f2d;
-  color: #fff;
+  background: var(--primary-color);
+  color: var(--paper, #fff);
   padding: 1px 8px;
   border-radius: 999px;
   font-size: 0.7rem;
@@ -304,8 +304,8 @@
   align-items: center;
   gap: 6px;
 }
-.ws-tray-empty svg { font-size: 1.5rem; color: #9ca3af; }
-.ws-tray-empty small { color: #9ca3af; }
+.ws-tray-empty svg { font-size: 1.5rem; color: var(--text-muted, #5a6b61); }
+.ws-tray-empty small { color: var(--text-muted, #5a6b61); }
 
 .ws-tray-list {
   list-style: none;
@@ -320,10 +320,10 @@
   gap: 8px;
   padding: 0.4rem 0.85rem;
   font-size: 0.85rem;
-  border-bottom: 1px solid #f3f4f6;
+  border-bottom: 1px solid var(--ink-line, #e2e6dd);
 }
 .ws-tray-item:last-child { border-bottom: none; }
-.ws-tray-item svg:first-child { color: #6b7280; flex-shrink: 0; }
+.ws-tray-item svg:first-child { color: var(--text-muted, #5a6b61); flex-shrink: 0; }
 .ws-tray-filename {
   flex: 1;
   white-space: nowrap;
@@ -336,7 +336,7 @@
   gap: 6px;
   padding: 0.6rem 0.85rem;
   border-top: 1px solid var(--border-color, #e2e6dd);
-  background: #fafafa;
+  background: var(--bg-secondary, #f2f4ef);
 }
 .ws-tray-actions .btn {
   flex: 1;
@@ -351,7 +351,7 @@
   padding: 0.5rem 0;
 }
 
-.ws-file-icon { color: #6b7280; margin-right: 6px; }
+.ws-file-icon { color: var(--text-muted, #5a6b61); margin-right: 6px; }
 .ws-file-name { font-weight: 500; }
 
 .ws-file-empty {
@@ -371,17 +371,17 @@
   padding: 4px 8px;
   border-radius: 4px;
   cursor: pointer;
-  color: #6b7280;
+  color: var(--text-muted, #5a6b61);
 }
-.btn-icon:hover { background: #f3f4f6; color: #111827; border-color: #e5e7eb; }
-.btn-icon--danger:hover { color: #b91c1c; }
+.btn-icon:hover { background: var(--bg-secondary, #f2f4ef); color: var(--ink-900, #0b231c); border-color: var(--ink-line, #e2e6dd); }
+.btn-icon--danger:hover { color: var(--rose); }
 
 .ws-tag {
   display: inline-block;
   padding: 2px 8px;
   border-radius: 999px;
-  background: #e6efe7;
-  color: #2c5f2d;
+  background: var(--spring-soft);
+  color: var(--primary-color);
   font-size: 0.75rem;
   font-weight: 500;
 }
@@ -391,8 +391,8 @@
   display: inline-block;
   padding: 2px 8px;
   border-radius: 4px;
-  background: #f3f4f6;
-  color: #374151;
+  background: var(--bg-secondary, #f2f4ef);
+  color: var(--text-muted, #5a6b61);
   font-size: 0.75rem;
 }
 
@@ -401,7 +401,7 @@
   display: flex;
   justify-content: flex-end;
   padding: 0.75rem 0 0.25rem;
-  border-top: 1px solid #f3f4f6;
+  border-top: 1px solid var(--ink-line, #e2e6dd);
   margin-top: 0.5rem;
 }
 
@@ -441,7 +441,7 @@
   z-index: 1000;
 }
 .ws-modal {
-  background: #fff;
+  background: var(--paper, #fff);
   border-radius: 8px;
   width: 420px;
   max-width: 90vw;
@@ -464,12 +464,12 @@
 .ws-modal-body input {
   width: 100%;
   padding: 0.5rem 0.75rem;
-  border: 1px solid var(--border-color, #d1d5db);
+  border: 1px solid var(--border-color, #e2e6dd);
   border-radius: 4px;
   font-size: 0.95rem;
 }
-.ws-modal-body input:focus { outline: 2px solid #2c5f2d; outline-offset: -1px; border-color: transparent; }
-.ws-modal-error { color: #b91c1c; font-size: 0.85rem; margin: 0; }
+.ws-modal-body input:focus { outline: 2px solid var(--primary-color); outline-offset: -1px; border-color: transparent; }
+.ws-modal-error { color: var(--rose); font-size: 0.85rem; margin: 0; }
 .ws-modal-actions {
   display: flex;
   justify-content: flex-end;
@@ -479,20 +479,20 @@
 
 /* ── Phase 5: search + status filter in toolbar ──────────────────────────── */
 .ws-search-wrap { position: relative; display: flex; align-items: center; }
-.ws-search-icon { position: absolute; left: 0.6rem; color: #999; pointer-events: none; font-size: 0.85rem; }
+.ws-search-icon { position: absolute; left: 0.6rem; color: var(--text-muted, #5a6b61); pointer-events: none; font-size: 0.85rem; }
 .ws-search-input {
   padding: 0.4rem 0.6rem 0.4rem 1.8rem;
-  border: 1px solid var(--border-color, #d1d5db);
+  border: 1px solid var(--border-color, #e2e6dd);
   border-radius: 4px;
   font-size: 0.9rem;
   width: 220px;
 }
 .ws-status-filter {
   padding: 0.4rem 0.6rem;
-  border: 1px solid var(--border-color, #d1d5db);
+  border: 1px solid var(--border-color, #e2e6dd);
   border-radius: 4px;
   font-size: 0.9rem;
-  background: white;
+  background: var(--bg-card, #fff);
 }
 
 /* ── Phase 2: status badges ──────────────────────────────────────────────── */
@@ -503,16 +503,16 @@
   font-size: 0.75rem;
   font-weight: 600;
   white-space: nowrap;
-  background: #f1f5f9;
-  color: #475569;
-  border: 1px solid #e2e8f0;
+  background: var(--border-light);
+  color: var(--text-muted);
+  border: 1px solid var(--border-light);
 }
 .ws-status-badge--inline { padding: 0.1rem 0.4rem; font-size: 0.7rem; }
-.ws-status-badge--muted   { background: #f1f5f9; color: #64748b; border-color: #e2e8f0; }
-.ws-status-badge--neutral { background: #e0f2fe; color: #075985; border-color: #bae6fd; }
-.ws-status-badge--ok      { background: #dcfce7; color: #166534; border-color: #bbf7d0; }
-.ws-status-badge--warn    { background: #fef3c7; color: #92400e; border-color: #fde68a; }
-.ws-status-badge--danger  { background: #fee2e2; color: #991b1b; border-color: #fecaca; }
+.ws-status-badge--muted   { background: var(--border-light); color: var(--text-muted); border-color: var(--border-light); }
+.ws-status-badge--neutral { background: var(--azure-bg); color: var(--azure); border-color: var(--azure); }
+.ws-status-badge--ok      { background: var(--moss-bg); color: var(--moss); border-color: var(--moss); }
+.ws-status-badge--warn    { background: var(--amber-bg); color: var(--amber); border-color: var(--amber); }
+.ws-status-badge--danger  { background: var(--rose-bg); color: var(--rose); border-color: var(--rose); }
 
 /* ── Phase 2: review slide-out ───────────────────────────────────────────── */
 .ws-review-backdrop {
@@ -523,7 +523,7 @@
 }
 .ws-review-panel {
   width: 420px; max-width: 90vw;
-  background: white; height: 100%;
+  background: var(--paper, #fff); height: 100%;
   display: flex; flex-direction: column;
   box-shadow: -4px 0 16px rgba(0,0,0,0.1);
   animation: ws-slide-in 0.18s ease-out;
@@ -535,18 +535,18 @@
 .ws-review-action-btn {
   display: flex; align-items: center; gap: 0.5rem;
   padding: 0.6rem 0.85rem;
-  border: 1px solid var(--border-color, #d1d5db);
+  border: 1px solid var(--border-color, #e2e6dd);
   border-radius: 6px;
-  background: white;
+  background: var(--paper, #fff);
   cursor: pointer;
   font-size: 0.9rem;
   transition: background 0.15s, border-color 0.15s;
 }
-.ws-review-action-btn:hover { background: #f9fafb; }
+.ws-review-action-btn:hover { background: var(--bg-secondary, #f2f4ef); }
 .ws-modal-body textarea {
   width: 100%;
   padding: 0.5rem 0.6rem;
-  border: 1px solid var(--border-color, #d1d5db);
+  border: 1px solid var(--border-color, #e2e6dd);
   border-radius: 4px;
   font-size: 0.9rem;
   font-family: inherit;
@@ -560,12 +560,12 @@
   font-size: 0.85rem;
   display: inline-flex; align-items: center; gap: 0.35rem;
 }
-.btn-bulk--danger:hover { color: #b91c1c; border-color: #fca5a5; }
+.btn-bulk--danger:hover { color: var(--rose); border-color: var(--rose); }
 
 /* ── Phase 3: upload type modal — staged file list ───────────────────────── */
 .ws-upload-filelist {
   list-style: none; padding: 0.5rem 0.75rem; margin: 0 0 0.75rem;
-  background: #fafafa; border: 1px solid var(--border-color, #e2e6dd);
+  background: var(--bg-secondary, #f2f4ef); border: 1px solid var(--border-color, #e2e6dd);
   border-radius: 4px;
   max-height: 160px; overflow-y: auto;
 }
@@ -581,10 +581,10 @@
   padding: 0.6rem 0.75rem;
   border: 1px solid var(--border-color, #e2e6dd);
   border-radius: 6px;
-  background: #fafafa;
+  background: var(--bg-secondary, #f2f4ef);
 }
 .ws-history-action { font-weight: 600; font-size: 0.9rem; }
-.ws-history-meta { color: #6b7280; font-size: 0.8rem; margin-top: 0.2rem; }
+.ws-history-meta { color: var(--text-muted, #5a6b61); font-size: 0.8rem; margin-top: 0.2rem; }
 .ws-history-meta-extra {
   display: flex; flex-wrap: wrap; gap: 0.4rem; margin-top: 0.4rem;
 }
@@ -592,8 +592,8 @@
   display: inline-block;
   padding: 0.15rem 0.5rem;
   border-radius: 3px;
-  background: white;
-  border: 1px solid #e5e7eb;
+  background: var(--paper, #fff);
+  border: 1px solid var(--ink-line, #e2e6dd);
   font-size: 0.75rem;
-  color: #4b5563;
+  color: var(--text-muted, #5a6b61);
 }

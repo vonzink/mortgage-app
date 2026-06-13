@@ -37,7 +37,7 @@
 .pipe-chip input[type="checkbox"] { margin: 0; accent-color: var(--copper); }
 .pipe-chip-sep { color: var(--ink-400); font-size: 11px; }
 .pipe-chip-badge {
-  background: var(--copper); color: var(--paper); font-size: 10px; font-weight: 700;
+  background: var(--copper); color: var(--ink-900); font-size: 10px; font-weight: 700;
   min-width: 16px; height: 16px; line-height: 16px; text-align: center;
   border-radius: 999px; padding: 0 4px;
 }

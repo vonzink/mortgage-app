@@ -287,7 +287,7 @@
 .ws-tray-count {
   margin-left: 0.5rem;
   background: var(--primary-color);
-  color: var(--paper, #fff);
+  color: #0b231c; /* ink on spring — WCAG AA */
   padding: 1px 8px;
   border-radius: 999px;
   font-size: 0.7rem;

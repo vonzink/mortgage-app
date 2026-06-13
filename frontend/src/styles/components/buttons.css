@@ -78,7 +78,6 @@
   background: var(--bg-card);
   color: var(--text-primary);
   border-color: var(--border-secondary);
-  backdrop-filter: blur(10px);
 }
 
 .btn-secondary:hover {

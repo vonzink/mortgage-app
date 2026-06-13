@@ -153,14 +153,14 @@
 
 .progress-step.active .step-icon {
   background: var(--primary-color);
-  color: var(--text-white);
+  color: #0b231c; /* ink on spring — WCAG AA */
   border: 3px solid var(--primary-color);
   box-shadow: var(--shadow-sm);
 }
 
 .progress-step.completed .step-icon {
   background: var(--primary-color);
-  color: var(--text-white);
+  color: #0b231c; /* ink on spring — WCAG AA */
   border: 3px solid var(--primary-color);
   box-shadow: var(--shadow-sm);
 }

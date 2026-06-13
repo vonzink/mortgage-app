@@ -166,7 +166,7 @@ export default function LoanDashboardPage() {
   if (error || !data) {
     return (
       <div className="card" style={{ padding: '2rem' }}>
-        <p style={{ color: '#b91c1c' }}>{error || 'No data available'}</p>
+        <p style={{ color: '#a8423a' }}>{error || 'No data available'}</p>
         <button className="btn btn-secondary" onClick={() => navigate('/applications')}>
           <FaArrowLeft /> Back to applications
         </button>
@@ -445,7 +445,7 @@ export default function LoanDashboardPage() {
               return h ? formatDate(h.transitionedAt) : null;
             })()],
           ]} />
-          <div style={{ borderTop: '1px dotted #f3f4f6', marginTop: '0.4rem', paddingTop: '0.4rem' }}>
+          <div style={{ borderTop: '1px dotted #e2e6dd', marginTop: '0.4rem', paddingTop: '0.4rem' }}>
             <DefinitionList rows={[
               ['Created', data.createdDate ? formatDate(data.createdDate) : null],
               ['Last updated', data.updatedDate ? formatDate(data.updatedDate) : null],

@@ -44,24 +44,24 @@
    restore the dark gradient. */
 .msfg .dash-note-card {
   background: linear-gradient(160deg, var(--forest-800), var(--forest-900));
-  color: #fff;
+  color: var(--on-dark);
   border: 0;
 }
 .dash-note-eyebrow {
   font-size: 11px; text-transform: uppercase; letter-spacing: .12em;
-  color: rgba(255,255,255,0.78);
+  color: var(--on-dark-muted);
 }
 .dash-note-value {
   font-size: 42px; font-weight: 700; letter-spacing: -0.03em;
-  margin-top: 6px; line-height: 1; color: #fff;
+  margin-top: 6px; line-height: 1; color: var(--on-dark);
 }
-.dash-note-value-cents { font-size: 24px; color: rgba(255,255,255,0.85); }
+.dash-note-value-cents { font-size: 24px; color: var(--on-dark-muted); }
 .dash-note-stats {
   display: flex; gap: 22px; margin-top: 16px; font-size: 12.5px;
   flex-wrap: wrap;
 }
-.dash-note-stat-label { color: rgba(255,255,255,0.72); font-size: 11px; }
-.dash-note-stat-value { font-size: 16px; font-weight: 600; margin-top: 2px; color: #fff; }
+.dash-note-stat-label { color: var(--on-dark-muted); font-size: 11px; }
+.dash-note-stat-value { font-size: 16px; font-weight: 600; margin-top: 2px; color: var(--on-dark); }
 
 /* Light KPI tiles */
 .dash-kpi { display: flex; flex-direction: column; }
@@ -94,18 +94,18 @@
 }
 .dash-timeline-node {
   width: 16px; height: 16px; border-radius: 999px;
-  background: #fff; border: 2px solid var(--ink-line);
+  background: var(--on-dark); border: 2px solid var(--ink-line);
   display: grid; place-items: center;
   z-index: 1;
 }
 .dash-timeline-node--done {
-  background: var(--forest-700); border: 0; color: #fff;
+  background: var(--forest-700); border: 0; color: var(--on-dark);
 }
 .dash-timeline-node--current {
   width: 28px; height: 28px;
-  background: #fff;
+  background: var(--on-dark);
   border: 3px solid var(--copper);
-  box-shadow: 0 0 0 6px rgba(177,107,58,.12);
+  box-shadow: 0 0 0 6px var(--spring-soft);
   margin-top: -6px;
 }
 .dash-timeline-current-dot {
@@ -139,7 +139,7 @@
 .advance-status-from {
   display: inline-flex; align-items: center;
   padding: 6px 12px;
-  background: #ece8da; color: var(--ink-500);
+  background: var(--bg-secondary); color: var(--ink-500);
   border-radius: 6px;
   font-size: 13px; font-weight: 600;
   font-family: var(--font-mono, ui-monospace, monospace);
@@ -147,9 +147,9 @@
 .dashboard-form-hint {
   margin: 4px 0 0; padding: 8px 12px;
   font-size: 12.5px; color: var(--ink-500);
-  background: #f5f2e8; border-radius: 6px;
+  background: var(--bg-secondary); border-radius: 6px;
 }
 .dashboard-form-hint--warn {
   color: var(--copper);
-  background: var(--copper-bg, #fbeede);
+  background: var(--copper-bg, var(--bg-secondary));
 }

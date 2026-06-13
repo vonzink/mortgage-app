@@ -15,12 +15,10 @@
 @import './components/document-upload.css';
 
 /* Layout Styles */
-@import './layout/header.css';
 @import './layout/main.css';
 
 /* Page Styles */
 @import './pages/application-form.css';
-@import './pages/application-list.css';
 
 /* Responsive Styles */
 @import './layout/responsive.css';

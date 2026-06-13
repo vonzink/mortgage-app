@@ -52,7 +52,7 @@ export default function DocumentReviewPanel({ loanId, doc, onClose, onReviewed }
         <div className="ws-modal-head">
           <div>
             <h3 style={{ margin: 0 }}>Review</h3>
-            <p style={{ margin: '0.25rem 0 0', color: 'var(--text-secondary, #666)', fontSize: '0.85rem' }}>
+            <p style={{ margin: '0.25rem 0 0', color: 'var(--text-secondary, #5a6b61)', fontSize: '0.85rem' }}>
               {doc.fileName}
             </p>
             <p style={{ margin: '0.25rem 0 0', fontSize: '0.75rem' }}>

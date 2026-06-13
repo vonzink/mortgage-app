@@ -5,7 +5,7 @@
   flex-direction: column;
   background: #fff;
   border-radius: 8px;
-  border: 1px solid var(--border-color, #e5e7eb);
+  border: 1px solid var(--border-color, #e2e6dd);
   overflow: hidden;
   min-height: 600px;
 }
@@ -15,7 +15,7 @@
   align-items: center;
   gap: 0.5rem;
   padding: 0.75rem 1rem;
-  border-bottom: 1px solid var(--border-color, #e5e7eb);
+  border-bottom: 1px solid var(--border-color, #e2e6dd);
   background: #fafafa;
 }
 
@@ -26,7 +26,7 @@
 
 .ws-sidebar {
   width: 280px;
-  border-right: 1px solid var(--border-color, #e5e7eb);
+  border-right: 1px solid var(--border-color, #e2e6dd);
   padding: 0.5rem 0;
   overflow-y: auto;
   background: #fdfdfd;
@@ -46,8 +46,8 @@
 /* OS-file drag-over state — dashed inner outline + faint tint so the LO
    can see the entire panel is a valid drop target. */
 .ws-main--drag-over {
-  background-color: var(--bg-secondary, #f6f4ee);
-  box-shadow: inset 0 0 0 2px var(--primary-color, #2563eb);
+  background-color: var(--bg-secondary, #f2f4ef);
+  box-shadow: inset 0 0 0 2px var(--primary-color, #1fb463);
 }
 .ws-main--drag-over::after {
   content: 'Drop to upload';
@@ -57,7 +57,7 @@
   transform: translate(-50%, -50%);
   font-size: 1.25rem;
   font-weight: 600;
-  color: var(--primary-color, #2563eb);
+  color: var(--primary-color, #1fb463);
   pointer-events: none;
   background: var(--bg-primary, #fff);
   padding: 0.6rem 1rem;
@@ -76,7 +76,7 @@
 
 .ws-tree-empty {
   padding: 1rem;
-  color: var(--text-muted, #6b7280);
+  color: var(--text-muted, #5a6b61);
   font-size: 0.85rem;
 }
 
@@ -135,7 +135,7 @@
   padding: 0;
   margin: 0;
   cursor: pointer;
-  color: var(--text-muted, #6b7280);
+  color: var(--text-muted, #5a6b61);
   font-size: 0.7rem;
   width: 16px;
   display: flex;
@@ -175,7 +175,7 @@
   align-items: center;
   gap: 6px;
   font-size: 0.85rem;
-  color: var(--text-muted, #6b7280);
+  color: var(--text-muted, #5a6b61);
   margin-bottom: 0.75rem;
   flex-wrap: wrap;
 }
@@ -206,9 +206,9 @@
   text-align: left;
   padding: 0.5rem;
   background: #f9fafb;
-  border-bottom: 1px solid var(--border-color, #e5e7eb);
+  border-bottom: 1px solid var(--border-color, #e2e6dd);
   font-weight: 600;
-  color: var(--text-muted, #6b7280);
+  color: var(--text-muted, #5a6b61);
   font-size: 0.78rem;
   text-transform: uppercase;
   letter-spacing: 0.04em;
@@ -251,7 +251,7 @@
   width: 320px;
   max-height: calc(100vh - 80px);
   background: #fff;
-  border: 1px solid var(--border-color, #e5e7eb);
+  border: 1px solid var(--border-color, #e2e6dd);
   border-radius: 8px;
   box-shadow: 0 12px 32px rgba(0, 0, 0, 0.18);
   display: flex;
@@ -281,7 +281,7 @@
   align-items: center;
   padding: 0.6rem 0.85rem;
   background: #fafafa;
-  border-bottom: 1px solid var(--border-color, #e5e7eb);
+  border-bottom: 1px solid var(--border-color, #e2e6dd);
   font-size: 0.85rem;
 }
 .ws-tray-count {
@@ -297,7 +297,7 @@
 .ws-tray-empty {
   padding: 1.5rem 1rem;
   text-align: center;
-  color: var(--text-muted, #6b7280);
+  color: var(--text-muted, #5a6b61);
   font-size: 0.8rem;
   display: flex;
   flex-direction: column;
@@ -335,7 +335,7 @@
   display: flex;
   gap: 6px;
   padding: 0.6rem 0.85rem;
-  border-top: 1px solid var(--border-color, #e5e7eb);
+  border-top: 1px solid var(--border-color, #e2e6dd);
   background: #fafafa;
 }
 .ws-tray-actions .btn {
@@ -347,7 +347,7 @@
   flex: 1;
   text-align: center;
   font-size: 0.85rem;
-  color: var(--text-muted, #6b7280);
+  color: var(--text-muted, #5a6b61);
   padding: 0.5rem 0;
 }
 
@@ -357,7 +357,7 @@
 .ws-file-empty {
   padding: 2rem;
   text-align: center;
-  color: var(--text-muted, #6b7280);
+  color: var(--text-muted, #5a6b61);
 }
 
 .ws-file-actions {
@@ -452,7 +452,7 @@
   align-items: center;
   justify-content: space-between;
   padding: 1rem 1.25rem;
-  border-bottom: 1px solid var(--border-color, #e5e7eb);
+  border-bottom: 1px solid var(--border-color, #e2e6dd);
 }
 .ws-modal-head h3 { margin: 0; font-size: 1rem; }
 .ws-modal-body {
@@ -565,7 +565,7 @@
 /* ── Phase 3: upload type modal — staged file list ───────────────────────── */
 .ws-upload-filelist {
   list-style: none; padding: 0.5rem 0.75rem; margin: 0 0 0.75rem;
-  background: #fafafa; border: 1px solid var(--border-color, #e5e7eb);
+  background: #fafafa; border: 1px solid var(--border-color, #e2e6dd);
   border-radius: 4px;
   max-height: 160px; overflow-y: auto;
 }
@@ -579,7 +579,7 @@
 }
 .ws-history-row {
   padding: 0.6rem 0.75rem;
-  border: 1px solid var(--border-color, #e5e7eb);
+  border: 1px solid var(--border-color, #e2e6dd);
   border-radius: 6px;
   background: #fafafa;
 }

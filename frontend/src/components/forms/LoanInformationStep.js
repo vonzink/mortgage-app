@@ -80,9 +80,9 @@ const LoanInformationStep = ({ register, errors, watch, setValue, getValues }) =
 
   const toggleStyle = (active) => ({
     padding: '0.4rem 0.75rem',
-    border: '1px solid var(--primary-color, #2563eb)',
-    background: active ? 'var(--primary-color, #2563eb)' : 'white',
-    color: active ? 'white' : 'var(--primary-color, #2563eb)',
+    border: '1px solid var(--primary-color, #1fb463)',
+    background: active ? 'var(--primary-color, #1fb463)' : 'white',
+    color: active ? 'white' : 'var(--primary-color, #1fb463)',
     cursor: 'pointer',
     fontWeight: 500,
   });
@@ -182,7 +182,7 @@ const LoanInformationStep = ({ register, errors, watch, setValue, getValues }) =
                 inputMode="decimal"
               />
             )}
-            <small style={{ color: 'var(--text-secondary, #666)', marginTop: '0.25rem', display: 'block' }}>
+            <small style={{ color: 'var(--text-secondary, #5a6b61)', marginTop: '0.25rem', display: 'block' }}>
               {dpMode === '$' && purchasePrice > 0
                 ? `${((downPayment / purchasePrice) * 100).toFixed(2)}% of purchase price`
                 : dpMode === '%' && purchasePrice > 0
@@ -200,7 +200,7 @@ const LoanInformationStep = ({ register, errors, watch, setValue, getValues }) =
         <div className="form-group">
           <label htmlFor="loanAmount">
             Loan Amount
-            {isPurchase && <small style={{ color: 'var(--text-secondary, #666)', marginLeft: '0.5rem', fontWeight: 400 }}>
+            {isPurchase && <small style={{ color: 'var(--text-secondary, #5a6b61)', marginLeft: '0.5rem', fontWeight: 400 }}>
               (auto-calculated; you can override)
             </small>}
           </label>

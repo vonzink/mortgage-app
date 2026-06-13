@@ -28,7 +28,7 @@
   background: transparent; border: 0; text-align: left; cursor: pointer;
   font-family: inherit;
 }
-.loan-search-row.is-highlighted { background: var(--bg-secondary, #f6f4ee); }
+.loan-search-row.is-highlighted { background: var(--bg-secondary, #f2f4ef); }
 .loan-search-row-name { font-size: 14px; font-weight: 600; color: var(--ink-900); }
 .loan-search-row-name mark { background: rgba(177,107,58,.22); color: inherit; padding: 0 2px; border-radius: 2px; }
 .loan-search-row-sub { font-size: 12px; color: var(--ink-500); margin-top: 1px; }

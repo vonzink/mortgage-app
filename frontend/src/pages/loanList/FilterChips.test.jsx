@@ -24,6 +24,8 @@ test('toggling conditions-checkbox calls onChange with conditionsGt: 0', () => {
   render(
     <FilterChips filters={DEFAULT_FILTERS} resultCount={0} onChange={onChange} onClear={() => {}} />
   );
+  // Secondary filters (incl. the conditions checkbox) live behind the "More filters" toggle.
+  fireEvent.click(screen.getByRole('button', { name: /more filters/i }));
   fireEvent.click(screen.getByLabelText(/has outstanding conditions/i));
   expect(onChange).toHaveBeenCalledWith({ conditionsGt: 0 });
 });
@@ -43,5 +45,5 @@ test('Clear button calls onClear', () => {
 
 test('result count rendered', () => {
   render(<FilterChips filters={DEFAULT_FILTERS} resultCount={42} onChange={() => {}} onClear={() => {}} />);
-  expect(screen.getByText('(42 results)')).toBeInTheDocument();
+  expect(screen.getByText('42 results')).toBeInTheDocument();
 });

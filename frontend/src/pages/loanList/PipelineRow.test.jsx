@@ -36,7 +36,7 @@ describe('PipelineRow', () => {
   test('renders status pill with day count', () => {
     render(<MemoryRouter><table><tbody><PipelineRow row={row} /></tbody></table></MemoryRouter>);
     expect(screen.getByText('UNDERWRITING')).toBeInTheDocument();
-    expect(screen.getByText(/day 3/)).toBeInTheDocument();
+    expect(screen.getByText(/in stage 3d/)).toBeInTheDocument();
   });
 
   test('shows outstanding count when > 0', () => {

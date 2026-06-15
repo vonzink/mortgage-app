@@ -8,7 +8,7 @@
     <parent>
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-starter-parent</artifactId>
-        <version>3.2.10</version>
+        <version>3.5.15</version>
         <relativePath/>
     </parent>
 
@@ -20,8 +20,8 @@
 
     <properties>
         <java.version>17</java.version>
-        <lombok.version>1.18.42</lombok.version>
-        <aws.sdk.version>2.30.6</aws.sdk.version>
+        <lombok.version>1.18.46</lombok.version>
+        <aws.sdk.version>2.46.10</aws.sdk.version>
     </properties>
 
     <dependencyManagement>
@@ -127,7 +127,7 @@
         <dependency>
             <groupId>org.apache.pdfbox</groupId>
             <artifactId>pdfbox</artifactId>
-            <version>3.0.3</version>
+            <version>3.0.7</version>
         </dependency>
 
         <!-- Hibernate 6 ↔ Jackson bridge. Without this, returning JPA entities
@@ -137,7 +137,7 @@
         <dependency>
             <groupId>com.fasterxml.jackson.datatype</groupId>
             <artifactId>jackson-datatype-hibernate6</artifactId>
-            <version>2.17.2</version>
+            <version>2.22.0</version>
         </dependency>
 
         <!-- Encryption -->
@@ -167,13 +167,13 @@
         <dependency>
             <groupId>org.mapstruct</groupId>
             <artifactId>mapstruct</artifactId>
-            <version>1.5.5.Final</version>
+            <version>1.6.3</version>
         </dependency>
         
         <dependency>
             <groupId>org.mapstruct</groupId>
             <artifactId>mapstruct-processor</artifactId>
-            <version>1.5.5.Final</version>
+            <version>1.6.3</version>
             <scope>provided</scope>
         </dependency>
 
@@ -209,7 +209,7 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
-                <version>3.11.0</version>
+                <version>3.15.0</version>
                 <configuration>
                     <source>17</source>
                     <target>17</target>
@@ -217,7 +217,7 @@
                         <path>
                             <groupId>org.mapstruct</groupId>
                             <artifactId>mapstruct-processor</artifactId>
-                            <version>1.5.5.Final</version>
+                            <version>1.6.3</version>
                         </path>
                         <path>
                             <groupId>org.projectlombok</groupId>

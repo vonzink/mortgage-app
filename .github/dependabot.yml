@@ -14,6 +14,11 @@ updates:
         update-types:
           - minor
           - patch
+    ignore:
+      # Auto minor/patch only; major bumps (e.g. Spring Boot 4.x, jasypt 4.x)
+      # need a deliberate migration, not an auto-PR.
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
 
   # npm dependencies for the Create React App frontend.
   - package-ecosystem: npm
@@ -29,6 +34,30 @@ updates:
         update-types:
           - minor
           - patch
+    ignore:
+      # Auto minor/patch only; major bumps (React Router 7, React 19,
+      # testing-library 16, TypeScript 6, etc.) need a deliberate upgrade.
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
+
+  # npm dependencies for the AWS CDK infra app (previously only covered by
+  # security updates — now gets routine minor/patch version bumps too).
+  - package-ecosystem: npm
+    directory: "/infra"
+    schedule:
+      interval: weekly
+      day: monday
+      time: "07:00"
+      timezone: Etc/UTC
+    open-pull-requests-limit: 10
+    groups:
+      infra-minor-and-patch:
+        update-types:
+          - minor
+          - patch
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
 
   # GitHub Actions used by the workflows in .github/workflows.
   - package-ecosystem: github-actions

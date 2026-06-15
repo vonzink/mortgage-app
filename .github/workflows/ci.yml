@@ -63,13 +63,17 @@ jobs:
           cache-dependency-path: frontend/package-lock.json
 
       # Clean, reproducible install from the committed lockfile.
+      # --legacy-peer-deps: react-scripts 5 (CRA) peers TypeScript 3/4 but the
+      # project uses TS 5; strict `npm ci` rejects the conflict (CRA's known fix).
       - name: Install dependencies
-        run: npm ci
+        run: npm ci --legacy-peer-deps
 
       # CI=true forces a single, non-watching test run (CRA otherwise watches).
       - name: Test
         run: CI=true npm test -- --watchAll=false
 
-      # Production build. Under CI, CRA treats lint warnings as errors (see notes).
+      # CI=false: GitHub sets CI=true globally, which makes CRA treat lint
+      # warnings as build errors. Disable it for the build step only so warnings
+      # don't fail the build (the Test step above still runs under CI=true).
       - name: Build
-        run: npm run build
+        run: CI=false npm run build

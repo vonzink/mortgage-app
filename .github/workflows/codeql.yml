@@ -1,0 +1,62 @@
+name: "CodeQL"
+
+# Static analysis (GitHub code scanning) for the mortgage-app repo.
+# mortgage-app is a PUBLIC repo, so code scanning is free (no GitHub Advanced
+# Security required). It contains a Java backend (Maven) and a JavaScript/
+# TypeScript frontend (Create React App), so the matrix analyzes both.
+#
+# build-mode: none — CodeQL analyzes the source directly without compiling,
+# so it never needs to run Maven or npm just to build an analysis database.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  schedule:
+    # Weekly full scan — Mondays 07:17 UTC (off-peak; avoids the top-of-hour cron herd).
+    - cron: "17 7 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: codeql-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  analyze:
+    name: Analyze (${{ matrix.language }})
+    runs-on: ubuntu-latest
+    permissions:
+      security-events: write   # upload SARIF results to code scanning
+      actions: read
+      contents: read
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # java-kotlin covers the Java/Maven backend.
+          - language: java-kotlin
+            build-mode: none
+          # javascript-typescript covers the CRA frontend.
+          - language: javascript-typescript
+            build-mode: none
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v4
+        with:
+          languages: ${{ matrix.language }}
+          build-mode: ${{ matrix.build-mode }}
+          queries: security-extended
+
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v4
+        with:
+          category: "/language:${{ matrix.language }}"

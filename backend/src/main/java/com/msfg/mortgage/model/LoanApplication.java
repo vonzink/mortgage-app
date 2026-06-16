@@ -63,6 +63,14 @@ public class LoanApplication {
     @Column(name = "assigned_lo_name")
     private String assignedLoName;
 
+    /**
+     * External idempotency key from the msfg.us apply funnel (the Postgres lead id).
+     * UNIQUE; NULL for app-created applications. Set only by the borrower intake
+     * endpoint so a retried hand-off resolves to the existing application.
+     */
+    @Column(name = "source_lead_id", unique = true)
+    private String sourceLeadId;
+
     /** LendingPad's R-number, assigned when the loan first lands in LendingPad. */
     @Column(name = "lendingpad_loan_number")
     private String lendingpadLoanNumber;
@@ -243,6 +251,9 @@ public class LoanApplication {
     public void setAssignedLoName(String assignedLoName) {
         this.assignedLoName = assignedLoName;
     }
+
+    public String getSourceLeadId() { return sourceLeadId; }
+    public void setSourceLeadId(String sourceLeadId) { this.sourceLeadId = sourceLeadId; }
 
     public String getLendingpadLoanNumber() {
         return lendingpadLoanNumber;

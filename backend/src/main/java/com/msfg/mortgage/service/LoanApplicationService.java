@@ -6,6 +6,7 @@ import com.msfg.mortgage.mapper.LoanApplicationMapper;
 import com.msfg.mortgage.model.*;
 import com.msfg.mortgage.repository.LoanApplicationRepository;
 import com.msfg.mortgage.repository.LoanStatusHistoryRepository;
+import com.msfg.mortgage.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -22,6 +23,7 @@ public class LoanApplicationService {
     private final LoanApplicationRepository loanApplicationRepository;
     private final LoanStatusHistoryRepository loanStatusHistoryRepository;
     private final LoanApplicationMapper mapper;
+    private final UserRepository userRepository;
 
     /**
      * Create a loan application + its full child tree (property, borrowers and their
@@ -58,6 +60,78 @@ public class LoanApplicationService {
         }
 
         return loanApplicationRepository.save(app);
+    }
+
+    /**
+     * Create a {@link LoanStatus#REGISTERED} application from the funnel intake payload.
+     * Idempotent on {@code sourceLeadId}: if an application already exists for this lead,
+     * the existing record is returned without modification.
+     *
+     * @param req    funnel intake request (borrower info, property, financials, optional LO)
+     * @param caller the authenticated user who submitted the funnel (becomes the borrower owner)
+     */
+    @Transactional
+    public LoanApplication createFromIntake(IntakeRequest req, User caller) {
+        // 1) Idempotency: return the existing application for this lead.
+        Optional<LoanApplication> existing = loanApplicationRepository.findBySourceLeadId(req.getSourceLeadId());
+        if (existing.isPresent()) return existing.get();
+
+        // 2) Build the application graph.
+        LoanApplication app = new LoanApplication();
+        app.setLoanPurpose(req.getLoanPurpose());
+        app.setStatus(LoanStatus.REGISTERED.name());
+        app.setSourceLeadId(req.getSourceLeadId());
+
+        IntakeRequest.PropertyInfo pi = req.getProperty();
+        if (pi != null) {
+            Property prop = new Property();
+            prop.setAddressLine(pi.getAddressLine());
+            prop.setCity(pi.getCity());
+            prop.setState(pi.getState());
+            prop.setZipCode(pi.getZipCode());
+            prop.setPropertyType(pi.getPropertyType());
+            prop.setConstructionType(pi.getConstructionType());
+            prop.setPropertyValue(pi.getPropertyValue());
+            prop.setApplication(app);
+            app.setProperty(prop);
+            app.setPropertyValue(pi.getPropertyValue());
+        }
+
+        IntakeRequest.BorrowerInfo bi = req.getBorrower();
+        if (bi != null) {
+            Borrower b = new Borrower();
+            b.setSequenceNumber(1);
+            b.setFirstName(bi.getFirstName());
+            b.setLastName(bi.getLastName());
+            b.setEmail(bi.getEmail());
+            b.setPhone(bi.getPhone());
+            b.setUserId(caller.getId());  // owner linkage — borrowers.user_id = users.id
+            b.setApplication(app);
+            app.setBorrowers(new ArrayList<>(java.util.List.of(b)));
+        }
+
+        if (req.getFinancials() != null && req.getFinancials().getCurrentMortgageBalance() != null) {
+            Liability l = new Liability();
+            l.setLiabilityType("MortgageLoan");
+            l.setUnpaidBalance(req.getFinancials().getCurrentMortgageBalance());
+            l.setApplication(app);
+            app.setLiabilities(new ArrayList<>(java.util.List.of(l)));
+        }
+
+        if (req.getLoanOfficer() != null && req.getLoanOfficer().getEmail() != null) {
+            userRepository.findByEmail(req.getLoanOfficer().getEmail()).ifPresent(lo -> {
+                app.setAssignedLoId(lo.getId());
+                app.setAssignedLoName(req.getLoanOfficer().getName() != null
+                        ? req.getLoanOfficer().getName() : lo.getName());
+            });
+        }
+
+        try {
+            return loanApplicationRepository.save(app);
+        } catch (org.springframework.dao.DataIntegrityViolationException dup) {
+            return loanApplicationRepository.findBySourceLeadId(req.getSourceLeadId())
+                    .orElseThrow(() -> dup);
+        }
     }
 
     private Borrower buildBorrower(BorrowerDTO dto, LoanApplication app) {

@@ -67,6 +67,14 @@ public class LoanApplicationService {
      * Idempotent on {@code sourceLeadId}: if an application already exists for this lead,
      * the existing record is returned without modification.
      *
+     * <p><strong>Trust model:</strong> {@code sourceLeadId} is trusted as supplied by the caller.
+     * The sole intended caller is msfg.us server-to-server, passing the borrower's Cognito id_token,
+     * where {@code sourceLeadId} is msfg.us's internal lead id. Because this is a server-to-server
+     * channel the caller cannot be a borrower client, making cross-user lead-id reuse infeasible.
+     * If this endpoint is ever exposed directly to borrower clients, add an ownership assertion on
+     * the idempotency re-fetch (verify the existing application's borrower belongs to the caller)
+     * — that check is intentionally omitted here.
+     *
      * @param req    funnel intake request (borrower info, property, financials, optional LO)
      * @param caller the authenticated user who submitted the funnel (becomes the borrower owner)
      */
@@ -118,11 +126,14 @@ public class LoanApplicationService {
         }
 
         if (req.getLoanOfficer() != null && req.getLoanOfficer().getEmail() != null) {
-            userRepository.findByEmail(req.getLoanOfficer().getEmail()).ifPresent(lo -> {
-                app.setAssignedLoId(lo.getId());
-                app.setAssignedLoName(req.getLoanOfficer().getName() != null
-                        ? req.getLoanOfficer().getName() : lo.getName());
-            });
+            userRepository.findByEmail(req.getLoanOfficer().getEmail())
+                    .filter(lo -> lo.getRole() != null
+                            && java.util.Set.of("lo", "manager", "admin").contains(lo.getRole().toLowerCase()))
+                    .ifPresent(lo -> {
+                        app.setAssignedLoId(lo.getId());
+                        app.setAssignedLoName(req.getLoanOfficer().getName() != null
+                                ? req.getLoanOfficer().getName() : lo.getName());
+                    });
         }
 
         try {

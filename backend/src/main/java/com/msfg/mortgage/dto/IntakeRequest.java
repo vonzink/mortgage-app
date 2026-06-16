@@ -1,6 +1,8 @@
 package com.msfg.mortgage.dto;
 
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Pattern;
+import jakarta.validation.constraints.Size;
 import java.math.BigDecimal;
 import lombok.Data;
 
@@ -11,10 +13,10 @@ import lombok.Data;
  */
 @Data
 public class IntakeRequest {
-    @NotBlank private String sourceLeadId;     // idempotency key (Postgres lead id)
-    private String source;                     // e.g. "apply-wizard"
-    private String intent;                     // buy | refi | cash
-    @NotBlank private String loanPurpose;      // Purchase | Refinance | CashOut
+    @NotBlank @Size(max = 100) private String sourceLeadId;   // idempotency key (Postgres lead id, VARCHAR(100))
+    private String source;                                     // e.g. "apply-wizard"
+    private String intent;                                     // buy | refi | cash
+    @NotBlank @Pattern(regexp = "Purchase|Refinance|CashOut") private String loanPurpose;  // Purchase | Refinance | CashOut
     private BorrowerInfo borrower;
     private PropertyInfo property;
     private Financials financials;

@@ -70,7 +70,6 @@ public class LoanApplicationService {
      * @param req    funnel intake request (borrower info, property, financials, optional LO)
      * @param caller the authenticated user who submitted the funnel (becomes the borrower owner)
      */
-    @Transactional
     public LoanApplication createFromIntake(IntakeRequest req, User caller) {
         // 1) Idempotency: return the existing application for this lead.
         Optional<LoanApplication> existing = loanApplicationRepository.findBySourceLeadId(req.getSourceLeadId());

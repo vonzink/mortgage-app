@@ -98,4 +98,18 @@ class LoanApplicationIntakeServiceTest {
         LoanApplication app = service.createFromIntake(r, caller);
         assertThat(app.getAssignedLoId()).isNull();
     }
+
+    @Test
+    void buyIntakeWithoutMortgageHasNoLiability() {
+        User caller = borrower();
+        IntakeRequest r = sampleRefi("lead-5");
+        r.setIntent("buy");
+        r.setLoanPurpose("Purchase");
+        r.getFinancials().setCurrentMortgageBalance(null); // purchase has no existing mortgage
+        LoanApplication app = service.createFromIntake(r, caller);
+        assertThat(app.getStatus()).isEqualTo(LoanStatus.REGISTERED.name());
+        assertThat(app.getLoanPurpose()).isEqualTo("Purchase");
+        // no MortgageLoan liability created when there's no current mortgage balance
+        assertThat(app.getLiabilities() == null || app.getLiabilities().isEmpty()).isTrue();
+    }
 }

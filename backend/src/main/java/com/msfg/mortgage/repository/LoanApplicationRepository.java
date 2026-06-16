@@ -13,6 +13,8 @@ import java.util.Optional;
 public interface LoanApplicationRepository extends JpaRepository<LoanApplication, Long> {
     
     Optional<LoanApplication> findByApplicationNumber(String applicationNumber);
+
+    Optional<LoanApplication> findBySourceLeadId(String sourceLeadId);
     
     List<LoanApplication> findByStatus(String status);
     

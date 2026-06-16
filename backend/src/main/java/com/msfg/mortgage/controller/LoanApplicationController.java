@@ -1,5 +1,6 @@
 package com.msfg.mortgage.controller;
 
+import com.msfg.mortgage.dto.IntakeRequest;
 import com.msfg.mortgage.dto.LoanApplicationDTO;
 import com.msfg.mortgage.dto.LoanListFilters;
 import com.msfg.mortgage.dto.LoanListPage;
@@ -31,6 +32,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
 import java.util.Optional;
@@ -59,6 +61,23 @@ public class LoanApplicationController {
     private final MismoImporter mismoImporter;
     private final MismoImportRepository mismoImportRepository;
     private final CurrentUserService currentUserService;
+
+    @PostMapping("/intake")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<Map<String, Object>> intake(@Valid @RequestBody IntakeRequest req) {
+        // @PreAuthorize handles unauthenticated callers; this guards the rare
+        // authenticated-but-unresolvable case (non-JWT auth) → 401.
+        User caller = currentUserService.currentUser()
+                .orElseThrow(() -> new ResponseStatusException(
+                        HttpStatus.UNAUTHORIZED, "No authenticated user"));
+        log.info("Funnel intake: leadId={} purpose={}", req.getSourceLeadId(), req.getLoanPurpose());
+        LoanApplication app = loanApplicationService.createFromIntake(req, caller);
+        Map<String, Object> out = new LinkedHashMap<>();
+        out.put("applicationId", app.getId());
+        // 200 (not 201): this endpoint is idempotent on sourceLeadId — a retry returns
+        // the EXISTING application rather than creating a new one, so "Created" would be wrong.
+        return ResponseEntity.ok(out);
+    }
 
     @PostMapping
     @PreAuthorize("hasAnyRole('LO','Processor','Admin','Manager')")

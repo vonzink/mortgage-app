@@ -1,5 +1,6 @@
 package com.msfg.mortgage.controller;
 
+import com.msfg.mortgage.dto.IntakeRequest;
 import com.msfg.mortgage.dto.LoanApplicationDTO;
 import com.msfg.mortgage.dto.LoanListFilters;
 import com.msfg.mortgage.dto.LoanListPage;
@@ -59,6 +60,19 @@ public class LoanApplicationController {
     private final MismoImporter mismoImporter;
     private final MismoImportRepository mismoImportRepository;
     private final CurrentUserService currentUserService;
+
+    @PostMapping("/intake")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<Map<String, Object>> intake(@Valid @RequestBody IntakeRequest req) {
+        User caller = currentUserService.currentUser()
+                .orElseThrow(() -> new org.springframework.web.server.ResponseStatusException(
+                        HttpStatus.UNAUTHORIZED, "No authenticated user"));
+        log.info("Funnel intake: leadId={} purpose={}", req.getSourceLeadId(), req.getLoanPurpose());
+        LoanApplication app = loanApplicationService.createFromIntake(req, caller);
+        Map<String, Object> out = new LinkedHashMap<>();
+        out.put("applicationId", app.getId());
+        return ResponseEntity.ok(out);
+    }
 
     @PostMapping
     @PreAuthorize("hasAnyRole('LO','Processor','Admin','Manager')")

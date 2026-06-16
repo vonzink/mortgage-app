@@ -22,6 +22,10 @@
         <java.version>17</java.version>
         <lombok.version>1.18.46</lombok.version>
         <aws.sdk.version>2.46.10</aws.sdk.version>
+        <!-- Pin Flyway to a version that supports PostgreSQL 18. Flyway 10+
+             modularized DB support, so Postgres needs flyway-database-postgresql
+             (declared below) — without it boot fails: "Unsupported Database". -->
+        <flyway.version>11.20.3</flyway.version>
     </properties>
 
     <dependencyManagement>
@@ -92,12 +96,19 @@
             <scope>runtime</scope>
         </dependency>
 
-        <!-- Flyway: numbered SQL migrations, mirrors dashboard.msfgco.com/backend/db/migrations/ pattern.
-             flyway-core (9.x, managed by Spring Boot 3.2 BOM) ships with Postgres support built in;
-             no separate flyway-database-postgresql artifact needed at this Flyway version. -->
+        <!-- Flyway: numbered SQL migrations. Spring Boot 3.5 ships Flyway 11,
+             which modularized database support — Postgres now REQUIRES the
+             separate flyway-database-postgresql artifact. Without it, Flyway
+             reports "Unsupported Database: PostgreSQL <ver>" and the app fails
+             to boot against the prod RDS. Pinned to ${flyway.version} (PG 18 OK). -->
         <dependency>
             <groupId>org.flywaydb</groupId>
             <artifactId>flyway-core</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.flywaydb</groupId>
+            <artifactId>flyway-database-postgresql</artifactId>
+            <version>${flyway.version}</version>
         </dependency>
 
         <!-- JAXB for XML processing -->

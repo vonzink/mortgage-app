@@ -68,7 +68,7 @@ public class LoanApplication {
      * UNIQUE; NULL for app-created applications. Set only by the borrower intake
      * endpoint so a retried hand-off resolves to the existing application.
      */
-    @Column(name = "source_lead_id", unique = true)
+    @Column(name = "source_lead_id", unique = true, length = 100)
     private String sourceLeadId;
 
     /** LendingPad's R-number, assigned when the loan first lands in LendingPad. */

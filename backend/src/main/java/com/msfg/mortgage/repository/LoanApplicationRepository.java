@@ -14,7 +14,7 @@ public interface LoanApplicationRepository extends JpaRepository<LoanApplication
     
     Optional<LoanApplication> findByApplicationNumber(String applicationNumber);
 
-    java.util.Optional<LoanApplication> findBySourceLeadId(String sourceLeadId);
+    Optional<LoanApplication> findBySourceLeadId(String sourceLeadId);
     
     List<LoanApplication> findByStatus(String status);
     

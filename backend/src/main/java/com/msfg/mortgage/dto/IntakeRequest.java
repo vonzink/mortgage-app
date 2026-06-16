@@ -21,18 +21,29 @@ public class IntakeRequest {
     private LoanOfficerInfo loanOfficer;       // nullable
 
     @Data public static class BorrowerInfo {
-        private String firstName; private String lastName; private String email; private String phone;
+        private String firstName;
+        private String lastName;
+        private String email;
+        private String phone;
     }
     @Data public static class PropertyInfo {
-        private String addressLine; private String city; private String state; private String zipCode;
+        private String addressLine;
+        private String city;
+        private String state;
+        private String zipCode;
         private String propertyType;      // PrimaryResidence | SecondHome | Investment
         private String constructionType;  // SiteBuilt | Manufactured
         private BigDecimal propertyValue;
     }
     @Data public static class Financials {
-        private BigDecimal currentMortgageBalance; private BigDecimal annualIncome; private String creditBand;
+        private BigDecimal currentMortgageBalance;
+        private BigDecimal annualIncome;
+        private String creditBand;
     }
     @Data public static class LoanOfficerInfo {
-        private String email; private String nmls; private String name; private String slug;
+        private String email;
+        private String nmls;
+        private String name;
+        private String slug;
     }
 }

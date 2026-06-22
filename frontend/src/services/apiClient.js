@@ -40,6 +40,13 @@ apiClient.interceptors.request.use((config) => {
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
+  // LOCAL-ONLY: no real Cognito locally — send suite dev headers so suite's local bridge scopes us
+  // as the borrower. Inert in any build without REACT_APP_DEV_SUB.
+  if (process.env.REACT_APP_DEV_SUB) {
+    config.headers['X-Dev-Sub'] = process.env.REACT_APP_DEV_SUB;
+    config.headers['X-Dev-Roles'] = process.env.REACT_APP_DEV_ROLES || 'Borrower';
+    config.headers['X-Dev-Org'] = process.env.REACT_APP_DEV_ORG || '';
+  }
   return config;
 });
 

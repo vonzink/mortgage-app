@@ -19,6 +19,7 @@ import AdminHome from './pages/admin/AdminHome';
 import DocumentTypesAdmin from './pages/admin/DocumentTypesAdmin';
 import FolderTemplatesAdmin from './pages/admin/FolderTemplatesAdmin';
 import AppSettingsAdmin from './pages/admin/AppSettingsAdmin';
+import ContinuePage from './pages/ContinuePage';
 
 // Styles
 import './App.css';
@@ -83,6 +84,7 @@ function App() {
             <Route path="/" element={<LandingPage />} />
             <Route path="/login"  element={<AuthRedirect mode="login" />} />
             <Route path="/signup" element={<AuthRedirect mode="signup" />} />
+            <Route path="/continue" element={<ContinuePage />} />
 
             <Route
               path="/apply"

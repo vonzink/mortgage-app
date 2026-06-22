@@ -1,0 +1,85 @@
+/* ContinuePage — flat layout mirroring LandingPage.design.css conventions */
+
+.continue-page {
+  max-width: 480px;
+  margin: 0 auto;
+  padding: 3rem 1.5rem 4rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.continue-h1 {
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: var(--color-text, #111827);
+  margin: 0;
+}
+
+/* Summary card */
+.continue-summary {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding: 1.25rem 1.5rem;
+  border-radius: 0.75rem;
+  background: var(--color-surface, #f9fafb);
+  border: 1px solid var(--color-border, #e5e7eb);
+}
+
+.continue-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 1rem;
+}
+
+.continue-val {
+  font-weight: 600;
+  color: var(--color-text, #111827);
+  text-align: right;
+}
+
+/* Auth card */
+.continue-auth {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding: 1.5rem;
+  border-radius: 0.75rem;
+  background: var(--color-surface, #f9fafb);
+  border: 1px solid var(--color-border, #e5e7eb);
+}
+
+.continue-auth label {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--color-text, #111827);
+}
+
+.continue-auth input {
+  width: 100%;
+  padding: 0.625rem 0.875rem;
+  border: 1px solid var(--color-border, #d1d5db);
+  border-radius: 0.5rem;
+  font-size: 1rem;
+  background: var(--color-bg, #ffffff);
+  color: var(--color-text, #111827);
+  box-sizing: border-box;
+}
+
+.continue-auth input:disabled {
+  background: var(--color-surface, #f3f4f6);
+  color: var(--color-muted, #6b7280);
+}
+
+.continue-auth input:focus {
+  outline: 2px solid var(--color-primary, #2563eb);
+  outline-offset: 1px;
+  border-color: transparent;
+}
+
+.continue-fine {
+  font-size: 0.8rem;
+  margin: 0;
+}

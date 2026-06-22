@@ -8,7 +8,101 @@ import apiClient from './apiClient';
  *
  * Document upload: Phase 2B switched from the old multipart upload endpoint to a
  * presigned-URL flow. The new sequence is documented on the methods below.
+ *
+ * ── msfg-suite re-point (borrower slice) ──────────────────────────────────────
+ * The borrower's two read screens (my-loans LIST + loan DETAIL) are re-pointed onto
+ * the msfg-suite backend. Suite wraps every response in an envelope
+ * ({ success, data }) and uses suite-native field names (e.g. primaryBorrowerName,
+ * loanNumber, mortgageType, baseLoanAmount). The thin adapters below
+ * (adaptSuiteLoanList / adaptSuiteLoanDetail) unwrap the envelope and rename/reshape
+ * fields into the exact shapes the existing React components already consume, so NO
+ * component or route changes are required. Fields with no source on the suite DTO are
+ * left null/undefined — the components already degrade gracefully (render 0 / '—').
  */
+
+/**
+ * Unwrap a suite ApiResponse envelope { success, data } → data.
+ * Tolerates a bare payload (no envelope) for resilience.
+ */
+function unwrapEnvelope(payload) {
+  if (payload && typeof payload === 'object' && 'data' in payload && 'success' in payload) {
+    return payload.data;
+  }
+  return payload;
+}
+
+/**
+ * Adapt one suite LoanListItemResponse → the row shape PipelineRow expects.
+ * Renames: primaryBorrowerName→borrowerName, loanNumber→applicationNumber,
+ * propertyCity→city, propertyState→state, updatedAt→statusChangedAt.
+ * Staff-only columns (outstandingConditions, loanAmount, ltvPct, estClosingDate,
+ * assignedLoName) have no source on the list item → omitted (components render 0/'—').
+ */
+function adaptSuiteLoanListItem(item = {}) {
+  return {
+    id: item.id,
+    borrowerName: item.primaryBorrowerName ?? null,
+    applicationNumber: item.loanNumber ?? null,
+    city: item.propertyCity ?? null,
+    state: item.propertyState ?? null,
+    status: item.status ?? null,
+    // Best-available timestamp for the "in stage Nd" age badge (not a true status-change time).
+    statusChangedAt: item.updatedAt ?? null,
+  };
+}
+
+/**
+ * Adapt the suite paged my-loans envelope → the page shape ApplicationList expects.
+ * Suite: { success, data: { items, total, totalPages, page, size } }
+ *   → { content, totalElements, totalPages, page, size }
+ * `size` is coalesced from data.size ?? data.pageSize (contract uses `size`; older
+ * blobs mentioned `pageSize`).
+ */
+function adaptSuiteLoanList(payload) {
+  const d = unwrapEnvelope(payload) || {};
+  const items = Array.isArray(d.items) ? d.items : (Array.isArray(d) ? d : []);
+  return {
+    content: items.map(adaptSuiteLoanListItem),
+    totalElements: d.total ?? items.length,
+    totalPages: d.totalPages ?? 1,
+    page: d.page ?? 0,
+    size: d.size ?? d.pageSize ?? items.length,
+  };
+}
+
+/**
+ * Adapt one suite LoanSummaryResponse → the direct application object ApplicationDetails
+ * expects. Renames mortgageType→loanType, loanNumber→applicationNumber; coalesces
+ * loanAmount (baseLoanAmount ?? noteAmount) and propertyValue
+ * (appraisedValue ?? estimatedValue ?? salesPrice); reshapes the flat address fields
+ * into a nested property{} object. borrowers is set to [] — the suite LoanSummaryResponse
+ * carries NO borrower-party data this slice, so borrowers[0] chaining yields 'Unknown'/'—'.
+ */
+function adaptSuiteLoanDetail(payload) {
+  const d = unwrapEnvelope(payload) || {};
+  const addressLine = [d.addressLine1, d.addressLine2].filter(Boolean).join(' ') || null;
+  return {
+    id: d.id,
+    applicationNumber: d.loanNumber ?? null,
+    status: d.status ?? null,
+    loanPurpose: d.loanPurpose ?? null,
+    loanType: d.mortgageType ?? null,
+    loanAmount: d.baseLoanAmount ?? d.noteAmount ?? null,
+    propertyValue: d.appraisedValue ?? d.estimatedValue ?? d.salesPrice ?? null,
+    property: {
+      addressLine,
+      city: d.propertyCity ?? null,
+      state: d.propertyState ?? null,
+      zipCode: d.postalCode ?? null,
+      propertyType: d.propertyType ?? null,
+      // Not present on LoanSummaryResponse this slice → component renders '—'.
+      constructionType: null,
+      yearBuilt: null,
+    },
+    // No parties data on the suite loan summary this slice; keep optional chaining safe.
+    borrowers: [],
+  };
+}
 const mortgageService = {
   // ────────────────── Loan applications ──────────────────
 
@@ -29,18 +123,20 @@ const mortgageService = {
    * Paged loan list backing the pipeline page. Accepts a backend-ready
    * query string (see useFilterUrlState.toQueryString()).
    *
+   * msfg-suite re-point: now hits the suite my-loans endpoint
+   * (GET /api/me/loans), which is role-scoped server-side (a borrower sees only
+   * their own loans). The suite paged envelope is adapted to the page shape the
+   * pipeline page already consumes. The legacy filter query string is forwarded
+   * for forward-compat (page/size are honored; staff-only facets are ignored by
+   * the suite endpoint this slice).
+   *
    * @param {string} [queryString]
    * @returns {Promise<{ content: any[], totalElements: number, totalPages: number, page: number, size: number }>}
    */
   getApplications: async (queryString = '') => {
-    const url = queryString
-      ? `/loan-applications?${queryString}`
-      : '/loan-applications';
+    const url = queryString ? `/me/loans?${queryString}` : '/me/loans';
     const { data } = await apiClient.get(url);
-    // Defensive: if a caller still expects an array (legacy callers during
-    // the cutover window), return content[]. After Phase 3 this branch goes.
-    if (Array.isArray(data)) return { content: data, totalElements: data.length, totalPages: 1, page: 0, size: data.length };
-    return data;
+    return adaptSuiteLoanList(data);
   },
 
   /**
@@ -61,9 +157,17 @@ const mortgageService = {
     return Array.isArray(data) ? data : [];
   },
 
+  /**
+   * Loan detail backing the borrower's detail view.
+   *
+   * msfg-suite re-point: now hits GET /api/loans/{id} (suite LoanSummaryResponse,
+   * loan-access guarded server-side). The flat suite payload is reshaped into the
+   * nested application object the detail page already consumes. Borrower-party data
+   * is not on the suite loan summary this slice → borrowers is [].
+   */
   getApplication: async (id) => {
-    const { data } = await apiClient.get(`/loan-applications/${id}`);
-    return data;
+    const { data } = await apiClient.get(`/loans/${id}`);
+    return adaptSuiteLoanDetail(data);
   },
 
   updateApplication: async (id, applicationData) => {
@@ -86,10 +190,27 @@ const mortgageService = {
     return data;
   },
 
-  /** Status timeline for the borrower portal's progress view. */
+  /**
+   * Status timeline for the borrower portal's progress view.
+   *
+   * msfg-suite re-point: the suite has no historical status-timeline endpoint in
+   * this slice. GET /api/loans/{id}/status/transitions returns the CURRENT status
+   * plus the forward allowed-transition options (not a history). We synthesize a
+   * single timeline entry from the current status so the detail timeline block
+   * reflects where the loan is today. Returns [] on any failure (the component hides
+   * the timeline when length === 0).
+   */
   getStatusHistory: async (id) => {
-    const { data } = await apiClient.get(`/loan-applications/${id}/status-history`);
-    return data;
+    try {
+      const { data } = await apiClient.get(`/loans/${id}/status/transitions`);
+      const t = unwrapEnvelope(data) || {};
+      if (!t.currentStatus) return [];
+      // No status-change timestamp on the transitions endpoint → transitionedAt null
+      // (component renders a blank date, which is acceptable for the thin slice).
+      return [{ id, status: t.currentStatus, transitionedAt: null }];
+    } catch {
+      return [];
+    }
   },
 
   // ────────────────── MISMO export / import ──────────────────
@@ -268,5 +389,9 @@ const mortgageService = {
     }
   },
 };
+
+// Named exports of the pure suite→FE adapters for unit testing. These are
+// side-effect-free transforms (no HTTP) so they can be exercised directly.
+export { adaptSuiteLoanList, adaptSuiteLoanDetail, unwrapEnvelope };
 
 export default mortgageService;

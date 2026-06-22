@@ -100,6 +100,25 @@ class LoanApplicationIntakeServiceTest {
     }
 
     @Test
+    void emptyAddressFieldsCoercedToNull() {
+        User caller = borrower();
+        IntakeRequest r = sampleRefi("lead-6");
+        IntakeRequest.PropertyInfo p = new IntakeRequest.PropertyInfo();
+        p.setAddressLine("Address to be determined");
+        p.setCity("");
+        p.setState("");
+        p.setZipCode("");
+        p.setPropertyType("PrimaryResidence");
+        p.setPropertyValue(new java.math.BigDecimal("300000"));
+        r.setProperty(p);
+        LoanApplication app = service.createFromIntake(r, caller);
+        assertThat(app.getProperty().getAddressLine()).isEqualTo("Address to be determined");
+        assertThat(app.getProperty().getCity()).isNull();
+        assertThat(app.getProperty().getState()).isNull();
+        assertThat(app.getProperty().getZipCode()).isNull();
+    }
+
+    @Test
     void buyIntakeWithoutMortgageHasNoLiability() {
         User caller = borrower();
         IntakeRequest r = sampleRefi("lead-5");

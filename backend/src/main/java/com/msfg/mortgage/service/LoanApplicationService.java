@@ -98,10 +98,10 @@ public class LoanApplicationService {
         IntakeRequest.PropertyInfo pi = req.getProperty();
         if (pi != null) {
             Property prop = new Property();
-            prop.setAddressLine(pi.getAddressLine());
-            prop.setCity(pi.getCity());
-            prop.setState(pi.getState());
-            prop.setZipCode(pi.getZipCode());
+            prop.setAddressLine(emptyToNull(pi.getAddressLine()));
+            prop.setCity(emptyToNull(pi.getCity()));
+            prop.setState(emptyToNull(pi.getState()));
+            prop.setZipCode(emptyToNull(pi.getZipCode()));
             prop.setPropertyType(pi.getPropertyType());
             prop.setConstructionType(pi.getConstructionType());
             prop.setPropertyValue(pi.getPropertyValue());
@@ -174,6 +174,8 @@ public class LoanApplicationService {
         }
         return saved;
     }
+
+    private static String emptyToNull(String s) { return (s == null || s.isBlank()) ? null : s; }
 
     private Borrower buildBorrower(BorrowerDTO dto, LoanApplication app) {
         Borrower b = mapper.toEntity(dto);

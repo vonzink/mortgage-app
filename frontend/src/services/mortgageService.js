@@ -170,6 +170,15 @@ const mortgageService = {
     return adaptSuiteLoanDetail(data);
   },
 
+  /**
+   * Create the loan in suite from the funnel hand-off (the transition page calls this post-verify).
+   * Hits the existing suite POST /api/loans/intake; idempotent on sourceLeadId; returns { loanId, loanNumber }.
+   */
+  createLoanFromIntake: async (intakeRequest) => {
+    const { data } = await apiClient.post('/loans/intake', intakeRequest);
+    return (data && data.data) ? data.data : data;
+  },
+
   updateApplication: async (id, applicationData) => {
     const { data } = await apiClient.put(`/loan-applications/${id}`, applicationData);
     return data;

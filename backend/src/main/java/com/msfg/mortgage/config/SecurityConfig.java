@@ -31,6 +31,7 @@ import java.util.List;
 @Configuration
 @EnableWebSecurity
 @EnableMethodSecurity
+@org.springframework.context.annotation.Profile("!local")
 public class SecurityConfig {
 
     private final CognitoJwtConverter cognitoJwtConverter;

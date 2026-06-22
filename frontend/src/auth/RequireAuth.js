@@ -11,12 +11,19 @@ import { useAuth } from 'react-oidc-context';
  *   } />
  */
 export default function RequireAuth({ children }) {
+  // LOCAL-ONLY — mirrors the suite dev-header bridge + apiClient's X-Dev-* injection.
+  // When REACT_APP_DEV_SUB is set we bypass Cognito entirely and render children directly.
+  // In prod REACT_APP_DEV_SUB is unset so real OIDC is unaffected.
+  // Do not weaken the real-auth branches below.
+  const devAuthBypass = !!process.env.REACT_APP_DEV_SUB;
+
   const auth = useAuth();
 
   // Side-effect: trigger Cognito redirect AFTER render commits, never during.
   // `activeNavigator` is set while a redirect is in-flight; we guard on it so
   // we don't fire signinRedirect repeatedly across re-renders.
   useEffect(() => {
+    if (devAuthBypass) return;
     if (auth.isLoading) return;
     if (auth.isAuthenticated) return;
     if (auth.error) return;
@@ -25,7 +32,9 @@ export default function RequireAuth({ children }) {
     auth.signinRedirect({
       state: { returnTo: window.location.pathname + window.location.search },
     });
-  }, [auth.isLoading, auth.isAuthenticated, auth.error, auth.activeNavigator, auth]);
+  }, [devAuthBypass, auth.isLoading, auth.isAuthenticated, auth.error, auth.activeNavigator, auth]);
+
+  if (devAuthBypass) return children;
 
   if (auth.isLoading) {
     return (

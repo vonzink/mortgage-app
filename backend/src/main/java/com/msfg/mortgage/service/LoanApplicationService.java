@@ -196,8 +196,13 @@ public class LoanApplicationService {
             }
         } catch (org.springframework.web.reactive.function.client.WebClientException e) {
             log.warn("Suite intake hand-off failed for leadId={} — local row kept, suiteLoanId null: {}",
-                    app.getSourceLeadId(), e.toString());
+                    forLog(app.getSourceLeadId()), e.toString());
         }
+    }
+
+    /** Neutralize untrusted text before logging — strips CR/LF + control chars to prevent log forging. */
+    private static String forLog(String s) {
+        return s == null ? null : s.replaceAll("\\p{Cntrl}", "_");
     }
 
     private static SuiteClient.IntakePayload payloadFromEntity(LoanApplication app) {

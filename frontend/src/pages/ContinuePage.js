@@ -52,7 +52,14 @@ export default function ContinuePage() {
       setPhase('working');
       await mortgageService.createLoanFromIntake(toIntakeRequest(payload));
       sessionStorage.setItem('carryOverData', JSON.stringify(toCarryOverData(payload)));
-      navigate('/apply');
+      // Cognito path: hard-navigate so react-oidc-context re-initializes and reads the user the
+      // OTP adapter just wrote to sessionStorage (a SPA navigate would keep stale auth state).
+      // Dev path: RequireAuth is bypassed, so the in-app navigate is fine (and keeps the local walk fast).
+      if (auth.kind === 'cognito') {
+        window.location.assign('/apply');
+      } else {
+        navigate('/apply');
+      }
     } catch {
       toast.error('Something went wrong finishing sign-in. Try again.');
       setPhase('code');

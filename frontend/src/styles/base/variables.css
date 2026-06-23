@@ -25,6 +25,20 @@
   --on-dark-muted: #ffffff9e;
   --hairline-dark: #ffffff1f;
 
+  /* --------------------------------------------------------------------
+   * Semantic color aliases — the single public token API consumed by the
+   * page-level *.design.css screens (e.g. ContinuePage). Mapped onto the
+   * msfg.us brand tokens above so every screen inherits the emerald/paper
+   * identity instead of falling back to generic gray/blue.
+   * Source of truth: msfg.us src/app/globals.css (deep-emerald + spring).
+   * ------------------------------------------------------------------ */
+  --color-primary: var(--primary-color);  /* spring  #1fb463 */
+  --color-text:    var(--text-primary);   /* ink     #0b231c */
+  --color-surface: var(--bg-secondary);   /* paper-2 #f2f4ef */
+  --color-bg:      var(--bg-card);         /* white   #ffffff */
+  --color-border:  var(--border-primary); /* line    #e2e6dd */
+  --color-muted:   var(--text-muted);     /* muted   #5a6b61 */
+
   /* Background Colors - Paper-like theme */
   --bg-primary: #fbfbf7;
   --bg-secondary: #f2f4ef;

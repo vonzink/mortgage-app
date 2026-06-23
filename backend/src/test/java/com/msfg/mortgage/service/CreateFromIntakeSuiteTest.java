@@ -64,8 +64,10 @@ class CreateFromIntakeSuiteTest {
         User caller = new User();
         caller.setId(1);
 
-        // --- execute ---
+        // --- execute --- createFromIntake persists locally (in a tx); the suite hand-off is a separate
+        // step the controller runs next (reconcileSuiteLoan), kept OUT of createFromIntake's transaction.
         LoanApplication app = service.createFromIntake(req, caller);
+        service.reconcileSuiteLoan(app);
 
         // --- assert suite loan id stored ---
         assertThat(app.getSuiteLoanId()).isEqualTo("22222222-2222-2222-2222-222222222222");

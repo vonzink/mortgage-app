@@ -1,6 +1,7 @@
 package com.msfg.mortgage.repository;
 
 import com.msfg.mortgage.model.LoanApplication;
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -49,4 +50,12 @@ public interface LoanApplicationRepository extends JpaRepository<LoanApplication
             ORDER BY la.created_date DESC
             """, nativeQuery = true)
     List<LoanApplication> findByAgentUserId(@Param("userId") Integer userId);
+
+    /**
+     * Funnel intakes whose suite hand-off never landed ({@code suite_loan_id IS NULL}) —
+     * {@code SuiteReconciliationJob} re-drives these. Eager-fetches property + borrowers so the
+     * payload can be rebuilt outside a transaction.
+     */
+    @EntityGraph(attributePaths = {"property", "borrowers"})
+    List<LoanApplication> findBySuiteLoanIdIsNull();
 }

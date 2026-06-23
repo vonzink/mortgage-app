@@ -38,6 +38,11 @@ export default function AdminHome() {
           description="AI evaluation toggle, default provider, and model."
           to="/admin/settings"
         />
+        <AdminCard
+          title="Users"
+          description="Invite borrowers, agents, and staff; send password resets."
+          to="/admin/users"
+        />
       </div>
     </div>
   );

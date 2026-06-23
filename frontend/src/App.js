@@ -19,6 +19,7 @@ import AdminHome from './pages/admin/AdminHome';
 import DocumentTypesAdmin from './pages/admin/DocumentTypesAdmin';
 import FolderTemplatesAdmin from './pages/admin/FolderTemplatesAdmin';
 import AppSettingsAdmin from './pages/admin/AppSettingsAdmin';
+import UsersAdmin from './pages/admin/UsersAdmin';
 import ContinuePage from './pages/ContinuePage';
 
 // Styles
@@ -109,6 +110,7 @@ function App() {
             <Route path="/admin/document-types" element={<RequireAuth><DocumentTypesAdmin /></RequireAuth>} />
             <Route path="/admin/folder-templates" element={<RequireAuth><FolderTemplatesAdmin /></RequireAuth>} />
             <Route path="/admin/settings" element={<RequireAuth><AppSettingsAdmin /></RequireAuth>} />
+            <Route path="/admin/users" element={<RequireAuth><UsersAdmin /></RequireAuth>} />
             {/* Common typo / link-out — canonical route is /admin/settings */}
             <Route path="/admin/app-settings" element={<Navigate to="/admin/settings" replace />} />
           </Routes>

@@ -1,13 +1,16 @@
 package com.msfg.mortgage.service;
 
+import com.msfg.mortgage.config.DevIdentityProperties;
 import com.msfg.mortgage.dto.*;
 import com.msfg.mortgage.exception.ResourceNotFoundException;
+import com.msfg.mortgage.integration.SuiteClient;
 import com.msfg.mortgage.mapper.LoanApplicationMapper;
 import com.msfg.mortgage.model.*;
 import com.msfg.mortgage.repository.LoanApplicationRepository;
 import com.msfg.mortgage.repository.LoanStatusHistoryRepository;
 import com.msfg.mortgage.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -18,12 +21,15 @@ import java.util.Optional;
 @Service
 @Transactional
 @RequiredArgsConstructor
+@Slf4j
 public class LoanApplicationService {
 
     private final LoanApplicationRepository loanApplicationRepository;
     private final LoanStatusHistoryRepository loanStatusHistoryRepository;
     private final LoanApplicationMapper mapper;
     private final UserRepository userRepository;
+    private final SuiteClient suiteClient;
+    private final DevIdentityProperties devIdentity;
 
     /**
      * Create a loan application + its full child tree (property, borrowers and their
@@ -92,10 +98,10 @@ public class LoanApplicationService {
         IntakeRequest.PropertyInfo pi = req.getProperty();
         if (pi != null) {
             Property prop = new Property();
-            prop.setAddressLine(pi.getAddressLine());
-            prop.setCity(pi.getCity());
-            prop.setState(pi.getState());
-            prop.setZipCode(pi.getZipCode());
+            prop.setAddressLine(emptyToNull(pi.getAddressLine()));
+            prop.setCity(emptyToNull(pi.getCity()));
+            prop.setState(emptyToNull(pi.getState()));
+            prop.setZipCode(emptyToNull(pi.getZipCode()));
             prop.setPropertyType(pi.getPropertyType());
             prop.setConstructionType(pi.getConstructionType());
             prop.setPropertyValue(pi.getPropertyValue());
@@ -136,13 +142,40 @@ public class LoanApplicationService {
                     });
         }
 
+        LoanApplication saved;
         try {
-            return loanApplicationRepository.save(app);
+            saved = loanApplicationRepository.save(app);
         } catch (org.springframework.dao.DataIntegrityViolationException dup) {
-            return loanApplicationRepository.findBySourceLeadId(req.getSourceLeadId())
-                    .orElseThrow(() -> dup);
+            // Idempotent: a concurrent intake already created it — return the existing row untouched.
+            return loanApplicationRepository.findBySourceLeadId(req.getSourceLeadId()).orElseThrow(() -> dup);
         }
+
+        // Strangler hand-off: create the loan in suite (system of record) and store its id locally.
+        // Best-effort: a suite hiccup must not fail the funnel — log + leave suiteLoanId null.
+        if (saved.getSuiteLoanId() == null) {
+            try {
+                SuiteClient.IntakePayload payload = new SuiteClient.IntakePayload(
+                        req.getSourceLeadId(), req.getLoanPurpose(),
+                        bi == null ? null : bi.getFirstName(), bi == null ? null : bi.getLastName(),
+                        bi == null ? null : bi.getEmail(), bi == null ? null : bi.getPhone(),
+                        pi == null ? null : pi.getAddressLine(), pi == null ? null : pi.getCity(),
+                        pi == null ? null : pi.getState(), pi == null ? null : pi.getZipCode(),
+                        pi == null ? null : pi.getPropertyValue());
+                SuiteClient.SuiteLoanRef ref = suiteClient.createIntake(
+                        payload, devIdentity.getSub(), devIdentity.getRoles(), devIdentity.getOrg());
+                if (ref != null && ref.loanId() != null) {
+                    saved.setSuiteLoanId(ref.loanId());
+                    saved = loanApplicationRepository.save(saved);
+                }
+            } catch (org.springframework.web.reactive.function.client.WebClientException e) {
+                log.warn("Suite intake hand-off failed for leadId={} — local row kept, suiteLoanId null: {}",
+                        req.getSourceLeadId(), e.toString());
+            }
+        }
+        return saved;
     }
+
+    private static String emptyToNull(String s) { return (s == null || s.isBlank()) ? null : s; }
 
     private Borrower buildBorrower(BorrowerDTO dto, LoanApplication app) {
         Borrower b = mapper.toEntity(dto);

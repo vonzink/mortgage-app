@@ -73,7 +73,9 @@ public class LoanApplicationController {
         log.info("Funnel intake: leadId={} purpose={}", req.getSourceLeadId(), req.getLoanPurpose());
         LoanApplication app = loanApplicationService.createFromIntake(req, caller);
         Map<String, Object> out = new LinkedHashMap<>();
-        out.put("applicationId", app.getId());
+        // Prefer the suite loan id (UUID) so the FE deep-link /applications/{id} resolves against suite's
+        // GET /api/loans/{id}. Fall back to the local id only if the suite hand-off was unavailable.
+        out.put("applicationId", app.getSuiteLoanId() != null ? app.getSuiteLoanId() : app.getId());
         // 200 (not 201): this endpoint is idempotent on sourceLeadId — a retry returns
         // the EXISTING application rather than creating a new one, so "Created" would be wrong.
         return ResponseEntity.ok(out);

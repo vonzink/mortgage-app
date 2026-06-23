@@ -71,6 +71,10 @@ public class LoanApplication {
     @Column(name = "source_lead_id", unique = true, length = 100)
     private String sourceLeadId;
 
+    /** The loan's id in msfg-suite (the system of record). Set by the funnel intake hand-off. */
+    @Column(name = "suite_loan_id", length = 64)
+    private String suiteLoanId;
+
     /** LendingPad's R-number, assigned when the loan first lands in LendingPad. */
     @Column(name = "lendingpad_loan_number")
     private String lendingpadLoanNumber;
@@ -254,6 +258,9 @@ public class LoanApplication {
 
     public String getSourceLeadId() { return sourceLeadId; }
     public void setSourceLeadId(String sourceLeadId) { this.sourceLeadId = sourceLeadId; }
+
+    public String getSuiteLoanId() { return suiteLoanId; }
+    public void setSuiteLoanId(String suiteLoanId) { this.suiteLoanId = suiteLoanId; }
 
     public String getLendingpadLoanNumber() {
         return lendingpadLoanNumber;

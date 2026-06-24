@@ -1,4 +1,4 @@
-import apiClient from './apiClient';
+import apiClient, { suiteClient } from './apiClient';
 
 /**
  * Backend API surface for the borrower portal.
@@ -135,7 +135,7 @@ const mortgageService = {
    */
   getApplications: async (queryString = '') => {
     const url = queryString ? `/me/loans?${queryString}` : '/me/loans';
-    const { data } = await apiClient.get(url);
+    const { data } = await suiteClient.get(url);
     return adaptSuiteLoanList(data);
   },
 
@@ -166,7 +166,7 @@ const mortgageService = {
    * is not on the suite loan summary this slice → borrowers is [].
    */
   getApplication: async (id) => {
-    const { data } = await apiClient.get(`/loans/${id}`);
+    const { data } = await suiteClient.get(`/loans/${id}`);
     return adaptSuiteLoanDetail(data);
   },
 
@@ -175,7 +175,7 @@ const mortgageService = {
    * Hits the existing suite POST /api/loans/intake; idempotent on sourceLeadId; returns { loanId, loanNumber }.
    */
   createLoanFromIntake: async (intakeRequest) => {
-    const { data } = await apiClient.post('/loans/intake', intakeRequest);
+    const { data } = await suiteClient.post('/loans/intake', intakeRequest);
     return (data && data.data) ? data.data : data;
   },
 
@@ -211,7 +211,7 @@ const mortgageService = {
    */
   getStatusHistory: async (id) => {
     try {
-      const { data } = await apiClient.get(`/loans/${id}/status/transitions`);
+      const { data } = await suiteClient.get(`/loans/${id}/status/transitions`);
       const t = unwrapEnvelope(data) || {};
       if (!t.currentStatus) return [];
       // No status-change timestamp on the transitions endpoint → transitionedAt null
@@ -300,12 +300,12 @@ const mortgageService = {
   // ────────────────── "Me" (user-scoped) ──────────────────
 
   getMe: async () => {
-    const { data } = await apiClient.get('/me');
+    const { data } = await suiteClient.get('/me');
     return data;
   },
 
   getMyLoans: async () => {
-    const { data } = await apiClient.get('/me/loans');
+    const { data } = await suiteClient.get('/me/loans');
     return data;
   },
 

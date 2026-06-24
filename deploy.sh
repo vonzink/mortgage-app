@@ -91,11 +91,49 @@ fi
 echo -e "${GREEN}✓ SSH OK${NC}"
 echo ""
 
-# ── Run the deploy on the remote box ───────────────────────────────────────
-# Pass flags as positional args to `bash -s` (SSH doesn't forward env vars
-# without server-side AcceptEnv). The heredoc body picks them up as $1..$5.
+# ── Frontend: BUILD LOCALLY + rsync (NEVER build on the box) ────────────────
+# The box is a shared 4 GB instance hosting the suite + Postgres + other apps;
+# a CRA build there OOM-thrashes it and takes the suite down too (2026-06-24
+# incident). So we build on this machine and rsync the artifact; the box only
+# serves frontend/build/ via nginx — it never builds.
+if [ "$DEPLOY_FRONTEND" = "true" ]; then
+  echo -e "${YELLOW}▸ Building frontend LOCALLY (prod env)…${NC}"
+  ( cd "$(dirname "$0")/frontend"
+    npm install --legacy-peer-deps --no-audit --no-fund
+    # CRA bakes these at build time. REACT_APP_DEV_SUB MUST be empty: the repo
+    # .env sets it for local dev, which would otherwise bake the DEV passwordless
+    # adapter into the prod bundle. CI=false so pre-existing lint warnings (in
+    # unrelated feature files) don't fail the build.
+    env \
+      REACT_APP_API_URL=https://app.msfgco.com/api \
+      REACT_APP_SUITE_API_URL=https://los.msfgco.com/api \
+      REACT_APP_COGNITO_AUTHORITY=https://cognito-idp.us-west-1.amazonaws.com/us-west-1_S6iE2uego \
+      REACT_APP_COGNITO_REDIRECT_URI=https://app.msfgco.com/auth/callback \
+      REACT_APP_COGNITO_POST_LOGOUT_REDIRECT_URI=https://app.msfgco.com/ \
+      REACT_APP_COGNITO_USER_POOL_ID=us-west-1_S6iE2uego \
+      REACT_APP_COGNITO_CLIENT_ID=34rg0vqoobfv8hhvg8kunkd738 \
+      REACT_APP_COGNITO_DOMAIN=https://us-west-1s6ie2uego.auth.us-west-1.amazoncognito.com \
+      REACT_APP_WEBAUTHN_RP_ID=msfgco.com \
+      REACT_APP_DEV_SUB= \
+      CI=false \
+      npm run build
+    # Safety gate: the dev-sub UUID must NOT be in a prod bundle.
+    if grep -rq '0000000000b0' build/static/js/ 2>/dev/null; then
+      echo -e "${RED}✗ ABORT: REACT_APP_DEV_SUB leaked into the bundle${NC}"; exit 1
+    fi
+    echo -e "${YELLOW}▸ rsync build/ → box…${NC}"
+    rsync -az --delete -e "ssh -i $EC2_KEY -o StrictHostKeyChecking=accept-new" \
+      build/ "$EC2_HOST:$EC2_PROJECT_DIR/frontend/build/"
+  ) || { echo -e "${RED}✗ Frontend build/deploy failed${NC}"; exit 1; }
+  echo -e "${GREEN}✓ Frontend deployed (built locally, rsynced — box never builds)${NC}"
+  echo ""
+fi
+
+# ── Backend / repair / validate / logs run ON the box (only when needed) ────
+# Frontend is handled locally above, so DEPLOY_FRONTEND is forced false here.
+if [ "$DEPLOY_BACKEND" = "true" ] || [ "$DO_REPAIR" = "true" ] || [ "$DO_VALIDATE" = "true" ] || [ "$TAIL_LOGS" = "true" ]; then
 ssh -i "$EC2_KEY" "$EC2_HOST" bash -s -- \
-  "$DEPLOY_FRONTEND" "$DEPLOY_BACKEND" "$DO_REPAIR" "$DO_VALIDATE" "$TAIL_LOGS" "$EC2_PROJECT_DIR" <<'REMOTE'
+  "false" "$DEPLOY_BACKEND" "$DO_REPAIR" "$DO_VALIDATE" "$TAIL_LOGS" "$EC2_PROJECT_DIR" <<'REMOTE'
 set -euo pipefail
 
 DEPLOY_FRONTEND="$1"
@@ -130,23 +168,9 @@ git pull --ff-only origin main
 echo -e "${GREEN}✓ Code up to date${NC}"
 echo ""
 
-# ── Frontend ─────────────────────────────────────────────────────────────
-if [ "$DEPLOY_FRONTEND" = "true" ]; then
-  echo -e "${YELLOW}▸ Installing frontend deps (if needed)…${NC}"
-  cd frontend
-  # --legacy-peer-deps because react-icons + react 18 have a known peer warning;
-  # not a real conflict.
-  npm install --legacy-peer-deps --no-audit --no-fund
-  echo -e "${GREEN}✓ Deps OK${NC}"
-
-  echo -e "${YELLOW}▸ Building React bundle with prod env vars…${NC}"
-  # Source the env block; CRA bakes these in at build time.
-  eval "export $(echo "$FRONTEND_ENV" | xargs)"
-  npm run build
-  echo -e "${GREEN}✓ Build complete (nginx already points at frontend/build)${NC}"
-  cd "$PROJECT_DIR"
-  echo ""
-fi
+# ── Frontend is built LOCALLY + rsynced on the laptop side (see above) ──────
+# The box NEVER builds the frontend (it OOMs the shared instance). DEPLOY_FRONTEND
+# is forced "false" into this heredoc, so nothing happens here for the frontend.
 
 # ── Flyway validate (read-only — show what's wrong before repairing) ───
 # Helpful when Spring Boot fails to start with "Migrations have failed
@@ -230,6 +254,7 @@ if [ "$TAIL_LOGS" = "true" ]; then
   docker compose logs -f --tail=20 backend
 fi
 REMOTE
+fi
 
 echo ""
 echo -e "${CYAN}========================================${NC}"

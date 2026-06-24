@@ -12,6 +12,7 @@ import com.msfg.mortgage.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
@@ -149,30 +150,68 @@ public class LoanApplicationService {
             // Idempotent: a concurrent intake already created it — return the existing row untouched.
             return loanApplicationRepository.findBySourceLeadId(req.getSourceLeadId()).orElseThrow(() -> dup);
         }
-
-        // Strangler hand-off: create the loan in suite (system of record) and store its id locally.
-        // Best-effort: a suite hiccup must not fail the funnel — log + leave suiteLoanId null.
-        if (saved.getSuiteLoanId() == null) {
-            try {
-                SuiteClient.IntakePayload payload = new SuiteClient.IntakePayload(
-                        req.getSourceLeadId(), req.getLoanPurpose(),
-                        bi == null ? null : bi.getFirstName(), bi == null ? null : bi.getLastName(),
-                        bi == null ? null : bi.getEmail(), bi == null ? null : bi.getPhone(),
-                        pi == null ? null : pi.getAddressLine(), pi == null ? null : pi.getCity(),
-                        pi == null ? null : pi.getState(), pi == null ? null : pi.getZipCode(),
-                        pi == null ? null : pi.getPropertyValue());
-                SuiteClient.SuiteLoanRef ref = suiteClient.createIntake(
-                        payload, devIdentity.getSub(), devIdentity.getRoles(), devIdentity.getOrg());
-                if (ref != null && ref.loanId() != null) {
-                    saved.setSuiteLoanId(ref.loanId());
-                    saved = loanApplicationRepository.save(saved);
-                }
-            } catch (org.springframework.web.reactive.function.client.WebClientException e) {
-                log.warn("Suite intake hand-off failed for leadId={} — local row kept, suiteLoanId null: {}",
-                        req.getSourceLeadId(), e.toString());
-            }
-        }
+        // Local row committed. The blocking suite hand-off runs AFTER this transaction — the controller
+        // calls reconcileSuiteLoan(saved) next — so the SuiteClient HTTP never holds a DB connection.
         return saved;
+    }
+
+    /**
+     * Re-drive every local application whose suite hand-off never landed ({@code suite_loan_id IS NULL}),
+     * so a transient suite outage self-heals. Invoked by {@code SuiteReconciliationJob}. Runs outside a
+     * DB transaction so each per-row save self-transacts and the blocking suite call holds no connection.
+     *
+     * @return how many applications were reconciled (got a suite loan id) this pass.
+     */
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
+    public int redriveSuiteHandoffs() {
+        int reconciled = 0;
+        for (LoanApplication app : loanApplicationRepository.findBySuiteLoanIdIsNull()) {
+            reconcileSuiteLoan(app);
+            if (app.getSuiteLoanId() != null) reconciled++;
+        }
+        return reconciled;
+    }
+
+    /**
+     * Hand a persisted application off to suite (payload rebuilt from the entity). Runs OUTSIDE any DB
+     * transaction — the blocking SuiteClient HTTP must not hold a connection; on success the suite loan
+     * id is saved in its own short tx. Called by the controller right after {@link #createFromIntake}
+     * and by the scheduled re-drive.
+     */
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
+    public void reconcileSuiteLoan(LoanApplication app) {
+        handOffToSuite(app, payloadFromEntity(app));
+    }
+
+    // --- suite hand-off internals — the SuiteClient HTTP is always invoked OUTSIDE a DB transaction ---
+
+    private void handOffToSuite(LoanApplication app, SuiteClient.IntakePayload payload) {
+        if (app == null || app.getSuiteLoanId() != null) return;
+        try {
+            SuiteClient.SuiteLoanRef ref = suiteClient.createIntake(
+                    payload, devIdentity.getSub(), devIdentity.getRoles(), devIdentity.getOrg());
+            if (ref != null && ref.loanId() != null) {
+                app.setSuiteLoanId(ref.loanId());
+                loanApplicationRepository.save(app);   // self-transacts (short update tx)
+            }
+        } catch (org.springframework.web.reactive.function.client.WebClientException e) {
+            // Log the DB-generated local id, NOT the user-supplied sourceLeadId, to avoid log injection.
+            log.warn("Suite intake hand-off failed for application id={} — local row kept, suiteLoanId null: {}",
+                    app.getId(), e.toString());
+        }
+    }
+
+    private static SuiteClient.IntakePayload payloadFromEntity(LoanApplication app) {
+        Property p = app.getProperty();
+        List<Borrower> bs = app.getBorrowers();
+        Borrower b = (bs == null || bs.isEmpty()) ? null : bs.get(0);
+        return new SuiteClient.IntakePayload(
+                app.getSourceLeadId(), app.getLoanPurpose(),
+                b == null ? null : b.getFirstName(), b == null ? null : b.getLastName(),
+                b == null ? null : b.getEmail(), b == null ? null : b.getPhone(),
+                p == null ? null : p.getAddressLine(), p == null ? null : p.getCity(),
+                p == null ? null : p.getState(), p == null ? null : p.getZipCode(),
+                p == null ? null : p.getPropertyValue());
     }
 
     private static String emptyToNull(String s) { return (s == null || s.isBlank()) ? null : s; }

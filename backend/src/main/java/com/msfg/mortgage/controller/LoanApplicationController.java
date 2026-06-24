@@ -72,6 +72,10 @@ public class LoanApplicationController {
                         HttpStatus.UNAUTHORIZED, "No authenticated user"));
         log.info("Funnel intake: leadId={} purpose={}", req.getSourceLeadId(), req.getLoanPurpose());
         LoanApplication app = loanApplicationService.createFromIntake(req, caller);
+        // Suite hand-off runs HERE — after createFromIntake's transaction has committed — so the blocking
+        // SuiteClient HTTP holds no DB connection. On success it sets app.suiteLoanId for the deep-link
+        // below; on failure the scheduled SuiteReconciliationJob re-drives it.
+        loanApplicationService.reconcileSuiteLoan(app);
         Map<String, Object> out = new LinkedHashMap<>();
         // Prefer the suite loan id (UUID) so the FE deep-link /applications/{id} resolves against suite's
         // GET /api/loans/{id}. Fall back to the local id only if the suite hand-off was unavailable.

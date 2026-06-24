@@ -14,6 +14,7 @@ jest.mock('@aws-sdk/client-cognito-identity-provider', () => {
     };
   return {
     CognitoIdentityProviderClient: jest.fn().mockImplementation(() => ({ send: jest.fn() })),
+    SignUpCommand: mk('SignUp'),
     InitiateAuthCommand: mk('InitiateAuth'),
     RespondToAuthChallengeCommand: mk('RespondToAuthChallenge'),
     StartWebAuthnRegistrationCommand: mk('StartWebAuthnRegistration'),
@@ -68,7 +69,7 @@ describe('CognitoOtpAdapter.availableFactors (spec §3.3 — SMS hidden)', () =>
 });
 
 describe('CognitoOtpAdapter EMAIL_OTP state machine (confirmed wire shape)', () => {
-  test('start issues InitiateAuth(USER_AUTH, PREFERRED_CHALLENGE=EMAIL_OTP)', async () => {
+  test('start self-signs-up THEN issues InitiateAuth(USER_AUTH, PREFERRED_CHALLENGE=EMAIL_OTP)', async () => {
     const client = fakeClient(async () => ({
       Session: 'sess-1',
       ChallengeName: 'EMAIL_OTP',
@@ -78,13 +79,45 @@ describe('CognitoOtpAdapter EMAIL_OTP state machine (confirmed wire shape)', () 
 
     const state = await CognitoOtpAdapter.start('ann@example.com', Factor.EMAIL_OTP);
 
-    const sent = client.send.mock.calls[0][0];
-    expect(sent.__cmd).toBe('InitiateAuth');
-    expect(sent.input.AuthFlow).toBe('USER_AUTH');
-    expect(sent.input.AuthParameters.USERNAME).toBe('ann@example.com');
-    expect(sent.input.AuthParameters.PREFERRED_CHALLENGE).toBe('EMAIL_OTP');
+    // SignUp precedes the OTP challenge so a brand-new funnel borrower is provisioned (G8/MEDIUM fix).
+    const cmds = client.send.mock.calls.map((c) => c[0].__cmd);
+    expect(cmds).toEqual(['SignUp', 'InitiateAuth']);
+    const signup = client.send.mock.calls[0][0];
+    expect(signup.input.Username).toBe('ann@example.com');
+    expect(signup.input.UserAttributes).toEqual([{ Name: 'email', Value: 'ann@example.com' }]);
+    expect(typeof signup.input.Password).toBe('string');
+    expect(signup.input.Password.length).toBeGreaterThanOrEqual(8);
+    const init = client.send.mock.calls[1][0];
+    expect(init.input.AuthFlow).toBe('USER_AUTH');
+    expect(init.input.AuthParameters.USERNAME).toBe('ann@example.com');
+    expect(init.input.AuthParameters.PREFERRED_CHALLENGE).toBe('EMAIL_OTP');
     expect(state).toMatchObject({ kind: 'otp', factor: 'EMAIL_OTP', session: 'sess-1' });
     expect(state.destination).toBe('a***@e***.com');
+  });
+
+  test('start swallows UsernameExistsException (returning user) and still challenges', async () => {
+    const client = fakeClient(async (cmd) => {
+      if (cmd.__cmd === 'SignUp') {
+        const e = new Error('exists'); e.name = 'UsernameExistsException'; throw e;
+      }
+      return { Session: 'sess-2', ChallengeName: 'EMAIL_OTP', ChallengeParameters: {} };
+    });
+    CognitoOtpAdapter.__setClientForTest(client);
+    const state = await CognitoOtpAdapter.start('back@example.com', Factor.EMAIL_OTP);
+    expect(client.send.mock.calls.map((c) => c[0].__cmd)).toEqual(['SignUp', 'InitiateAuth']);
+    expect(state.session).toBe('sess-2');
+  });
+
+  test('start propagates a non-UsernameExists SignUp error (no masking real failures)', async () => {
+    const client = fakeClient(async (cmd) => {
+      if (cmd.__cmd === 'SignUp') {
+        const e = new Error('boom'); e.name = 'InvalidParameterException'; throw e;
+      }
+      return {};
+    });
+    CognitoOtpAdapter.__setClientForTest(client);
+    await expect(CognitoOtpAdapter.start('x@example.com', Factor.EMAIL_OTP)).rejects.toThrow(/boom/);
+    expect(client.send.mock.calls.map((c) => c[0].__cmd)).toEqual(['SignUp']); // never reached InitiateAuth
   });
 
   test('respond sends EMAIL_OTP_CODE + USERNAME and mints the session', async () => {

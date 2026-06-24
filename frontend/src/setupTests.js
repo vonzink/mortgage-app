@@ -16,3 +16,11 @@ if (typeof global.TextEncoder === 'undefined') {
 if (typeof global.TextDecoder === 'undefined') {
   global.TextDecoder = TextDecoder;
 }
+
+// jsdom also lacks Web Crypto (crypto.getRandomValues), which the adapter's throwaway-
+// password generator uses. Browsers have window.crypto; this is TEST-INFRA ONLY.
+import { webcrypto } from 'crypto';
+
+if (!global.crypto || typeof global.crypto.getRandomValues !== 'function') {
+  global.crypto = webcrypto;
+}

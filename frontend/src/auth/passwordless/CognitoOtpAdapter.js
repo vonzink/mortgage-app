@@ -27,6 +27,7 @@
  */
 import {
   CognitoIdentityProviderClient,
+  SignUpCommand,
   InitiateAuthCommand,
   RespondToAuthChallengeCommand,
   StartWebAuthnRegistrationCommand,
@@ -112,6 +113,11 @@ export const CognitoOtpAdapter = {
     }
 
     if (isOtpFactor(factor)) {
+      // Headline funnel persona: a brand-new /continue borrower who has NEVER existed in
+      // the pool. USER_AUTH InitiateAuth does NOT auto-provision (→ UserNotFound / generic
+      // failure → locked out), so self-SignUp first. Idempotent: a returning user already
+      // exists → UsernameExistsException is swallowed; then InitiateAuth emails/texts the code.
+      await ensureSignedUp(username);
       const out = await client().send(
         new InitiateAuthCommand({
           AuthFlow: AUTH_FLOW_USER_AUTH,
@@ -271,6 +277,39 @@ export const CognitoOtpAdapter = {
   // Test-only seam.
   __setClientForTest,
 };
+
+/**
+ * Idempotent self-SignUp so a brand-new funnel borrower exists before InitiateAuth.
+ * Swallows ONLY UsernameExistsException (the returning-user case) — any other error
+ * propagates so genuine failures surface rather than becoming a generic "no code".
+ */
+async function ensureSignedUp(username) {
+  try {
+    await client().send(
+      new SignUpCommand({
+        ClientId: cognitoUserPoolClientId,
+        Username: username,
+        Password: throwawayPassword(),
+        UserAttributes: [{ Name: 'email', Value: username }],
+      })
+    );
+  } catch (e) {
+    if (e?.name !== 'UsernameExistsException') throw e;
+  }
+}
+
+/**
+ * A throwaway password the borrower never uses (passwordless), strong enough for any
+ * pool policy. Security-bearing → crypto.getRandomValues, NEVER Math.random. The literal
+ * "Aa1!" prefix guarantees upper/lower/digit/symbol; the random tail guarantees length+entropy.
+ */
+function throwawayPassword() {
+  const bytes = new Uint8Array(24);
+  window.crypto.getRandomValues(bytes);
+  let b64 = '';
+  for (const b of bytes) b64 += String.fromCharCode(b);
+  return 'Aa1!' + btoa(b64).replace(/[^a-zA-Z0-9]/g, '');
+}
 
 /**
  * Normalize a WebAuthn options blob (string JSON, or an already-parsed object) into

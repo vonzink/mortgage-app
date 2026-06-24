@@ -27,14 +27,23 @@ export default function ContinuePage() {
   }
 
   // Fires once the FactorChooser completes any factor (email/SMS OTP or passkey).
-  // PRESERVES THE INTAKE TAIL VERBATIM (spec §5.1): createLoanFromIntake +
-  // carryOverData + navigate('/apply'). Do not reorder or alter these three lines.
+  // Intake tail (spec §5.1): createLoanFromIntake → carryOverData → go to /apply.
+  // The final hop MUST be a hard navigation on the real-Cognito path: mintSession's
+  // storeUser writes sessionStorage but does NOT raise react-oidc-context's userLoaded
+  // event, so a SPA navigate() would leave isAuthenticated=false and RequireAuth would
+  // bounce the just-authenticated borrower to the hosted UI. window.location.assign forces
+  // the AuthProvider to re-init and read the freshly-written user. (carryOverData lives in
+  // sessionStorage, so it survives the reload.) Dev bypass keeps the SPA navigate.
   const finishAndContinue = async () => {
     setWorking(true);
     try {
       await mortgageService.createLoanFromIntake(toIntakeRequest(payload));
       sessionStorage.setItem('carryOverData', JSON.stringify(toCarryOverData(payload)));
-      navigate('/apply');
+      if (process.env.REACT_APP_DEV_SUB) {
+        navigate('/apply');
+      } else {
+        window.location.assign('/apply');
+      }
     } catch (e) {
       toast.error('Something went wrong finishing sign-in. Try again.');
       setWorking(false);

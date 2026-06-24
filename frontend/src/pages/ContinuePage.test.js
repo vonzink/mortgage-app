@@ -11,6 +11,16 @@ jest.mock('react-router-dom', () => ({
   useNavigate: () => mockNavigate,
 }));
 
+// ── window.location.assign — the REAL-Cognito hard-nav target (regression guard) ─
+// The prod path MUST hard-navigate (storeUser doesn't raise userLoaded → a SPA
+// navigate would leave isAuthenticated=false → RequireAuth bounces to hosted UI).
+// REACT_APP_DEV_SUB is unset under test, so finishAndContinue takes the prod branch.
+const mockAssign = jest.fn();
+Object.defineProperty(window, 'location', {
+  configurable: true,
+  value: { assign: mockAssign, href: 'http://localhost/' },
+});
+
 // ── mortgageService ──────────────────────────────────────────────────────────
 jest.mock('../services/mortgageService', () => ({
   __esModule: true,
@@ -51,7 +61,11 @@ function renderPage() {
 beforeEach(() => {
   sessionStorage.clear();
   mockNavigate.mockClear();
+  mockAssign.mockClear();
   mortgageService.createLoanFromIntake.mockClear();
+  // .env sets REACT_APP_DEV_SUB for local dev; delete it so each test exercises the
+  // PROD (hard-nav) branch by default. The dev-path test sets it back explicitly.
+  delete process.env.REACT_APP_DEV_SUB;
   // fresh auth instance per test so we get fresh jest.fn() spies (email-only so the
   // chooser defaults to EMAIL_OTP and exposes the OTP code path).
   mockAuthInstance = {
@@ -88,12 +102,13 @@ test('createLoanFromIntake failure resets to the chooser so user can retry', asy
 
   await waitFor(() => expect(mortgageService.createLoanFromIntake).toHaveBeenCalled());
 
-  // The factor chooser must be re-shown (working state cleared) and no /apply nav.
+  // The factor chooser must be re-shown (working state cleared) and NO nav of either kind.
   expect(await screen.findByLabelText(/^email$/i)).toBeInTheDocument();
   expect(mockNavigate).not.toHaveBeenCalledWith('/apply');
+  expect(mockAssign).not.toHaveBeenCalled();
 });
 
-test('email -> start -> respond -> creates loan, seeds carryOverData, navigates to /apply', async () => {
+test('email -> start -> respond -> creates loan, seeds carryOverData, HARD-navigates to /apply', async () => {
   renderPage();
 
   // Start the email-OTP factor (username = prefilled email).
@@ -109,6 +124,19 @@ test('email -> start -> respond -> creates loan, seeds carryOverData, navigates 
 
   await waitFor(() => expect(mockAuthInstance.respond).toHaveBeenCalled());
   await waitFor(() => expect(mortgageService.createLoanFromIntake).toHaveBeenCalled());
-  await waitFor(() => expect(mockNavigate).toHaveBeenCalledWith('/apply'));
+  // Prod path: hard nav (window.location.assign), NOT a SPA navigate — adopts the session.
+  await waitFor(() => expect(mockAssign).toHaveBeenCalledWith('/apply'));
+  expect(mockNavigate).not.toHaveBeenCalledWith('/apply');
   expect(JSON.parse(sessionStorage.getItem('carryOverData')).borrowers[0].firstName).toBe('Ann');
+});
+
+test('dev bypass (REACT_APP_DEV_SUB) uses SPA navigate, not a hard reload', async () => {
+  process.env.REACT_APP_DEV_SUB = 'dev-sub';
+  renderPage();
+  fireEvent.click(screen.getByRole('button', { name: /email me a code/i }));
+  const codeInput = await screen.findByLabelText(/enter the 6-digit code/i);
+  fireEvent.change(codeInput, { target: { value: '000000' } });
+  fireEvent.click(screen.getByRole('button', { name: /verify/i }));
+  await waitFor(() => expect(mockNavigate).toHaveBeenCalledWith('/apply'));
+  expect(mockAssign).not.toHaveBeenCalled();
 });

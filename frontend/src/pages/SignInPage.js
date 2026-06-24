@@ -19,8 +19,16 @@ export default function SignInPage() {
 
   const returnTo = location.state?.returnTo || '/applications';
 
+  // Hard navigation on the real-Cognito path so react-oidc-context's AuthProvider
+  // re-initializes and adopts the session mintSession just wrote (storeUser persists
+  // storage but does not raise userLoaded → a SPA navigate keeps isAuthenticated=false
+  // → RequireAuth bounces to the hosted UI). Dev bypass keeps the SPA navigate.
   const onAuthenticated = () => {
-    navigate(returnTo, { replace: true });
+    if (process.env.REACT_APP_DEV_SUB) {
+      navigate(returnTo, { replace: true });
+    } else {
+      window.location.assign(returnTo);
+    }
   };
 
   return (

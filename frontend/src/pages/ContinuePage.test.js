@@ -2,6 +2,7 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import ContinuePage from './ContinuePage';
 import mortgageService from '../services/mortgageService';
+import { Factor } from '../auth/passwordless/factors';
 
 // ── navigation ──────────────────────────────────────────────────────────────
 const mockNavigate = jest.fn();
@@ -9,6 +10,16 @@ jest.mock('react-router-dom', () => ({
   ...jest.requireActual('react-router-dom'),
   useNavigate: () => mockNavigate,
 }));
+
+// ── window.location.assign — the REAL-Cognito hard-nav target (regression guard) ─
+// The prod path MUST hard-navigate (storeUser doesn't raise userLoaded → a SPA
+// navigate would leave isAuthenticated=false → RequireAuth bounces to hosted UI).
+// REACT_APP_DEV_SUB is unset under test, so finishAndContinue takes the prod branch.
+const mockAssign = jest.fn();
+Object.defineProperty(window, 'location', {
+  configurable: true,
+  value: { assign: mockAssign, href: 'http://localhost/' },
+});
 
 // ── mortgageService ──────────────────────────────────────────────────────────
 jest.mock('../services/mortgageService', () => ({
@@ -18,9 +29,7 @@ jest.mock('../services/mortgageService', () => ({
   },
 }));
 
-// ── passwordless auth ────────────────────────────────────────────────────────
-// Use module-level jest.fn() so we can assert call counts. The factory must not
-// close over the variable value at hoist time, so we re-read it each call.
+// ── passwordless auth (widened contract: availableFactors/start/respond) ──────
 let mockAuthInstance;
 jest.mock('../auth/passwordless/PasswordlessAuthPort', () => ({
   getPasswordlessAuth: () => mockAuthInstance,
@@ -52,12 +61,24 @@ function renderPage() {
 beforeEach(() => {
   sessionStorage.clear();
   mockNavigate.mockClear();
+  mockAssign.mockClear();
   mortgageService.createLoanFromIntake.mockClear();
-  // fresh auth instance per test so we get fresh jest.fn() spies
+  // .env sets REACT_APP_DEV_SUB for local dev; delete it so each test exercises the
+  // PROD (hard-nav) branch by default. The dev-path test sets it back explicitly.
+  delete process.env.REACT_APP_DEV_SUB;
+  // fresh auth instance per test so we get fresh jest.fn() spies (email-only so the
+  // chooser defaults to EMAIL_OTP and exposes the OTP code path).
   mockAuthInstance = {
     kind: 'dev',
-    requestCode: jest.fn().mockResolvedValue({ sent: true }),
-    verifyCode: jest.fn().mockResolvedValue({ ok: true }),
+    availableFactors: jest.fn(() => [Factor.EMAIL_OTP]),
+    start: jest.fn(async (username, factor) => ({
+      kind: 'otp',
+      factor,
+      username,
+      session: 'sess',
+      destination: username,
+    })),
+    respond: jest.fn(async () => ({ user: { kind: 'dev' } })),
   };
 });
 
@@ -68,40 +89,54 @@ test('greets the borrower and shows the captured summary', () => {
   expect(screen.getByText(/\$425,000/)).toBeInTheDocument();
 });
 
-test('createLoanFromIntake failure resets phase to code so user can retry', async () => {
+test('createLoanFromIntake failure resets to the chooser so user can retry', async () => {
   mortgageService.createLoanFromIntake.mockRejectedValueOnce(new Error('network error'));
   renderPage();
 
-  // advance to code phase
-  fireEvent.click(screen.getByRole('button', { name: /code/i }));
-  await waitFor(() => screen.getByLabelText(/^code$/i));
+  // Start the email-OTP factor → code entry appears.
+  fireEvent.click(screen.getByRole('button', { name: /email me a code/i }));
+  const codeInput = await screen.findByLabelText(/enter the 6-digit code/i);
 
-  // enter code and attempt verify
-  fireEvent.change(screen.getByLabelText(/^code$/i), { target: { value: '000000' } });
-  fireEvent.click(screen.getByRole('button', { name: /verify|continue/i }));
+  fireEvent.change(codeInput, { target: { value: '000000' } });
+  fireEvent.click(screen.getByRole('button', { name: /verify/i }));
 
   await waitFor(() => expect(mortgageService.createLoanFromIntake).toHaveBeenCalled());
 
-  // auth card must be re-shown (phase reset to 'code')
-  expect(screen.getByLabelText(/^code$/i)).toBeInTheDocument();
-  // must NOT have navigated away
+  // The factor chooser must be re-shown (working state cleared) and NO nav of either kind.
+  expect(await screen.findByLabelText(/^email$/i)).toBeInTheDocument();
   expect(mockNavigate).not.toHaveBeenCalledWith('/apply');
+  expect(mockAssign).not.toHaveBeenCalled();
 });
 
-test('email -> request code -> verify -> creates loan, seeds carryOverData, navigates to /apply', async () => {
+test('email -> start -> respond -> creates loan, seeds carryOverData, HARD-navigates to /apply', async () => {
   renderPage();
 
-  // Phase 1: click "Email me a 6-digit code"
-  fireEvent.click(screen.getByRole('button', { name: /code/i }));
-  await waitFor(() => expect(mockAuthInstance.requestCode).toHaveBeenCalledWith('ann@example.com'));
+  // Start the email-OTP factor (username = prefilled email).
+  fireEvent.click(screen.getByRole('button', { name: /email me a code/i }));
+  await waitFor(() =>
+    expect(mockAuthInstance.start).toHaveBeenCalledWith('ann@example.com', Factor.EMAIL_OTP)
+  );
 
-  // Phase 2: code input appears; enter code and verify
-  await waitFor(() => screen.getByLabelText(/^code$/i));
-  fireEvent.change(screen.getByLabelText(/^code$/i), { target: { value: '000000' } });
-  fireEvent.click(screen.getByRole('button', { name: /verify|continue/i }));
+  // Code input appears; enter it and verify.
+  const codeInput = await screen.findByLabelText(/enter the 6-digit code/i);
+  fireEvent.change(codeInput, { target: { value: '000000' } });
+  fireEvent.click(screen.getByRole('button', { name: /verify/i }));
 
-  await waitFor(() => expect(mockAuthInstance.verifyCode).toHaveBeenCalled());
+  await waitFor(() => expect(mockAuthInstance.respond).toHaveBeenCalled());
   await waitFor(() => expect(mortgageService.createLoanFromIntake).toHaveBeenCalled());
-  await waitFor(() => expect(mockNavigate).toHaveBeenCalledWith('/apply'));
+  // Prod path: hard nav (window.location.assign), NOT a SPA navigate — adopts the session.
+  await waitFor(() => expect(mockAssign).toHaveBeenCalledWith('/apply'));
+  expect(mockNavigate).not.toHaveBeenCalledWith('/apply');
   expect(JSON.parse(sessionStorage.getItem('carryOverData')).borrowers[0].firstName).toBe('Ann');
+});
+
+test('dev bypass (REACT_APP_DEV_SUB) uses SPA navigate, not a hard reload', async () => {
+  process.env.REACT_APP_DEV_SUB = 'dev-sub';
+  renderPage();
+  fireEvent.click(screen.getByRole('button', { name: /email me a code/i }));
+  const codeInput = await screen.findByLabelText(/enter the 6-digit code/i);
+  fireEvent.change(codeInput, { target: { value: '000000' } });
+  fireEvent.click(screen.getByRole('button', { name: /verify/i }));
+  await waitFor(() => expect(mockNavigate).toHaveBeenCalledWith('/apply'));
+  expect(mockAssign).not.toHaveBeenCalled();
 });

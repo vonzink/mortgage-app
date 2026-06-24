@@ -1,10 +1,10 @@
 import React, { useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { toast } from 'react-toastify';
-import Button from '../components/design/Button';
 import mortgageService from '../services/mortgageService';
 import { decodeHandoffToken } from '../auth/handoffToken';
 import { getPasswordlessAuth } from '../auth/passwordless/PasswordlessAuthPort';
+import FactorChooser from '../components/auth/FactorChooser';
 import { toIntakeRequest, toCarryOverData } from './continuePrefill';
 import './ContinuePage.design.css';
 
@@ -16,9 +16,7 @@ export default function ContinuePage() {
   const payload = useMemo(() => decodeHandoffToken(params.get('t')), [params]);
   const auth = useMemo(() => getPasswordlessAuth(), []);
   const [email, setEmail] = useState(payload?.borrower?.email || '');
-  const [code, setCode] = useState('');
-  const [phase, setPhase] = useState('email');
-  const [busy, setBusy] = useState(false);
+  const [working, setWorking] = useState(false);
 
   if (!payload) {
     return (
@@ -28,42 +26,29 @@ export default function ContinuePage() {
     );
   }
 
-  const sendCode = async () => {
-    setBusy(true);
+  // Fires once the FactorChooser completes any factor (email/SMS OTP or passkey).
+  // Intake tail (spec §5.1): createLoanFromIntake → carryOverData → go to /apply.
+  // The final hop MUST be a hard navigation on the real-Cognito path: mintSession's
+  // storeUser writes sessionStorage but does NOT raise react-oidc-context's userLoaded
+  // event, so a SPA navigate() would leave isAuthenticated=false and RequireAuth would
+  // bounce the just-authenticated borrower to the hosted UI. window.location.assign forces
+  // the AuthProvider to re-init and read the freshly-written user. (carryOverData lives in
+  // sessionStorage, so it survives the reload.) Dev bypass keeps the SPA navigate.
+  const finishAndContinue = async () => {
+    setWorking(true);
     try {
-      await auth.requestCode(email);
-      setPhase('code');
-    } catch {
-      toast.error('Could not send a code. Try again.');
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  const verifyAndContinue = async () => {
-    setBusy(true);
-    try {
-      const res = await auth.verifyCode(email, code);
-      if (!res?.ok) {
-        toast.error('That code did not match. Try again.');
-        setBusy(false);
-        return;
-      }
-      setPhase('working');
       await mortgageService.createLoanFromIntake(toIntakeRequest(payload));
       sessionStorage.setItem('carryOverData', JSON.stringify(toCarryOverData(payload)));
-      // Cognito path: hard-navigate so react-oidc-context re-initializes and reads the user the
-      // OTP adapter just wrote to sessionStorage (a SPA navigate would keep stale auth state).
-      // Dev path: RequireAuth is bypassed, so the in-app navigate is fine (and keeps the local walk fast).
-      if (auth.kind === 'cognito') {
-        window.location.assign('/apply');
-      } else {
+      if (process.env.REACT_APP_DEV_SUB) {
         navigate('/apply');
+      } else {
+        window.location.assign('/apply');
       }
-    } catch {
+    } catch (e) {
       toast.error('Something went wrong finishing sign-in. Try again.');
-      setPhase('code');
-      setBusy(false);
+      setWorking(false);
+      // Rethrow so FactorChooser falls back to the chooser for a retry.
+      throw e;
     }
   };
 
@@ -89,50 +74,21 @@ export default function ContinuePage() {
         )}
       </div>
 
-      {phase !== 'working' ? (
-        <div className="continue-auth card">
-          <label htmlFor="cont-email">Email</label>
-          <input
-            id="cont-email"
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            disabled={phase === 'code'}
+      {working ? (
+        <p className="muted">Setting up your application…</p>
+      ) : (
+        <>
+          <FactorChooser
+            auth={auth}
+            email={email}
+            onEmailChange={setEmail}
+            onAuthenticated={finishAndContinue}
+            onError={(msg) => toast.error(msg)}
           />
-
-          {phase === 'email' ? (
-            <Button
-              variant="primary"
-              onClick={sendCode}
-              disabled={busy || !email}
-            >
-              Email me a 6-digit code
-            </Button>
-          ) : (
-            <>
-              <label htmlFor="cont-code">Code</label>
-              <input
-                id="cont-code"
-                inputMode="numeric"
-                value={code}
-                onChange={(e) => setCode(e.target.value)}
-              />
-              <Button
-                variant="primary"
-                onClick={verifyAndContinue}
-                disabled={busy || code.length < 4}
-              >
-                Verify &amp; continue
-              </Button>
-            </>
-          )}
-
           <p className="muted continue-fine">
             New here? We&apos;ll create your account automatically — no password to remember.
           </p>
-        </div>
-      ) : (
-        <p className="muted">Setting up your application…</p>
+        </>
       )}
     </div>
   );

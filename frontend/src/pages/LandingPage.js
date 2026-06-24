@@ -8,7 +8,7 @@ import './LandingPage.design.css';
 
 /**
  * Public landing page at `/`. Two paths:
- *   - Sign in  → react-oidc-context's signinRedirect (Cognito hosted UI /login)
+ *   - Sign in  → the first-class passwordless /signin page (no Hosted-UI redirect)
  *   - Create account → manual redirect to Cognito hosted UI /signup
  *
  * If the user is already authenticated, bounce them straight to /applications.
@@ -24,9 +24,7 @@ export default function LandingPage() {
   }, [auth.isAuthenticated, navigate]);
 
   const handleSignIn = () => {
-    auth.signinRedirect({
-      state: { returnTo: '/applications' },
-    });
+    navigate('/signin', { state: { returnTo: '/applications' } });
   };
 
   const handleSignUp = () => {

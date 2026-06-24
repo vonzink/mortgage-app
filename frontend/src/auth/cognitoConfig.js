@@ -34,6 +34,43 @@ export const cognitoConfig = {
 };
 
 /**
+ * ── SDK (USER_AUTH) passwordless adapter config ──────────────────────────────
+ *
+ * `@aws-sdk/client-cognito-identity-provider` speaks the raw InitiateAuth/
+ * RespondToAuthChallenge surface (oidc-client-ts does not). It needs the bare
+ * user-pool client id + the AWS region — NOT the OIDC authority URL.
+ *
+ * CRITICAL: `cognitoAuthority` and `cognitoUserPoolClientId` MUST come from the
+ * SAME env vars (`REACT_APP_COGNITO_AUTHORITY`, `REACT_APP_COGNITO_CLIENT_ID`)
+ * that `apiClient.getStoredUser` keys its `oidc.user:<authority>:<clientId>`
+ * sessionStorage lookup on. `cognitoSession.mintSession` writes under exactly
+ * that key, so any drift here = the bearer never gets read = 401. Do not point
+ * the SDK at a different client than the one apiClient reads.
+ */
+export const cognitoAuthority = process.env.REACT_APP_COGNITO_AUTHORITY;
+export const cognitoUserPoolClientId = process.env.REACT_APP_COGNITO_CLIENT_ID;
+
+/**
+ * Region derived from the authority URL
+ * (https://cognito-idp.<region>.amazonaws.com/<poolId>). Falls back to an explicit
+ * REACT_APP_COGNITO_REGION, then us-west-1 (the current pool's region).
+ */
+export const cognitoRegion =
+  process.env.REACT_APP_COGNITO_REGION ||
+  (cognitoAuthority && cognitoAuthority.match(/cognito-idp\.([a-z0-9-]+)\.amazonaws\.com/)?.[1]) ||
+  'us-west-1';
+
+/**
+ * WebAuthn Relying-Party id (spec §3.1 C3): the eTLD+1 `msfgco.com` so borrower
+ * passkeys work across app.msfgco.com / apply.msfgco.com. This is ~immovable —
+ * changing it later invalidates every enrolled passkey. The actual RP id used in a
+ * ceremony is dictated by the pool's WebAuthnConfiguration / the challenge options
+ * the SDK returns; this constant is the intended value for comments/config parity.
+ * Dev passkeys need an RP id of `localhost` → a separate dev pool/config.
+ */
+export const webauthnRelyingPartyId = process.env.REACT_APP_WEBAUTHN_RP_ID || 'msfgco.com';
+
+/**
  * Cognito's logout flow: redirect to {DOMAIN}/logout?client_id=...&logout_uri=...
  * The user is signed out of the hosted UI session, then bounced back to our app.
  */

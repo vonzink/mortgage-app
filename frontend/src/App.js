@@ -21,6 +21,8 @@ import FolderTemplatesAdmin from './pages/admin/FolderTemplatesAdmin';
 import AppSettingsAdmin from './pages/admin/AppSettingsAdmin';
 import UsersAdmin from './pages/admin/UsersAdmin';
 import ContinuePage from './pages/ContinuePage';
+import SignInPage from './pages/SignInPage';
+import SecurityPage from './pages/account/SecurityPage';
 
 // Styles
 import './App.css';
@@ -85,6 +87,8 @@ function App() {
             <Route path="/" element={<LandingPage />} />
             <Route path="/login"  element={<AuthRedirect mode="login" />} />
             <Route path="/signup" element={<AuthRedirect mode="signup" />} />
+            {/* First-class passwordless sign-in (replaces the Hosted-UI redirect) */}
+            <Route path="/signin" element={<SignInPage />} />
             <Route path="/continue" element={<ContinuePage />} />
 
             <Route
@@ -111,6 +115,8 @@ function App() {
             <Route path="/admin/folder-templates" element={<RequireAuth><FolderTemplatesAdmin /></RequireAuth>} />
             <Route path="/admin/settings" element={<RequireAuth><AppSettingsAdmin /></RequireAuth>} />
             <Route path="/admin/users" element={<RequireAuth><UsersAdmin /></RequireAuth>} />
+            {/* Account security — passkey enroll/list/delete (no classic MFA) */}
+            <Route path="/account/security" element={<RequireAuth><SecurityPage /></RequireAuth>} />
             {/* Common typo / link-out — canonical route is /admin/settings */}
             <Route path="/admin/app-settings" element={<Navigate to="/admin/settings" replace />} />
           </Routes>

@@ -4,9 +4,10 @@ import { useAuth } from 'react-oidc-context';
 import { buildCognitoSignupUrl } from '../auth/cognitoConfig';
 
 /**
- * Thin redirector for `/login` and `/signup` direct links. Bounces the user
- * into the right Cognito Hosted UI flow without rendering UI — keeps the
- * surface minimal and shareable.
+ * Thin redirector for `/login` and `/signup` direct links.
+ *   - login  → the first-class passwordless /signin page (no Hosted-UI redirect)
+ *   - signup → Cognito Hosted UI signup (unchanged — out of P3 scope)
+ * Keeps the surface minimal and shareable.
  */
 export default function AuthRedirect({ mode = 'login' }) {
   const auth = useAuth();
@@ -21,7 +22,7 @@ export default function AuthRedirect({ mode = 'login' }) {
     if (mode === 'signup') {
       window.location.href = buildCognitoSignupUrl();
     } else {
-      auth.signinRedirect({ state: { returnTo: '/applications' } });
+      navigate('/signin', { replace: true, state: { returnTo: '/applications' } });
     }
   }, [auth.isLoading, auth.isAuthenticated, mode, auth, navigate]);
 

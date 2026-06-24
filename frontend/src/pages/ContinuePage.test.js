@@ -2,6 +2,7 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import ContinuePage from './ContinuePage';
 import mortgageService from '../services/mortgageService';
+import { Factor } from '../auth/passwordless/factors';
 
 // ── navigation ──────────────────────────────────────────────────────────────
 const mockNavigate = jest.fn();
@@ -18,9 +19,7 @@ jest.mock('../services/mortgageService', () => ({
   },
 }));
 
-// ── passwordless auth ────────────────────────────────────────────────────────
-// Use module-level jest.fn() so we can assert call counts. The factory must not
-// close over the variable value at hoist time, so we re-read it each call.
+// ── passwordless auth (widened contract: availableFactors/start/respond) ──────
 let mockAuthInstance;
 jest.mock('../auth/passwordless/PasswordlessAuthPort', () => ({
   getPasswordlessAuth: () => mockAuthInstance,
@@ -53,11 +52,19 @@ beforeEach(() => {
   sessionStorage.clear();
   mockNavigate.mockClear();
   mortgageService.createLoanFromIntake.mockClear();
-  // fresh auth instance per test so we get fresh jest.fn() spies
+  // fresh auth instance per test so we get fresh jest.fn() spies (email-only so the
+  // chooser defaults to EMAIL_OTP and exposes the OTP code path).
   mockAuthInstance = {
     kind: 'dev',
-    requestCode: jest.fn().mockResolvedValue({ sent: true }),
-    verifyCode: jest.fn().mockResolvedValue({ ok: true }),
+    availableFactors: jest.fn(() => [Factor.EMAIL_OTP]),
+    start: jest.fn(async (username, factor) => ({
+      kind: 'otp',
+      factor,
+      username,
+      session: 'sess',
+      destination: username,
+    })),
+    respond: jest.fn(async () => ({ user: { kind: 'dev' } })),
   };
 });
 
@@ -68,39 +75,39 @@ test('greets the borrower and shows the captured summary', () => {
   expect(screen.getByText(/\$425,000/)).toBeInTheDocument();
 });
 
-test('createLoanFromIntake failure resets phase to code so user can retry', async () => {
+test('createLoanFromIntake failure resets to the chooser so user can retry', async () => {
   mortgageService.createLoanFromIntake.mockRejectedValueOnce(new Error('network error'));
   renderPage();
 
-  // advance to code phase
-  fireEvent.click(screen.getByRole('button', { name: /code/i }));
-  await waitFor(() => screen.getByLabelText(/^code$/i));
+  // Start the email-OTP factor → code entry appears.
+  fireEvent.click(screen.getByRole('button', { name: /email me a code/i }));
+  const codeInput = await screen.findByLabelText(/enter the 6-digit code/i);
 
-  // enter code and attempt verify
-  fireEvent.change(screen.getByLabelText(/^code$/i), { target: { value: '000000' } });
-  fireEvent.click(screen.getByRole('button', { name: /verify|continue/i }));
+  fireEvent.change(codeInput, { target: { value: '000000' } });
+  fireEvent.click(screen.getByRole('button', { name: /verify/i }));
 
   await waitFor(() => expect(mortgageService.createLoanFromIntake).toHaveBeenCalled());
 
-  // auth card must be re-shown (phase reset to 'code')
-  expect(screen.getByLabelText(/^code$/i)).toBeInTheDocument();
-  // must NOT have navigated away
+  // The factor chooser must be re-shown (working state cleared) and no /apply nav.
+  expect(await screen.findByLabelText(/^email$/i)).toBeInTheDocument();
   expect(mockNavigate).not.toHaveBeenCalledWith('/apply');
 });
 
-test('email -> request code -> verify -> creates loan, seeds carryOverData, navigates to /apply', async () => {
+test('email -> start -> respond -> creates loan, seeds carryOverData, navigates to /apply', async () => {
   renderPage();
 
-  // Phase 1: click "Email me a 6-digit code"
-  fireEvent.click(screen.getByRole('button', { name: /code/i }));
-  await waitFor(() => expect(mockAuthInstance.requestCode).toHaveBeenCalledWith('ann@example.com'));
+  // Start the email-OTP factor (username = prefilled email).
+  fireEvent.click(screen.getByRole('button', { name: /email me a code/i }));
+  await waitFor(() =>
+    expect(mockAuthInstance.start).toHaveBeenCalledWith('ann@example.com', Factor.EMAIL_OTP)
+  );
 
-  // Phase 2: code input appears; enter code and verify
-  await waitFor(() => screen.getByLabelText(/^code$/i));
-  fireEvent.change(screen.getByLabelText(/^code$/i), { target: { value: '000000' } });
-  fireEvent.click(screen.getByRole('button', { name: /verify|continue/i }));
+  // Code input appears; enter it and verify.
+  const codeInput = await screen.findByLabelText(/enter the 6-digit code/i);
+  fireEvent.change(codeInput, { target: { value: '000000' } });
+  fireEvent.click(screen.getByRole('button', { name: /verify/i }));
 
-  await waitFor(() => expect(mockAuthInstance.verifyCode).toHaveBeenCalled());
+  await waitFor(() => expect(mockAuthInstance.respond).toHaveBeenCalled());
   await waitFor(() => expect(mortgageService.createLoanFromIntake).toHaveBeenCalled());
   await waitFor(() => expect(mockNavigate).toHaveBeenCalledWith('/apply'));
   expect(JSON.parse(sessionStorage.getItem('carryOverData')).borrowers[0].firstName).toBe('Ann');

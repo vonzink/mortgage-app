@@ -27,8 +27,12 @@ export default function FactorChooser({ auth, email, onEmailChange, onAuthentica
     );
   }, [auth]);
 
-  // Default to the most-preferred available factor.
-  const [factor, setFactor] = useState(available[0] || Factor.EMAIL_OTP);
+  // Default to Email OTP ("send a code") when available. A borrower arriving from the
+  // funnel has no passkey yet, so defaulting to the passkey ceremony (FACTOR_ORDER's
+  // first entry) dead-ends with a failed navigator.credentials.get(). Passkey stays a
+  // selectable option for returning users who enrolled one.
+  const defaultFactor = available.includes(Factor.EMAIL_OTP) ? Factor.EMAIL_OTP : available[0];
+  const [factor, setFactor] = useState(defaultFactor || Factor.EMAIL_OTP);
   const [phase, setPhase] = useState('choose'); // choose | collect-phone | code | working
   const [code, setCode] = useState('');
   const [phone, setPhone] = useState('');

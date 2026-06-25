@@ -311,6 +311,8 @@ const ApplicationForm = () => {
   }, [editId]);
 
   // Step definitions
+  // TODO(wip): wire this into a stepper/progress UI; defined but not yet rendered.
+  // eslint-disable-next-line no-unused-vars
   const steps = [
     { number: 1, title: 'Loan Info', icon: <FaHome />, description: 'Basic loan details' },
     { number: 2, title: 'Borrower', icon: <FaUser />, description: 'Personal details and residence history' },

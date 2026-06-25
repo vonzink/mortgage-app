@@ -45,6 +45,10 @@ export default function LoanSearch() {
   const debounceRef = useRef(null);
   const abortRef = useRef(null);
 
+  // Recompute recents each time the dropdown opens so newly-viewed loans show up.
+  // `open` is the intended trigger even though it isn't read in the body — removing
+  // it would freeze recents at first mount (stale list).
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   const recents = useMemo(() => getRecentLoans().slice(0, MAX_RECENT_SHOWN), [open]);
 
   const items = query.trim().length >= MIN_QUERY_LEN ? hits : recents;
@@ -137,7 +141,8 @@ export default function LoanSearch() {
 
   return (
     <div className="loan-search" ref={containerRef} role="combobox"
-         aria-expanded={open} aria-haspopup="listbox" aria-owns="loan-search-results">
+         aria-expanded={open} aria-haspopup="listbox"
+         aria-controls="loan-search-results" aria-owns="loan-search-results">
       <span className="loan-search-icon"><Icon name="search" size={14} /></span>
       <input
         ref={inputRef}

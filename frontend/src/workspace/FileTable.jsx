@@ -120,7 +120,7 @@ export default function FileTable({
 
     // Custom drag preview text — count badge for multi-select, filename for single.
     e.dataTransfer.effectAllowed = 'copyMove';
-  }, [selectedUuids, getDownloadUrl]);
+  }, [selectedUuids, getDownloadUrl, documents]);
 
   // ── Render ───────────────────────────────────────────────────────────────
   if (loading) return <div className="ws-file-empty">Loading documents…</div>;

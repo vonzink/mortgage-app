@@ -66,7 +66,7 @@ function FolderNode({ node, depth, selectedId, onSelect, defaultExpanded, onDrop
   const isDeleteFolder = node.isDeleteFolder === true;
 
   return (
-    <div role="treeitem" aria-expanded={expanded}>
+    <div role="treeitem" aria-expanded={expanded} aria-selected={isSelected}>
       <div
         className={`ws-tree-row${isSelected ? ' ws-tree-row--selected' : ''}${dragHover ? ' ws-tree-row--drophover' : ''}${isDeleteFolder ? ' ws-tree-row--delete' : ''}`}
         style={{ paddingLeft: depth * 16 + 4 }}

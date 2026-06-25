@@ -3,6 +3,8 @@
  * Step 2: Personal details and residence history
  */
 import React, { useState, useEffect, useRef } from 'react';
+// FaPlus is for the dormant add-borrower button (see TODO below) — kept until wired.
+// eslint-disable-next-line no-unused-vars
 import { FaUser, FaPlus, FaTimes } from 'react-icons/fa';
 import { toast } from 'react-toastify';
 import FormSection from '../shared/FormSection';
@@ -56,6 +58,9 @@ const BorrowerInformationStep = ({
 
   const visibleBorrowers = borrowerFields.slice(0, 4);
 
+  // TODO(wip): multi-borrower add/remove UI is built but not yet wired into the JSX
+  // (no +/✕ buttons rendered). Kept intentionally; silence unused-var until wired.
+  // eslint-disable-next-line no-unused-vars
   const addBorrower = () => {
     if (isAddingRef.current) {
       debug('Already adding borrower, ignoring duplicate call');
@@ -76,6 +81,7 @@ const BorrowerInformationStep = ({
     }
   };
 
+  // eslint-disable-next-line no-unused-vars
   const removeBorrowerHandler = (index) => {
     if (borrowerFields.length > 1) {
       removeBorrower(index);
@@ -86,6 +92,7 @@ const BorrowerInformationStep = ({
     }
   };
 
+  // eslint-disable-next-line no-unused-vars
   const getBorrowerName = (index) => {
     const firstName = watch(`borrowers.${index}.firstName`);
     const lastName = watch(`borrowers.${index}.lastName`);

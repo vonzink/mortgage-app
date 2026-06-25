@@ -37,8 +37,8 @@ import {
   DashboardHero, NoteAmountCard, DashboardKpis, MilestoneTimeline,
 } from '../components/design/DashboardChrome';
 import {
-  STATUS_ORDER, MILESTONE_DEFS,
-  statusReachedIndex, buildMilestones, buildStatusLabel,
+  STATUS_ORDER,
+  buildMilestones, buildStatusLabel,
   computeDaysElapsed, findProcessor,
 } from './loanDashboard/helpers';
 

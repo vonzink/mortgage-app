@@ -25,7 +25,7 @@ const FACTOR_SUBLABELS = {
   [Factor.SMS_OTP]: 'We text you a 6-digit code',
 };
 
-export default function FactorChooser({ auth, email, onEmailChange, onAuthenticated, onError }) {
+export default function FactorChooser({ auth, email, onEmailChange, onAuthenticated, onError, onBack, emailAutoComplete = 'email' }) {
   const available = useMemo(() => {
     const list = auth.availableFactors ? auth.availableFactors() : [Factor.EMAIL_OTP];
     const webAuthnOk = typeof window !== 'undefined' && !!window.PublicKeyCredential;
@@ -123,15 +123,15 @@ export default function FactorChooser({ auth, email, onEmailChange, onAuthentica
       <div className="factor-chooser card">
         <button type="button" className="factor-back" onClick={backToChoose} disabled={busy}>← Back</button>
         {destination && <p className="muted factor-dest">We sent a code to <strong>{destination}</strong>.</p>}
-        <label htmlFor="factor-code">Enter the 6-digit code</label>
+        <label htmlFor="factor-code">Enter the code we emailed you</label>
         <input
           id="factor-code"
           inputMode="numeric"
           autoComplete="one-time-code"
-          maxLength={6}
+          maxLength={8}
           autoFocus
           value={code}
-          onChange={(e) => { setCode(e.target.value.replace(/\D/g, '').slice(0, 6)); setCodeError(''); }}
+          onChange={(e) => { setCode(e.target.value.replace(/\D/g, '').slice(0, 8)); setCodeError(''); }}
         />
         {codeError && <p className="factor-error" role="alert">{codeError}</p>}
         {note && <p className="factor-note" role="status">{note}</p>}
@@ -148,11 +148,12 @@ export default function FactorChooser({ auth, email, onEmailChange, onAuthentica
   const single = available.length <= 1;
   return (
     <div className="factor-chooser card">
+      {onBack && <button type="button" className="factor-back" onClick={onBack} disabled={busy}>← Back</button>}
       <label htmlFor="factor-email">Email</label>
       <input
         id="factor-email"
         type="email"
-        autoComplete="email"
+        autoComplete={emailAutoComplete}
         value={email}
         onChange={(e) => onEmailChange(e.target.value)}
       />

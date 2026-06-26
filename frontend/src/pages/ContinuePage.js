@@ -84,6 +84,8 @@ export default function ContinuePage() {
             onEmailChange={setEmail}
             onAuthenticated={finishAndContinue}
             onError={(msg) => toast.error(msg)}
+            onBack={() => window.history.back()}
+            emailAutoComplete="off"
           />
           <p className="muted continue-fine">
             New here? We&apos;ll create your account automatically — no password to remember.

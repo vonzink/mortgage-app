@@ -42,6 +42,7 @@ export default function SignInPage() {
         onEmailChange={setEmail}
         onAuthenticated={onAuthenticated}
         onError={(msg) => toast.error(msg)}
+        onBack={() => navigate('/')}
       />
     </div>
   );

@@ -170,6 +170,9 @@ export default function TopBar() {
                   <button type="button" className="topbar-menu-item" onClick={() => { setShowSettings(false); navigate('/applications'); }}>
                     <Icon name="folder" size={14} /> My applications
                   </button>
+                  <button type="button" className="topbar-menu-item" onClick={() => { setShowSettings(false); navigate('/account/security'); }}>
+                    <Icon name="key" size={14} /> Security &amp; passkeys
+                  </button>
                   {isAdmin && (
                     <button type="button" className="topbar-menu-item" onClick={() => { setShowSettings(false); navigate('/admin'); }}>
                       <Icon name="settings" size={14} /> Admin

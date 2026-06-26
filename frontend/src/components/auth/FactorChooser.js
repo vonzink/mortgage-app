@@ -7,30 +7,32 @@ import './FactorChooser.css';
 /**
  * FactorChooser — the unified passwordless first-factor picker (spec §5.2).
  *
- * Drives the state machine: choose-factor → (collect-phone?) → start →
- * (enter-code | passkey-ceremony) → done. Adapter-agnostic: it takes the active
- * `auth` adapter (Cognito or Dev) and an `onAuthenticated({ user })` callback fired
- * once `respond()` succeeds. Hosting pages (SignInPage / ContinuePage) own what
- * happens next (navigate, run intake, …).
+ * State machine: choose (selector) → (collect-phone?) → start →
+ * (enter-code | passkey-ceremony) → done. Adapter-agnostic: takes the active
+ * `auth` adapter (Cognito or Dev) and fires `onAuthenticated({ user })` on success.
  *
- * Factor ordering = Passkey > Email OTP > SMS OTP (spec §2.2). SMS only appears if
- * `auth.availableFactors()` includes it (it does NOT today — §3.3 deferred). Passkey
- * only when WebAuthn is supported (the adapter already filters, plus a belt-and-braces
- * window.PublicKeyCredential check here).
+ * UX (owner request 2026-06-26):
+ *  - the factor choice is a RADIO SELECTOR + one "Continue" action (not 3 buttons);
+ *  - default = Email OTP (a first-time borrower has no passkey yet);
+ *  - a wrong code keeps you ON the code screen to retry (does NOT bounce to the chooser);
+ *  - the code screen has "Resend code" and a "Back" control.
  */
+
+// Sub-labels clarify each option — incl. that a passkey must already be set up.
+const FACTOR_SUBLABELS = {
+  [Factor.PASSKEY]: 'Use a passkey you already set up on this device',
+  [Factor.EMAIL_OTP]: 'We email you a 6-digit code',
+  [Factor.SMS_OTP]: 'We text you a 6-digit code',
+};
+
 export default function FactorChooser({ auth, email, onEmailChange, onAuthenticated, onError }) {
   const available = useMemo(() => {
     const list = auth.availableFactors ? auth.availableFactors() : [Factor.EMAIL_OTP];
     const webAuthnOk = typeof window !== 'undefined' && !!window.PublicKeyCredential;
-    return FACTOR_ORDER.filter(
-      (f) => list.includes(f) && (f !== Factor.PASSKEY || webAuthnOk)
-    );
+    return FACTOR_ORDER.filter((f) => list.includes(f) && (f !== Factor.PASSKEY || webAuthnOk));
   }, [auth]);
 
-  // Default to Email OTP ("send a code") when available. A borrower arriving from the
-  // funnel has no passkey yet, so defaulting to the passkey ceremony (FACTOR_ORDER's
-  // first entry) dead-ends with a failed navigator.credentials.get(). Passkey stays a
-  // selectable option for returning users who enrolled one.
+  // Default to Email OTP — the reliable path for a first-time borrower (no passkey enrolled).
   const defaultFactor = available.includes(Factor.EMAIL_OTP) ? Factor.EMAIL_OTP : available[0];
   const [factor, setFactor] = useState(defaultFactor || Factor.EMAIL_OTP);
   const [phase, setPhase] = useState('choose'); // choose | collect-phone | code | working
@@ -39,62 +41,68 @@ export default function FactorChooser({ auth, email, onEmailChange, onAuthentica
   const [state, setState] = useState(null);
   const [busy, setBusy] = useState(false);
   const [destination, setDestination] = useState(null);
+  const [codeError, setCodeError] = useState(''); // inline error on the code screen
+  const [note, setNote] = useState(''); // transient "new code sent" note
 
-  const fail = (msg) => {
-    if (onError) onError(msg);
-  };
-
-  // username for OTP/passkey = the entered email (headless apps collect it first, §3.4).
   const username = email;
 
   const begin = async (chosen) => {
-    if (!username) {
-      fail('Enter your email to continue.');
-      return;
-    }
+    if (!username) { onError && onError('Enter your email to continue.'); return; }
     // SMS needs a phone first (only reachable when SMS is live; harmless otherwise).
-    if (chosen === Factor.SMS_OTP && !phone) {
-      setFactor(chosen);
-      setPhase('collect-phone');
-      return;
-    }
-    setBusy(true);
+    if (chosen === Factor.SMS_OTP && !phone) { setFactor(chosen); setPhase('collect-phone'); return; }
+    setBusy(true); setCodeError(''); setNote('');
     try {
       const started = await auth.start(username, chosen);
       if (started.kind === 'passkey') {
         // Passkey ceremony already ran inside start() — go straight to respond.
         setPhase('working');
         const res = await auth.respond(started, {});
-        // If the parent's post-auth work (e.g. intake) throws, fall back to the
-        // chooser so the user can retry.
         await onAuthenticated(res);
         return;
       }
-      // OTP: code sent, show the code entry.
       setState(started);
       setDestination(started.destination || username);
+      setCode('');
       setPhase('code');
     } catch (e) {
-      fail(otpErrorMessage(e, chosen));
+      onError && onError(otpErrorMessage(e, chosen));
       setPhase('choose');
     } finally {
       setBusy(false);
     }
   };
 
-  const submitCode = async () => {
-    setBusy(true);
+  // Re-send a fresh OTP for the same factor without leaving the code screen.
+  const resend = async () => {
+    setBusy(true); setCodeError(''); setNote('');
     try {
-      const res = await auth.respond(state, { code });
-      setPhase('working');
-      // Await so a failure in the parent's post-auth work resets us to the chooser.
-      await onAuthenticated(res);
+      const started = await auth.start(username, (state && state.factor) || factor);
+      setState(started);
+      setDestination(started.destination || username);
+      setCode('');
+      setNote('New code sent — check your inbox (and spam).');
     } catch (e) {
-      fail('That code did not match. Try again.');
-      setPhase('choose');
+      setCodeError('Could not send a new code. Try again in a moment.');
+    } finally {
       setBusy(false);
     }
   };
+
+  const submitCode = async () => {
+    setBusy(true); setCodeError(''); setNote('');
+    try {
+      const res = await auth.respond(state, { code });
+      setPhase('working');
+      await onAuthenticated(res);
+    } catch (e) {
+      // Stay on the code screen so the user can retry — do NOT bounce to the chooser.
+      setCodeError('That code didn’t match. Re-enter it, or request a new one.');
+      setCode('');
+      setBusy(false);
+    }
+  };
+
+  const backToChoose = () => { setCode(''); setCodeError(''); setNote(''); setPhase('choose'); };
 
   if (phase === 'working') {
     return <p className="muted factor-working">Finishing sign-in…</p>;
@@ -103,17 +111,9 @@ export default function FactorChooser({ auth, email, onEmailChange, onAuthentica
   if (phase === 'collect-phone') {
     return (
       <div className="factor-chooser card">
+        <button type="button" className="factor-back" onClick={backToChoose} disabled={busy}>← Back</button>
         <PhoneCollect value={phone} onChange={setPhone} />
-        <Button
-          variant="primary"
-          disabled={busy || !phone}
-          onClick={() => begin(Factor.SMS_OTP)}
-        >
-          Text me a code
-        </Button>
-        <button type="button" className="factor-link" onClick={() => setPhase('choose')}>
-          Use a different method
-        </button>
+        <Button variant="primary" disabled={busy || !phone} onClick={() => begin(Factor.SMS_OTP)}>Text me a code</Button>
       </div>
     );
   }
@@ -121,35 +121,31 @@ export default function FactorChooser({ auth, email, onEmailChange, onAuthentica
   if (phase === 'code') {
     return (
       <div className="factor-chooser card">
-        {destination && (
-          <p className="muted factor-dest">We sent a code to {destination}.</p>
-        )}
+        <button type="button" className="factor-back" onClick={backToChoose} disabled={busy}>← Back</button>
+        {destination && <p className="muted factor-dest">We sent a code to <strong>{destination}</strong>.</p>}
         <label htmlFor="factor-code">Enter the 6-digit code</label>
         <input
           id="factor-code"
           inputMode="numeric"
           autoComplete="one-time-code"
+          maxLength={6}
+          autoFocus
           value={code}
-          onChange={(e) => setCode(e.target.value.replace(/\D/g, ''))}
+          onChange={(e) => { setCode(e.target.value.replace(/\D/g, '').slice(0, 6)); setCodeError(''); }}
         />
-        <Button variant="primary" disabled={busy || code.length < 6} onClick={submitCode}>
-          Verify &amp; continue
-        </Button>
-        <button
-          type="button"
-          className="factor-link"
-          onClick={() => {
-            setCode('');
-            setPhase('choose');
-          }}
-        >
-          Use a different method
-        </button>
+        {codeError && <p className="factor-error" role="alert">{codeError}</p>}
+        {note && <p className="factor-note" role="status">{note}</p>}
+        <Button variant="primary" disabled={busy || code.length < 6} onClick={submitCode}>Verify &amp; continue</Button>
+        <div className="factor-actions">
+          <button type="button" className="factor-link" onClick={resend} disabled={busy}>Didn’t get it? Resend code</button>
+          <button type="button" className="factor-link" onClick={backToChoose} disabled={busy}>Use a different method</button>
+        </div>
       </div>
     );
   }
 
   // phase === 'choose'
+  const single = available.length <= 1;
   return (
     <div className="factor-chooser card">
       <label htmlFor="factor-email">Email</label>
@@ -161,45 +157,33 @@ export default function FactorChooser({ auth, email, onEmailChange, onAuthentica
         onChange={(e) => onEmailChange(e.target.value)}
       />
 
-      {/* Only show the factor toggle when there is an actual choice to make. */}
-      {available.length > 1 && (
-        <div className="factor-options" role="group" aria-label="Choose how to sign in">
+      {!single && (
+        <fieldset className="factor-select" disabled={busy}>
+          <legend>How would you like to verify it’s you?</legend>
           {available.map((f) => (
-            <button
-              key={f}
-              type="button"
-              className={`factor-option${f === factor ? ' is-selected' : ''}`}
-              aria-pressed={f === factor}
-              onClick={() => setFactor(f)}
-            >
-              {FACTOR_LABELS[f]}
-            </button>
+            <label key={f} className={`factor-radio${f === factor ? ' is-selected' : ''}`}>
+              <input type="radio" name="factor" value={f} checked={f === factor} onChange={() => setFactor(f)} />
+              <span className="factor-radio-text">
+                <span className="factor-radio-title">{FACTOR_LABELS[f]}</span>
+                {FACTOR_SUBLABELS[f] && <span className="factor-radio-sub">{FACTOR_SUBLABELS[f]}</span>}
+              </span>
+            </label>
           ))}
-        </div>
+        </fieldset>
       )}
 
-      <Button
-        variant="primary"
-        disabled={busy || !email}
-        onClick={() => begin(factor)}
-      >
-        {factor === Factor.PASSKEY
-          ? 'Use my passkey'
-          : isOtpFactor(factor)
-          ? FACTOR_LABELS[factor]
-          : 'Continue'}
+      <Button variant="primary" disabled={busy || !email} onClick={() => begin(factor)}>
+        {single && isOtpFactor(factor) ? FACTOR_LABELS[factor] : 'Continue'}
       </Button>
 
-      <p className="muted factor-fine">
-        No password to remember — we&apos;ll verify it&apos;s you in one step.
-      </p>
+      <p className="muted factor-fine">No password to remember — we’ll verify it’s you in one step.</p>
     </div>
   );
 }
 
 function otpErrorMessage(e, factor) {
   if (factor === Factor.PASSKEY) {
-    return 'Could not use your passkey. Try another method.';
+    return 'Could not use a passkey — set one up first (in your account settings), or choose Email instead.';
   }
-  return 'Could not send a code. Check your email and try again.';
+  return 'Could not send a code. Check your email address and try again.';
 }

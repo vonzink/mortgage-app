@@ -21,8 +21,8 @@ import './FactorChooser.css';
 // Sub-labels clarify each option — incl. that a passkey must already be set up.
 const FACTOR_SUBLABELS = {
   [Factor.PASSKEY]: 'Use a passkey you already set up on this device',
-  [Factor.EMAIL_OTP]: 'We email you a 6-digit code',
-  [Factor.SMS_OTP]: 'We text you a 6-digit code',
+  [Factor.EMAIL_OTP]: 'We email you a one-time code',
+  [Factor.SMS_OTP]: 'We text you a one-time code',
 };
 
 export default function FactorChooser({ auth, email, onEmailChange, onAuthenticated, onError, onBack, emailAutoComplete = 'email' }) {

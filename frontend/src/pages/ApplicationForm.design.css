@@ -2,6 +2,32 @@
 
 .apply-page { /* uses .page from design-system.css */ }
 
+/* ── Client header strip: Back pill + MSFG logo (mirrors the msfg.us funnel) ── */
+.apply-topbar {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 16px;
+}
+.apply-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 40px;
+  padding: 0 16px 0 10px;
+  border-radius: 9999px;            /* full pill, like the funnel Back */
+  border: 1px solid #e2e6dd;        /* --color-line */
+  background: #ffffff;
+  color: #0b231c;                   /* --color-ink */
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background-color .15s ease;
+}
+.apply-back:hover { background: #f2f4ef; }   /* --color-paper-2 */
+.apply-back svg { width: 18px; height: 18px; }
+.apply-logo { height: 40px; width: auto; display: block; }
+
 .apply-hero {
   display: flex; align-items: flex-end; justify-content: space-between;
   flex-wrap: wrap; gap: 16px;
@@ -143,3 +169,81 @@
 .apply-lo-name { font-weight: 600; font-size: 14px; }
 .apply-lo-meta { font-size: 12px; margin-top: 2px; }
 .apply-lo-actions { margin-top: 14px; }
+
+/* ════════════════════════════════════════════════════════════════════════
+   msfg.us look for the application fields + buttons.
+   Scoped to the apply page ONLY (global forms.css/buttons.css untouched).
+   Look only — size/padding/behavior inherited from the base rules.
+   Tokens: --color-line #e2e6dd · --color-green-600 #135e48 · ink #0b231c.
+   ════════════════════════════════════════════════════════════════════════ */
+
+/* Field boxes — white, soft 1.5px line, 12px radius, gentle 3D shadow. */
+.apply-form input[type="text"],
+.apply-form input[type="email"],
+.apply-form input[type="tel"],
+.apply-form input[type="number"],
+.apply-form input[type="date"],
+.apply-form input[type="password"],
+.apply-form select,
+.apply-form textarea {
+  border: 1.5px solid #e2e6dd;
+  border-radius: 12px;
+  background: #ffffff;
+  color: #0b231c;
+  box-shadow: 0 2px 4px rgba(7, 39, 30, .08), 0 8px 18px rgba(7, 39, 30, .10);
+  transition: border-color .15s ease, box-shadow .15s ease;
+}
+/* Focus = border thickens to 2px and turns brand green (the funnel affordance). */
+.apply-form input[type="text"]:focus,
+.apply-form input[type="email"]:focus,
+.apply-form input[type="tel"]:focus,
+.apply-form input[type="number"]:focus,
+.apply-form input[type="date"]:focus,
+.apply-form input[type="password"]:focus,
+.apply-form select:focus,
+.apply-form textarea:focus {
+  outline: none;
+  border-width: 2px;
+  border-color: #135e48;
+  box-shadow: 0 2px 4px rgba(7, 39, 30, .08), 0 8px 18px rgba(7, 39, 30, .12);
+}
+.apply-form input.error,
+.apply-form select.error,
+.apply-form textarea.error { border-color: #d6453d; }
+
+/* Primary buttons — forest green with the funnel's 3D "lip". Specificity
+   (.apply-page .btn.btn-primary) beats both buttons.css and design-system.css. */
+.apply-page .btn.btn-primary {
+  background: #135e48;
+  color: #ffffff;
+  border: none;
+  border-radius: 12px;
+  font-weight: 700;
+  box-shadow: 0 3px 0 #0a3a2a, 0 2px 4px rgba(7, 39, 30, .08), 0 8px 18px rgba(7, 39, 30, .10);
+  transition: transform .15s, background .15s, box-shadow .15s;
+}
+.apply-page .btn.btn-primary:hover {
+  background: #0e4a39;
+  transform: translateY(-2px);
+  box-shadow: 0 5px 0 #0a3a2a, 0 12px 44px rgba(7, 39, 30, .20);
+}
+.apply-page .btn.btn-primary:active { transform: translateY(1px); }
+.apply-page .btn.btn-primary:disabled,
+.apply-page .btn.btn-primary[aria-disabled="true"] {
+  background: #cfd6cd;
+  box-shadow: none;
+  transform: none;
+  cursor: default;
+}
+
+/* Secondary / Back-in-footer — white pill, subtle line. */
+.apply-page .btn.btn-outline-secondary,
+.apply-page .btn.btn-secondary {
+  border-radius: 9999px;
+  border: 1px solid #e2e6dd;
+  background: #ffffff;
+  color: #0b231c;
+  font-weight: 700;
+}
+.apply-page .btn.btn-outline-secondary:hover,
+.apply-page .btn.btn-secondary:hover { background: #f2f4ef; }

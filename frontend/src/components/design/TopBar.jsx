@@ -32,7 +32,7 @@ export default function TopBar() {
   const location = useLocation();
   const navigate = useNavigate();
   const auth = useAuth();
-  const { isAdmin } = useRoles();
+  const { isAdmin, isStaff } = useRoles();
   const active = detectActive(location.pathname);
   const currentLoanId = useCurrentLoanId();
 
@@ -129,8 +129,8 @@ export default function TopBar() {
         )}
       </nav>
 
-      {/* Global typeahead — find any loan by name, app#, or external loan id. */}
-      {auth.isAuthenticated && <LoanSearch />}
+      {/* Global typeahead — staff-only tool (find any loan). Hidden in the client/borrower view. */}
+      {auth.isAuthenticated && isStaff && <LoanSearch />}
 
       <div className="top-right">
         {auth.isLoading && <span style={{ opacity: 0.6, fontSize: 13 }}>…</span>}

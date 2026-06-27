@@ -30,6 +30,7 @@ export function ApplyHero({
   lastSavedAt,
   onSaveAndExit,
   onContinue,
+  onBack,
   continueLabel = 'Continue',
 }) {
   const eyebrow = isViewing
@@ -38,6 +39,20 @@ export function ApplyHero({
       ? `Editing · ${applicationNumber ? `APP${applicationNumber}` : 'application'}`
       : 'New application';
   return (
+   <>
+    {/* Client header strip: Back (pill) + MSFG logo, top-left — mirrors the msfg.us funnel chrome. */}
+    <div className="apply-topbar">
+      {onBack && (
+        <button type="button" className="apply-back" onClick={onBack} aria-label="Go back">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
+               strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <path d="m15 18-6-6 6-6" />
+          </svg>
+          Back
+        </button>
+      )}
+      <img className="apply-logo" src="/brand/msfg-logo.png" alt="MSFG Home Loans" />
+    </div>
     <div className="apply-hero">
       <div>
         <div className="eyebrow">{eyebrow}</div>
@@ -68,6 +83,7 @@ export function ApplyHero({
         )}
       </div>
     </div>
+   </>
   );
 }
 

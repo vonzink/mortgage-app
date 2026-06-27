@@ -502,6 +502,7 @@ const ApplicationForm = () => {
           isViewing={isViewing}
           lastSavedAt={lastSavedAt}
           onSaveAndExit={isViewing ? null : handleSaveAndExit}
+          onBack={() => navigate(-1)}
           onContinue={
             isViewing ? null
             : !isLastStep ? handleNextStep

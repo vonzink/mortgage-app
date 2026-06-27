@@ -16,6 +16,10 @@ export default function useRoles() {
     isLO: has('LO'),
     isProcessor: has('Processor'),
     isManager: has('Manager'),
+    isBorrower: has('Borrower'),
+    // Any back-office role. Used to gate staff-only chrome (e.g. the global loan
+    // search) out of the client/borrower view.
+    isStaff: has('Admin') || has('LO') || has('Processor') || has('Manager'),
     hasRole: has,
   };
 }

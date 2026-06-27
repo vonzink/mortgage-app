@@ -38,12 +38,14 @@ import ReviewSubmitStep from './ReviewSubmitStep';
 
 // Services
 import mortgageService from '../../services/mortgageService';
+import { suiteClient } from '../../services/apiClient';
 
 // Utils
 import { createDefaultBorrower } from '../../utils/fieldArrayHelpers';
 import { focusFirstInvalidField } from '../../utils/formErrorHelpers';
 import { useDraftAutosave, clearDraft } from '../../hooks/useDraftAutosave';
 import { formToApplicationPayload } from '../../utils/applicationPayload';
+import { formToSuiteApplication } from '../../utils/suiteApplicationPayload';
 
 const ApplicationForm = () => {
   const navigate = useNavigate();
@@ -351,8 +353,40 @@ const ApplicationForm = () => {
 
     setIsSubmitting(true);
     try {
-      // Form → backend DTO conversion lives in utils/applicationPayload.js
-      // (pure, unit-tested). Keeps this handler focused on UI flow + API I/O.
+      // BORROWER SELF-SUBMIT PATH: the funnel → /continue flow already created the
+      // loan in the msfg-suite (system of record) and stashed its id. When present,
+      // SAVE the full application into the SoR via the borrower-self endpoint
+      // (PUT /api/loans/{id}/application) instead of the legacy mortgage-app create.
+      // The suite mapper is pure + unit-tested (utils/suiteApplicationPayload.js).
+      const suiteLoanId = sessionStorage.getItem('suiteLoanId');
+      if (suiteLoanId && !(isEditing && editId)) {
+        debug('BORROWER SELF-SUBMIT: saving to suite loan', suiteLoanId);
+        const suiteBody = formToSuiteApplication(data);
+        debug('Suite application body:', JSON.stringify(suiteBody, null, 2));
+
+        const { data: resp } = await suiteClient.put(`/loans/${suiteLoanId}/application`, suiteBody);
+        // Suite wraps responses in { success, message, data }. Treat an explicit
+        // success:false as a failure even on HTTP 200.
+        if (resp && resp.success === false) {
+          throw new Error(resp.message || 'Application could not be saved.');
+        }
+        debug('Suite save succeeded! Response:', resp);
+
+        // Self-submit consumed the stashed loan id; clear it + the autosaved draft.
+        sessionStorage.removeItem('suiteLoanId');
+        clearDraft(draftKey);
+        clearDraft(`${draftKey}:steps`);
+
+        toast.success('Application submitted successfully!');
+        setTimeout(() => {
+          navigate('/applications');
+        }, 1000);
+        return;
+      }
+
+      // LEGACY PATH (staff create / edit-existing): form → mortgage-app backend DTO.
+      // Conversion lives in utils/applicationPayload.js (pure, unit-tested). Keeps
+      // this handler focused on UI flow + API I/O.
       const applicationData = formToApplicationPayload(data);
 
       debug('Final application data to send:', JSON.stringify(applicationData, null, 2));
@@ -390,10 +424,17 @@ const ApplicationForm = () => {
         status: error.response?.status
       });
       
-      // Show specific error message
+      // Show specific error message. Suite wraps errors as ApiResponse
+      // ({ success:false, message }); a denied borrower write is 403, an
+      // optimistic-lock/dup conflict is 409 — surface those clearly.
       let errorMessage = 'Failed to submit application. Please try again.';
+      const status = error.response?.status;
       if (error.response?.data?.message) {
         errorMessage = error.response.data.message;
+      } else if (status === 403) {
+        errorMessage = 'You are not allowed to submit this application.';
+      } else if (status === 409) {
+        errorMessage = 'This application was changed elsewhere. Reload and try again.';
       } else if (error.response?.data?.fieldErrors) {
         errorMessage = 'Validation errors: ' + Object.entries(error.response.data.fieldErrors)
           .map(([field, errors]) => `${field}: ${errors.join(', ')}`)

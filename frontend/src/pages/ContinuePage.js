@@ -37,7 +37,15 @@ export default function ContinuePage() {
   const finishAndContinue = async () => {
     setWorking(true);
     try {
-      await mortgageService.createLoanFromIntake(toIntakeRequest(payload));
+      // createLoanFromIntake unwraps the suite ApiResponse envelope → the intake
+      // result object ({ loanId, loanNumber }). Capture the loan id so /apply knows
+      // which SoR loan to SAVE the full application into (borrower self-submit path).
+      // Be robust to either field name (loanId is the contract; id is a fallback).
+      const intakeResult = await mortgageService.createLoanFromIntake(toIntakeRequest(payload));
+      const suiteLoanId = intakeResult?.loanId ?? intakeResult?.id ?? null;
+      if (suiteLoanId) {
+        sessionStorage.setItem('suiteLoanId', String(suiteLoanId));
+      }
       sessionStorage.setItem('carryOverData', JSON.stringify(toCarryOverData(payload)));
       if (process.env.REACT_APP_DEV_SUB) {
         navigate('/apply');

@@ -45,9 +45,35 @@ function str(value) {
   return hasValue(value) ? String(value).trim() : null;
 }
 
-/** ISO date pass-through (form date inputs already emit YYYY-MM-DD), else null. */
+/** Strict ISO date — emit only YYYY-MM-DD (what the suite's LocalDate parses), else
+ *  null. A non-ISO string (e.g. "03/2019") would 400 the whole body, so drop it. */
 function isoDate(value) {
-  return hasValue(value) ? String(value).trim() : null;
+  if (!hasValue(value)) return null;
+  const s = String(value).trim();
+  return /^\d{4}-\d{2}-\d{2}$/.test(s) ? s : null;
+}
+
+/** Valid suite UsStateCode constants (USPS 2-letter incl. DC + territories). */
+const US_STATE_CODES = new Set([
+  'AL', 'AK', 'AZ', 'AR', 'CA', 'CO', 'CT', 'DE', 'FL', 'GA', 'HI', 'ID', 'IL', 'IN',
+  'IA', 'KS', 'KY', 'LA', 'ME', 'MD', 'MA', 'MI', 'MN', 'MS', 'MO', 'MT', 'NE', 'NV',
+  'NH', 'NJ', 'NM', 'NY', 'NC', 'ND', 'OH', 'OK', 'OR', 'PA', 'RI', 'SC', 'SD', 'TN',
+  'TX', 'UT', 'VT', 'VA', 'WA', 'WV', 'WI', 'WY', 'DC', 'AS', 'GU', 'MP', 'PR', 'VI',
+]);
+
+/** Normalize a state to a valid suite UsStateCode (2-letter, upper), else null — the
+ *  suite field is an enum, so a free-text "Colorado"/"co" must not be sent raw. */
+function usState(value) {
+  if (!hasValue(value)) return null;
+  const s = String(value).trim().toUpperCase();
+  return US_STATE_CODES.has(s) ? s : null;
+}
+
+/** OwnershipInterestType — the suite field is a bucketed enum, never a number. */
+function ownershipInterest(value) {
+  const n = num(value);
+  if (n === null) return null;
+  return n >= 25 ? 'GREATER_OR_EQUAL_25' : 'LESS_THAN_25';
 }
 
 // ── Enum maps (FE string → suite enum) ────────────────────────────────────
@@ -241,7 +267,7 @@ function buildEmployment(emp) {
     employmentStatus: mapEmploymentStatus(emp.employmentStatus),
     classification: 'PRIMARY',
     selfEmployed: !!emp.selfEmployed,
-    ownershipShare: num(emp.ownershipShare),
+    ownershipShare: ownershipInterest(emp.ownershipShare),
     employedByPartyToTransaction: false,
     startDate: isoDate(emp.startDate),
     endDate: isoDate(emp.endDate),
@@ -298,7 +324,7 @@ function buildReo(reoProperties) {
       addressLine1: str(r.addressLine),
       addressLine2: null,
       city: str(r.city),
-      state: str(r.state),
+      state: usState(r.state),
       postalCode: str(r.zipCode),
       // FE REO has no STRUCTURAL property type; its propertyType is occupancy-style.
       propertyType: null,

@@ -371,3 +371,51 @@ describe('formToSuiteApplication — empty-section skip rule', () => {
     expect(out.income).toBeNull();
   });
 });
+
+// Defensive coercion: the suite's BorrowerApplicationRequest deserializes enums +
+// LocalDate strictly, so a bad value 400s the WHOLE body ("Malformed request
+// body"). The builder must emit only suite-valid values or null. (QA 2026-06-28.)
+describe('formToSuiteApplication — defensive type/enum coercion', () => {
+  const base = (overrides) => ({
+    borrowers: [{ firstName: 'Z', lastName: 'Z', email: 'z@e.com', ssn: '111-11-1111', ...overrides }],
+  });
+
+  test('reo.state: free-text full name → null; 2-letter (any case) → uppercased UsStateCode', () => {
+    expect(formToSuiteApplication(base({
+      reoProperties: [{ addressLine: '1 A St', city: 'Arvada', state: 'Colorado' }],
+    })).reo[0].state).toBeNull();
+
+    expect(formToSuiteApplication(base({
+      reoProperties: [{ addressLine: '1 A St', city: 'Arvada', state: 'co' }],
+    })).reo[0].state).toBe('CO');
+  });
+
+  test('employment dates: non-ISO → null; strict YYYY-MM-DD → kept', () => {
+    const emp = formToSuiteApplication(base({
+      employmentHistory: [{ employerName: 'Acme', startDate: '03/2019', endDate: '2020-06-15', monthlyIncome: '100' }],
+    })).income.employments[0];
+    expect(emp.startDate).toBeNull();
+    expect(emp.endDate).toBe('2020-06-15');
+  });
+
+  test('borrower.dateOfBirth: non-ISO (06/15/1985) → null', () => {
+    expect(formToSuiteApplication(base({ dateOfBirth: '06/15/1985' })).borrower.dateOfBirth).toBeNull();
+  });
+
+  test('ownershipShare: numeric share → OwnershipInterestType enum; absent → null', () => {
+    const e1 = formToSuiteApplication(base({
+      employmentHistory: [{ employerName: 'Acme', ownershipShare: '30', monthlyIncome: '100' }],
+    })).income.employments[0];
+    expect(e1.ownershipShare).toBe('GREATER_OR_EQUAL_25');
+
+    const e2 = formToSuiteApplication(base({
+      employmentHistory: [{ employerName: 'Acme', ownershipShare: '10', monthlyIncome: '100' }],
+    })).income.employments[0];
+    expect(e2.ownershipShare).toBe('LESS_THAN_25');
+
+    const e3 = formToSuiteApplication(base({
+      employmentHistory: [{ employerName: 'Acme', monthlyIncome: '100' }],
+    })).income.employments[0];
+    expect(e3.ownershipShare).toBeNull();
+  });
+});

@@ -222,12 +222,11 @@ const mortgageService = {
    */
   getStatusHistory: async (id) => {
     try {
-      const { data } = await suiteClient.get(`/loans/${id}/status/transitions`);
-      const t = unwrapEnvelope(data) || {};
-      if (!t.currentStatus) return [];
-      // No status-change timestamp on the transitions endpoint → transitionedAt null
-      // (component renders a blank date, which is acceptable for the thin slice).
-      return [{ id, status: t.currentStatus, transitionedAt: null }];
+      // The suite records a row per status change; this returns the real milestone timeline
+      // ({ id, status, transitionedAt, ... }, oldest-first). Returns [] on any failure.
+      const { data } = await suiteClient.get(`/loans/${id}/status/history`);
+      const items = unwrapEnvelope(data);
+      return Array.isArray(items) ? items : [];
     } catch {
       return [];
     }

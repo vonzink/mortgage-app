@@ -5,7 +5,8 @@
 import React from 'react';
 import { FaCheck, FaFilePdf } from 'react-icons/fa';
 import FormSection from '../shared/FormSection';
-import { formatCurrency, formatDate } from '../../utils/formHelpers';
+import { formatCurrency, formatDate, maskSsn } from '../../utils/formHelpers';
+import { hmdaStatus } from '../../utils/reviewSummary';
 import { displayLabel } from '../../utils/displayLabels';
 import { printURLAFormat } from '../../exporters/urla/urlaExport';
 import { toast } from 'react-toastify';
@@ -27,6 +28,8 @@ const ReviewSubmitStep = ({ register, errors, getValues, onSubmit, isSubmitting,
   const renderBorrowerSummary = (borrower, index) => {
     if (!borrower.firstName && !borrower.lastName) return null;
 
+    const hmda = hmdaStatus(borrower.declaration);
+
     return (
       <div key={index} className="borrower-summary">
         <h5>Borrower {index + 1}: {borrower.firstName} {borrower.lastName}</h5>
@@ -34,7 +37,7 @@ const ReviewSubmitStep = ({ register, errors, getValues, onSubmit, isSubmitting,
         <div className="summary-details">
           <div className="summary-row">
             <span className="label">SSN:</span>
-            <span className="value">***-**-{borrower.ssn?.slice(-4) || '****'}</span>
+            <span className={`value${borrower.ssn ? '' : ' value-missing'}`}>{maskSsn(borrower.ssn)}</span>
           </div>
           <div className="summary-row">
             <span className="label">Date of Birth:</span>
@@ -52,7 +55,11 @@ const ReviewSubmitStep = ({ register, errors, getValues, onSubmit, isSubmitting,
             <span className="label">Phone:</span>
             <span className="value">{borrower.phone || 'Not provided'}</span>
           </div>
-          
+          <div className="summary-row">
+            <span className="label">HMDA Demographics:</span>
+            <span className={`value${hmda.missing ? ' value-missing' : ''}`}>{hmda.label}</span>
+          </div>
+
           {/* Employment Summary */}
           {borrower.employmentHistory && borrower.employmentHistory.length > 0 && (
             <div className="employment-summary">
@@ -133,19 +140,19 @@ const ReviewSubmitStep = ({ register, errors, getValues, onSubmit, isSubmitting,
           <div className="review-grid">
             <div className="review-item">
               <span className="label">Address:</span>
-              <span className="value">{formData.propertyAddress || 'Not provided'}</span>
+              <span className="value">{formData.property?.addressLine || 'Not provided'}</span>
             </div>
             <div className="review-item">
               <span className="label">City:</span>
-              <span className="value">{formData.propertyCity || 'Not provided'}</span>
+              <span className="value">{formData.property?.city || 'Not provided'}</span>
             </div>
             <div className="review-item">
               <span className="label">State:</span>
-              <span className="value">{formData.propertyState || 'Not provided'}</span>
+              <span className="value">{formData.property?.state || 'Not provided'}</span>
             </div>
             <div className="review-item">
               <span className="label">ZIP Code:</span>
-              <span className="value">{formData.propertyZip || 'Not provided'}</span>
+              <span className="value">{formData.property?.zipCode || 'Not provided'}</span>
             </div>
             <div className="review-item">
               <span className="label">Property Type:</span>

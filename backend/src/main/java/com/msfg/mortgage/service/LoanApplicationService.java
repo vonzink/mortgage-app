@@ -95,6 +95,8 @@ public class LoanApplicationService {
         app.setLoanPurpose(req.getLoanPurpose());
         app.setStatus(LoanStatus.REGISTERED.name());
         app.setSourceLeadId(req.getSourceLeadId());
+        // Denormalized for the pipeline view (loan_list_view reads loan_applications.loan_amount).
+        app.setLoanAmount(req.getLoanAmount());
 
         IntakeRequest.PropertyInfo pi = req.getProperty();
         if (pi != null) {
@@ -106,6 +108,10 @@ public class LoanApplicationService {
             prop.setPropertyType(pi.getPropertyType());
             prop.setConstructionType(pi.getConstructionType());
             prop.setPropertyValue(pi.getPropertyValue());
+            // For a purchase the funnel's property value IS the sales price; refis have none.
+            if ("Purchase".equals(req.getLoanPurpose())) {
+                prop.setPurchasePrice(pi.getPropertyValue());
+            }
             prop.setApplication(app);
             app.setProperty(prop);
             app.setPropertyValue(pi.getPropertyValue());

@@ -17,6 +17,7 @@ public class IntakeRequest {
     private String source;                                     // e.g. "apply-wizard"
     private String intent;                                     // buy | refi | cash
     @NotBlank @Pattern(regexp = "Purchase|Refinance|CashOut") private String loanPurpose;  // Purchase | Refinance | CashOut
+    private java.math.BigDecimal loanAmount;   // requested loan amount (price − down payment for purchases); null for partial/refi funnels
     private BorrowerInfo borrower;
     private PropertyInfo property;
     private Financials financials;

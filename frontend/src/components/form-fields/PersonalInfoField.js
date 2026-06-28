@@ -98,13 +98,14 @@ const PersonalInfoField = ({
       <div className="form-row">
         <div className="form-group">
           <label htmlFor={getFieldName('ssn')}>
-            Social Security Number
+            Social Security Number {required && '*'}
           </label>
           <div className="ssn-input-wrap">
             <input
               type={showSsn ? 'text' : 'password'}
               id={getFieldName('ssn')}
               {...maskedRegister(getFieldName('ssn'), {
+                required: required ? 'SSN is required' : false,
                 pattern: {
                   value: /^\d{3}-\d{2}-\d{4}$/,
                   message: 'Invalid SSN format'

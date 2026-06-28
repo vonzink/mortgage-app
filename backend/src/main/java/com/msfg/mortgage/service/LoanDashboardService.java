@@ -44,6 +44,14 @@ public class LoanDashboardService {
 
     // ─── Read aggregated dashboard ──────────────────────────────────────────
 
+    /**
+     * Aggregates the loan's read-side view. Runs in a read-only transaction so the
+     * whole assembly shares one Hibernate session — without it, dereferencing a
+     * LAZY association such as {@link LoanAgent#getAgentUser()} after the owning
+     * repository call has returned throws LazyInitializationException (OSIV is
+     * disabled), 500ing the dashboard for any loan with an assigned agent.
+     */
+    @Transactional(readOnly = true)
     public Map<String, Object> getDashboard(Long loanId) {
         LoanApplication la = loanApplicationRepository.findById(loanId)
                 .orElseThrow(() -> new ResourceNotFoundException("Loan " + loanId + " not found"));

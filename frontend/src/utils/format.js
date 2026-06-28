@@ -203,6 +203,17 @@ export function formatSSN(raw) {
 }
 
 /**
+ * Mask an SSN for read-only display: "***-**-6789", or "Not provided" when the
+ * value is absent. Never renders a fake all-stars mask for a missing SSN — that
+ * misleads reviewers into thinking one was captured (QA #5).
+ */
+export function maskSsn(ssn) {
+  const digits = String(ssn || '').replace(/\D/g, '');
+  if (digits.length < 4) return 'Not provided';
+  return `***-**-${digits.slice(-4)}`;
+}
+
+/**
  * Format a US phone number as "xxx-xxx-xxxx" (used while the user types).
  * Partial input is preserved: "12" → "12", "1234" → "123-4".
  */

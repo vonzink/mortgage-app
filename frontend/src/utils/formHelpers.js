@@ -12,6 +12,7 @@ export {
   parseCurrencyInput,
   formatDate,
   formatSSN,
+  maskSsn,
   formatPhone,
 } from './format';
 

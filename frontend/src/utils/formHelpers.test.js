@@ -11,8 +11,22 @@ import {
   isValidPhone,
   isValidSSN,
   formatSSN,
+  maskSsn,
   formatPhone,
 } from './formHelpers';
+
+describe('maskSsn', () => {
+  test('masks to last 4 when a full SSN is present', () => {
+    expect(maskSsn('123-45-6789')).toBe('***-**-6789');
+    expect(maskSsn('123456789')).toBe('***-**-6789');
+  });
+  test('returns "Not provided" when absent or too short', () => {
+    expect(maskSsn('')).toBe('Not provided');
+    expect(maskSsn(null)).toBe('Not provided');
+    expect(maskSsn(undefined)).toBe('Not provided');
+    expect(maskSsn('12')).toBe('Not provided');
+  });
+});
 
 describe('residence history duration', () => {
   test('returns 0 for empty / non-array', () => {

@@ -13,6 +13,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.math.BigDecimal;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -78,5 +79,44 @@ class CreateFromIntakeSuiteTest {
                 eq("00000000-0000-0000-0000-0000000000b0"),
                 eq("Borrower"),
                 anyString());
+    }
+
+    @Test
+    void createFromIntake_persistsLoanAmountAndPurchasePrice() {
+        // QA #4: the pipeline's loan_list_view reads denormalized loan_applications.loan_amount
+        // and property_value. createFromIntake must persist the funnel's loan amount + price so a
+        // submitted purchase shows Amount / LTV in the pipeline instead of blank.
+        LoanApplicationRepository repo = mock(LoanApplicationRepository.class);
+        LoanStatusHistoryRepository histRepo = mock(LoanStatusHistoryRepository.class);
+        LoanApplicationMapper mapper = mock(LoanApplicationMapper.class);
+        UserRepository userRepo = mock(UserRepository.class);
+        SuiteClient suite = mock(SuiteClient.class);
+        DevIdentityProperties devIdentity = new DevIdentityProperties(
+                "00000000-0000-0000-0000-0000000000b0", "Borrower",
+                "00000000-0000-0000-0000-0000000000aa");
+        LoanApplicationService service = new LoanApplicationService(
+                repo, histRepo, mapper, userRepo, suite, devIdentity);
+
+        when(repo.findBySourceLeadId("lead-amt")).thenReturn(Optional.empty());
+        when(repo.save(any(LoanApplication.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        IntakeRequest req = new IntakeRequest();
+        req.setSourceLeadId("lead-amt");
+        req.setLoanPurpose("Purchase");
+        req.setLoanAmount(new BigDecimal("360000"));
+
+        IntakeRequest.PropertyInfo pi = new IntakeRequest.PropertyInfo();
+        pi.setPropertyValue(new BigDecimal("450000"));
+        req.setProperty(pi);
+
+        User caller = new User();
+        caller.setId(1);
+
+        LoanApplication app = service.createFromIntake(req, caller);
+
+        assertThat(app.getLoanAmount()).isEqualByComparingTo("360000");
+        assertThat(app.getPropertyValue()).isEqualByComparingTo("450000");
+        assertThat(app.getProperty()).isNotNull();
+        assertThat(app.getProperty().getPurchasePrice()).isEqualByComparingTo("450000");
     }
 }

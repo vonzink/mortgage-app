@@ -139,7 +139,9 @@
   background: var(--bg-glass);
   border: 1px solid var(--border-light);
   border-radius: var(--radius-md);
-  overflow: hidden;
+  /* Scroll the row sideways on narrow viewports instead of clipping cell values
+     ('Checki…', '$ 000') — the columns below keep a legible min width (QA #8). */
+  overflow-x: auto;
   margin-bottom: var(--spacing-md);
 }
 
@@ -156,12 +158,12 @@
 }
 
 .asset-header {
-  grid-template-columns: 1.2fr 1fr 1fr 1fr 0.8fr 0.8fr 100px;
+  grid-template-columns: minmax(130px, 1.2fr) minmax(120px, 1fr) minmax(120px, 1fr) minmax(130px, 1fr) minmax(110px, 0.8fr) minmax(110px, 0.8fr) 100px;
 }
 
 .liability-header {
   /* Type | Owner | Creditor | Account # | Monthly | Balance | Status | Actions */
-  grid-template-columns: 1.2fr 1fr 1.2fr 1fr 1fr 1fr 0.9fr 100px;
+  grid-template-columns: minmax(130px, 1.2fr) minmax(120px, 1fr) minmax(140px, 1.2fr) minmax(130px, 1fr) minmax(120px, 1fr) minmax(120px, 1fr) minmax(110px, 0.9fr) 100px;
 }
 
 .asset-header-item,
@@ -179,11 +181,11 @@
 }
 
 .asset-entry {
-  grid-template-columns: 1.2fr 1fr 1fr 1fr 0.8fr 0.8fr 100px;
+  grid-template-columns: minmax(130px, 1.2fr) minmax(120px, 1fr) minmax(120px, 1fr) minmax(130px, 1fr) minmax(110px, 0.8fr) minmax(110px, 0.8fr) 100px;
 }
 
 .liability-entry {
-  grid-template-columns: 1.2fr 1fr 1.2fr 1fr 1fr 1fr 0.9fr 100px;
+  grid-template-columns: minmax(130px, 1.2fr) minmax(120px, 1fr) minmax(140px, 1.2fr) minmax(130px, 1fr) minmax(120px, 1fr) minmax(120px, 1fr) minmax(110px, 0.9fr) 100px;
 }
 
 .asset-entry:last-child,
@@ -390,6 +392,12 @@
 .summary-row .value {
   color: var(--text-primary);
   font-size: var(--font-size-sm);
+}
+
+/* Flags a required value that is absent on the review page (SSN / HMDA — QA #5). */
+.summary-row .value-missing {
+  color: var(--danger-color);
+  font-weight: 600;
 }
 
 .employment-summary {

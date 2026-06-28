@@ -2,8 +2,12 @@ package com.msfg.mortgage.service;
 
 import com.msfg.mortgage.exception.BusinessValidationException;
 import com.msfg.mortgage.exception.ResourceNotFoundException;
+import com.msfg.mortgage.model.LoanAgent;
 import com.msfg.mortgage.model.LoanApplication;
+import com.msfg.mortgage.model.User;
+import com.msfg.mortgage.repository.LoanAgentRepository;
 import com.msfg.mortgage.repository.LoanApplicationRepository;
+import com.msfg.mortgage.repository.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -12,6 +16,7 @@ import org.springframework.test.context.ActiveProfiles;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.List;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -31,6 +36,8 @@ class LoanDashboardServiceTest {
 
     @Autowired private LoanDashboardService loanDashboardService;
     @Autowired private LoanApplicationRepository loanApplicationRepository;
+    @Autowired private UserRepository userRepository;
+    @Autowired private LoanAgentRepository loanAgentRepository;
 
     private Long loanId;
 
@@ -55,6 +62,37 @@ class LoanDashboardServiceTest {
                         "statusHistory", "loanAgents", "closingInformation", "notes");
         assertThat(body.get("loanId")).isEqualTo(loanId);
         assertThat(body.get("status")).isEqualTo("REGISTERED");
+    }
+
+    @Test
+    void getDashboard_initializesAssignedAgentUser() {
+        // QA #1 regression: a submitted loan with an assigned officer 500'd because
+        // getDashboard dereferenced the LAZY LoanAgent.agentUser with no open
+        // transaction (spring.jpa.open-in-view=false), throwing
+        // LazyInitializationException during view assembly. The fix is to run the
+        // read aggregation inside @Transactional(readOnly=true).
+        User agent = new User();
+        agent.setEmail("robert.hoff@msfg.test");
+        agent.setName("Robert Hoff");
+        agent.setRole("lo");
+        User savedAgent = userRepository.save(agent);
+
+        loanAgentRepository.save(LoanAgent.builder()
+                .application(loanApplicationRepository.findById(loanId).orElseThrow())
+                .agentUser(savedAgent)
+                .agentRole("BuyersAgent")
+                .build());
+
+        Map<String, Object> body = loanDashboardService.getDashboard(loanId);
+
+        @SuppressWarnings("unchecked")
+        List<Map<String, Object>> agents = (List<Map<String, Object>>) body.get("loanAgents");
+        assertThat(agents).hasSize(1);
+        @SuppressWarnings("unchecked")
+        Map<String, Object> user = (Map<String, Object>) agents.get(0).get("user");
+        assertThat(user).isNotNull();
+        assertThat(user.get("displayName")).isEqualTo("Robert Hoff");
+        assertThat(user.get("email")).isEqualTo("robert.hoff@msfg.test");
     }
 
     @Test

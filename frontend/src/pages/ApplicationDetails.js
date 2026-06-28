@@ -3,7 +3,9 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
 
 import WorkspaceTab from '../workspace/WorkspaceTab';
+import BorrowerDocuments from '../components/documents/BorrowerDocuments';
 import mortgageService from '../services/mortgageService';
+import useRoles from '../hooks/useRoles';
 import { pushRecentLoan } from '../utils/recentLoans';
 import { formatCurrency } from '../utils/formHelpers';
 import DocumentsHero from '../components/design/DocumentsHero';
@@ -16,6 +18,9 @@ import './ApplicationDetails.design.css';
 const ApplicationDetails = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { isBorrower, isStaff } = useRoles();
+  // A borrower's documents live in the suite (system of record). Staff keep the folder workspace.
+  const useSuiteDocs = isBorrower && !isStaff;
   const [application, setApplication] = useState(null);
   const [loading, setLoading] = useState(true);
   const [documents, setDocuments] = useState([]);
@@ -47,12 +52,14 @@ const ApplicationDetails = () => {
 
   const fetchDocuments = useCallback(async () => {
     try {
-      const docs = await mortgageService.getApplicationDocuments(id);
+      const docs = useSuiteDocs
+        ? await mortgageService.getBorrowerDocuments(id)   // suite (system of record)
+        : await mortgageService.getApplicationDocuments(id);
       setDocuments(docs);
     } catch (error) {
       console.error('Error fetching documents:', error);
     }
-  }, [id]);
+  }, [id, useSuiteDocs]);
 
   const fetchStatusHistory = useCallback(async () => {
     try {
@@ -116,7 +123,9 @@ const ApplicationDetails = () => {
 
       <div className="docs-layout docs-layout--full">
         <div className="docs-main">
-          <WorkspaceTab loanId={Number(id)} />
+          {useSuiteDocs
+            ? <BorrowerDocuments suiteLoanId={id} onChanged={fetchDocuments} />
+            : <WorkspaceTab loanId={Number(id)} />}
         </div>
       </div>
 

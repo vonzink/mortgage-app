@@ -1,5 +1,16 @@
 import apiClient, { suiteClient } from './apiClient';
 
+/** Map a suite DocumentResponse to the shape the documents UI consumes (docUuid/status/uploadedAt). */
+function adaptSuiteDocument(d) {
+  if (!d) return d;
+  return {
+    ...d,
+    docUuid: d.id,
+    status: d.documentStatus,
+    uploadedAt: d.createdAt,
+  };
+}
+
 /**
  * Backend API surface for the borrower portal.
  *
@@ -369,6 +380,36 @@ const mortgageService = {
     });
     await mortgageService.uploadFileToS3(slot.uploadUrl, file);
     return mortgageService.confirmDocumentUpload(loanId, slot.docUuid);
+  },
+
+  // ────────────────── Documents — BORROWER self into the suite (system of record) ──────────────────
+  // The suite is the SoR: a borrower uploads/lists/downloads their OWN documents straight into it, so
+  // staff processing/UW see them. Keyed by the suite loanId (a UUID); responses use the {success,data}
+  // envelope. Uploads land unfiled (no type) for staff to categorize — keeps the client flow simple.
+
+  getBorrowerDocuments: async (suiteLoanId) => {
+    const { data } = await suiteClient.get(`/loans/${suiteLoanId}/borrower/documents`);
+    const env = data?.data ?? data;
+    const arr = Array.isArray(env) ? env : (env?.documents || []);
+    return arr.map(adaptSuiteDocument);
+  },
+
+  getBorrowerDocumentDownloadUrl: async (suiteLoanId, documentId) => {
+    const { data } = await suiteClient.get(`/loans/${suiteLoanId}/borrower/documents/${documentId}/download-url`);
+    return data?.data ?? data; // { downloadUrl, expiresInSeconds }
+  },
+
+  /** Full borrower upload sequence into the suite (upload-url → PUT bytes to S3 → confirm). */
+  uploadBorrowerDocument: async (suiteLoanId, file) => {
+    const { data: slotEnv } = await suiteClient.post(`/loans/${suiteLoanId}/borrower/documents/upload-url`, {
+      fileName: file.name,
+      contentType: file.type || 'application/octet-stream',
+    });
+    const slot = slotEnv?.data ?? slotEnv; // { documentId, uploadUrl, ... }
+    await mortgageService.uploadFileToS3(slot.uploadUrl, file);
+    const { data: confEnv } = await suiteClient.put(
+      `/loans/${suiteLoanId}/borrower/documents/${slot.documentId}/confirm`);
+    return adaptSuiteDocument(confEnv?.data ?? confEnv);
   },
 
   // ────────────────── Folder AI evaluation ──────────────────

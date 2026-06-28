@@ -35,6 +35,7 @@ DEPLOY_BACKEND=true
 DO_REPAIR=false
 DO_VALIDATE=false
 TAIL_LOGS=false
+ALLOW_DIRTY=false
 
 usage() {
   cat <<EOF
@@ -52,6 +53,12 @@ Usage: ./deploy.sh [OPTIONS]
                     migration is failing. Doesn't change anything. Use
                     this BEFORE --repair to confirm what's wrong.
   --logs            After deploying, tail the backend logs.
+  --allow-dirty     Skip the clean-frontend-tree guard. The frontend builds from
+                    your WORKING TREE, so any uncommitted file under frontend/
+                    ships to prod. By default the deploy ABORTS if frontend/ is
+                    dirty (2026-06-28 incident: uncommitted suiteApplicationPayload
+                    HMDA WIP shipped + broke the live suite). Use only when you
+                    intend to deploy uncommitted frontend changes.
   -h, --help        Show this help.
 EOF
 }
@@ -63,6 +70,7 @@ for arg in "$@"; do
     --repair)        DO_REPAIR=true                              ;;
     --validate)      DO_VALIDATE=true; DEPLOY_FRONTEND=false; DEPLOY_BACKEND=false ;;
     --logs)          TAIL_LOGS=true                              ;;
+    --allow-dirty)   ALLOW_DIRTY=true                            ;;
     -h|--help)       usage; exit 0                               ;;
     *)               echo "Unknown option: $arg"; usage; exit 1  ;;
   esac
@@ -97,6 +105,19 @@ echo ""
 # incident). So we build on this machine and rsync the artifact; the box only
 # serves frontend/build/ via nginx — it never builds.
 if [ "$DEPLOY_FRONTEND" = "true" ]; then
+  # GUARD: the frontend builds from the WORKING TREE (not git), so any uncommitted
+  # file under frontend/ silently ships to prod. Abort on a dirty frontend tree
+  # unless --allow-dirty. (2026-06-28: uncommitted suiteApplicationPayload HMDA WIP
+  # shipped this way and broke the live-suite submit with a malformed body.)
+  if [ "$ALLOW_DIRTY" != "true" ]; then
+    DIRTY="$(git -C "$(dirname "$0")" status --porcelain -- frontend 2>/dev/null)"
+    if [ -n "$DIRTY" ]; then
+      echo -e "${RED}✗ ABORT: frontend/ has uncommitted changes — these would ship to prod:${NC}"
+      echo "$DIRTY" | sed 's/^/    /'
+      echo -e "${YELLOW}  Commit or stash them, or re-run with --allow-dirty to deploy anyway.${NC}"
+      exit 1
+    fi
+  fi
   echo -e "${YELLOW}▸ Building frontend LOCALLY (prod env)…${NC}"
   ( cd "$(dirname "$0")/frontend"
     npm install --legacy-peer-deps --no-audit --no-fund

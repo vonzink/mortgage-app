@@ -47,6 +47,14 @@ import { useDraftAutosave, clearDraft } from '../../hooks/useDraftAutosave';
 import { formToApplicationPayload } from '../../utils/applicationPayload';
 import { formToSuiteApplication } from '../../utils/suiteApplicationPayload';
 
+// Borrower self-submit → suite (system of record). DISABLED 2026-06-28: the
+// suiteApplicationPayload mapping isn't yet reconciled with the live suite's
+// BorrowerApplicationRequest DTO (enum/type mismatches → "Malformed request body"
+// 400). Until it round-trips against the real suite, submit uses the legacy
+// mortgage-app create path (QA-validated). Flip back to true once the mapping
+// is fixed + integration-tested.
+const SUITE_SELF_SUBMIT_ENABLED = false;
+
 const ApplicationForm = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -359,7 +367,7 @@ const ApplicationForm = () => {
       // (PUT /api/loans/{id}/application) instead of the legacy mortgage-app create.
       // The suite mapper is pure + unit-tested (utils/suiteApplicationPayload.js).
       const suiteLoanId = sessionStorage.getItem('suiteLoanId');
-      if (suiteLoanId && !(isEditing && editId)) {
+      if (SUITE_SELF_SUBMIT_ENABLED && suiteLoanId && !(isEditing && editId)) {
         debug('BORROWER SELF-SUBMIT: saving to suite loan', suiteLoanId);
         const suiteBody = formToSuiteApplication(data);
         debug('Suite application body:', JSON.stringify(suiteBody, null, 2));

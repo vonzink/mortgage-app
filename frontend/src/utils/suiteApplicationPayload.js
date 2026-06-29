@@ -17,9 +17,10 @@
  * Dates are ISO `YYYY-MM-DD`. `state`/`employerState` are 2-letter codes.
  *
  * The mortgage-app form is borrower-ARRAY based with employment/income/assets/
- * liabilities/reo nested under each borrower (assets & liabilities live under
- * borrowers[0]). The suite self-application is SINGLE-borrower, so we map from the
- * primary borrower (borrowers[0]).
+ * liabilities/reo nested under each borrower. borrowers[0] is the PRIMARY (maps to the
+ * top-level borrower/income/assets/liabilities/reo sections, plus the application-level
+ * loan/declarations/demographics); borrowers[1..] are CO-BORROWERS (joint applicants),
+ * each mapped to a `coBorrowers[]` CoBorrowerSection of the same sub-shapes.
  */
 
 import { hasValue, normalizePhone } from './applicationPayload';
@@ -339,6 +340,19 @@ function reoUseOverrides(use) {
   }
 }
 
+/**
+ * income section for ONE borrower → suite IncomeSection `{ employments, otherIncome }`,
+ * or null when the borrower has neither. Shared by the primary and each co-borrower so
+ * the wire shape is identical for all applicants.
+ */
+function buildIncomeSection(b) {
+  const employments = buildEmployments(b?.employmentHistory);
+  const otherIncome = buildOtherIncome(b?.incomeSources);
+  return (employments.length || otherIncome.length)
+    ? { employments, otherIncome }
+    : null;
+}
+
 function buildReo(reoProperties) {
   return (reoProperties || [])
     .filter((r) => hasValue(r.addressLine))
@@ -371,6 +385,22 @@ function buildReo(reoProperties) {
     });
 }
 
+/**
+ * One co-borrower (joint applicant) → suite CoBorrowerSection
+ * `{ borrower, income, assets, liabilities, reo }` — the SAME sub-shapes the primary
+ * uses, MINUS loan §4 / declarations / demographics (those are application-level, only
+ * on the primary path). Reuses the shared section builders, parameterized per borrower.
+ */
+function buildCoBorrowerSection(b) {
+  return {
+    borrower: buildBorrower(b),
+    income: buildIncomeSection(b),
+    assets: buildAssets(b?.assets),
+    liabilities: buildLiabilities(b?.liabilities),
+    reo: buildReo(b?.reoProperties),
+  };
+}
+
 // ── Public API ────────────────────────────────────────────────────────────
 
 /**
@@ -391,16 +421,22 @@ export function formToSuiteApplication(formData) {
 
   const borrower = buildBorrower(primary);
 
-  const employments = buildEmployments(primary?.employmentHistory);
-  const otherIncome = buildOtherIncome(primary?.incomeSources);
-  const income = (employments.length || otherIncome.length)
-    ? { employments, otherIncome }
-    : null;
+  // Same shared income builder the co-borrowers use → primary output is unchanged.
+  const income = buildIncomeSection(primary);
 
   // Assets & liabilities live under borrowers[0] in the form model.
   const assets = buildAssets(primary?.assets);
   const liabilities = buildLiabilities(primary?.liabilities);
   const reo = buildReo(primary?.reoProperties);
+
+  // Co-borrowers (joint applicants) = borrowers[1..]. Each maps to a CoBorrowerSection
+  // via the SAME section builders as the primary. Drop blank appended rows (no name) so
+  // an empty co-borrower tab isn't submitted. Omit the key entirely when there are none,
+  // so a single-borrower submit is byte-for-byte identical to before.
+  const coBorrowers = (data.borrowers || [])
+    .slice(1)
+    .filter((b) => borrowerHasData(b))
+    .map(buildCoBorrowerSection);
 
   return {
     loan: loanHasData(loan) ? loan : null,
@@ -415,6 +451,9 @@ export function formToSuiteApplication(formData) {
     // buildDeclaration) does not yet match the suite enum shape — DEFERRED.
     declarations: null,
     demographics: null,
+    // Joint applicants. Omitted entirely (spread of {}) when there are none, so the
+    // single-borrower body is byte-for-byte unchanged; sent as CoBorrowerSection[] otherwise.
+    ...(coBorrowers.length ? { coBorrowers } : {}),
   };
 }
 

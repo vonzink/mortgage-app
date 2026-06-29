@@ -107,6 +107,18 @@ export const createDefaultEmployment = (sequenceNumber) => ({
 });
 
 /**
+ * Create default non-employment income source object.
+ * Field names mirror what suiteApplicationPayload.buildOtherIncome / mapIncomeType
+ * read: { incomeType, monthlyAmount, description }.
+ * @returns {Object} Default income-source object
+ */
+export const createDefaultIncomeSource = () => ({
+  incomeType: '',
+  monthlyAmount: '',
+  description: ''
+});
+
+/**
  * Create default values for new borrower
  * @param {number} sequenceNumber - Sequence number for the borrower
  * @returns {Object} Default borrower object
@@ -124,6 +136,7 @@ export const createDefaultBorrower = (sequenceNumber) => ({
   dependents: 0,
   citizenshipType: '',
   mailingSameAsPresent: true, // Mailing address defaults to same as present address
+  employmentSituation: 'Employed', // Drives which Employment-step inputs render
   employmentHistory: [createDefaultEmployment(1)], // Start with one employer entry
   incomeSources: [],
   residences: [createDefaultResidence(1, 'Current')], // Start with primary residence

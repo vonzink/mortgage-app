@@ -10,7 +10,8 @@ import {
   checkEmploymentHistoryWarning
 } from '../../utils/formHelpers';
 import {
-  createDefaultEmployment
+  createDefaultEmployment,
+  createDefaultIncomeSource
 } from '../../utils/fieldArrayHelpers';
 import { bubbleTabStyle } from '../shared/bubbleTabStyle';
 
@@ -90,7 +91,14 @@ const EmploymentStep = ({
         if (borrowerIndex !== activeBorrowerTab) return null;
 
         const { fields: empFields, append: appendEmp, remove: removeEmp } = getFieldArray(borrowerIndex, 'employmentHistory');
+        const { fields: incomeFields, append: appendIncome, remove: removeIncome } = getFieldArray(borrowerIndex, 'incomeSources');
         const warning = checkEmploymentHistoryWarning(empFields);
+
+        // Employment-situation selector drives which inputs render for this borrower.
+        // Employed / SelfEmployed / EmploymentGap keep the employer-rows UI; Retired /
+        // Unemployed / OtherIncome lead with the non-employment income sources sub-form.
+        const employmentSituation = watch(`borrowers.${borrowerIndex}.employmentSituation`) || 'Employed';
+        const showEmployerRows = ['Employed', 'SelfEmployed', 'EmploymentGap'].includes(employmentSituation);
         
         // Get or initialize the active employment tab for this borrower
         const activeEmploymentTab = activeEmploymentTabs[borrowerIndex] ?? 0;
@@ -100,7 +108,45 @@ const EmploymentStep = ({
         
         return (
           <div key={borrowerField.id} className="borrower-employment-section">
-            
+
+            {/* Employment Situation selector — drives the conditional UI below. */}
+            <div className="form-row">
+              <div className="form-group">
+                <label htmlFor={`borrowers.${borrowerIndex}.employmentSituation`}>
+                  Employment Situation
+                </label>
+                <select
+                  id={`borrowers.${borrowerIndex}.employmentSituation`}
+                  {...register(`borrowers.${borrowerIndex}.employmentSituation`)}
+                >
+                  <option value="Employed">Employed</option>
+                  <option value="SelfEmployed">Self-employed</option>
+                  <option value="Retired">Retired</option>
+                  <option value="Unemployed">Unemployed</option>
+                  <option value="OtherIncome">Other income</option>
+                  <option value="EmploymentGap">Employment gap</option>
+                </select>
+              </div>
+            </div>
+
+            {/* Gap explanation — FE-local only (no suite field yet; see suiteApplicationPayload).
+                TODO: needs a suite note/field to persist to the SoR later. */}
+            {employmentSituation === 'EmploymentGap' && (
+              <div className="form-row">
+                <div className="form-group">
+                  <label htmlFor={`borrowers.${borrowerIndex}.employmentGapExplanation`}>
+                    Gap Explanation
+                  </label>
+                  <textarea
+                    id={`borrowers.${borrowerIndex}.employmentGapExplanation`}
+                    {...register(`borrowers.${borrowerIndex}.employmentGapExplanation`)}
+                    rows={3}
+                    placeholder="Briefly explain any gaps in your employment history."
+                  />
+                </div>
+              </div>
+            )}
+
             {warning.hasWarning && (
               <div className="alert alert-warning">
                 <strong>Warning:</strong> Your employment history covers approximately {Math.round(warning.totalDuration)} months. 
@@ -108,6 +154,12 @@ const EmploymentStep = ({
               </div>
             )}
             
+            {/* Employer rows — shown for Employed / SelfEmployed / EmploymentGap.
+                For Retired / Unemployed / OtherIncome the income-sources sub-form
+                below is the primary input; these inputs are unmounted (so RHF does
+                not validate them — fine, everything here is optional). */}
+            {showEmployerRows && (
+            <>
             {/* Employment Tabs */}
             {empFields.length > 1 && (
               <div className="employment-tabs" style={{ 
@@ -372,6 +424,94 @@ const EmploymentStep = ({
                 </div>
               </div>
             )}
+            </>
+            )}
+
+            {/* Other / non-employment income — wires the borrower's incomeSources array.
+                Always rendered so it's available regardless of situation; it is the
+                primary input for Retired / Unemployed / OtherIncome. Rows flow through
+                suiteApplicationPayload.buildOtherIncome → mapIncomeType → suite IncomeType. */}
+            <div className="income-sources-section" style={{ marginTop: '1.5rem' }}>
+              <h5>Other / Non-Employment Income</h5>
+              <p className="muted" style={{ marginBottom: 12, fontSize: 13 }}>
+                Add any income that doesn&apos;t come from an employer (e.g. Social
+                Security, pension, child support). Optional.
+              </p>
+
+              {incomeFields.map((incomeField, incIndex) => (
+                <div key={incomeField.id} className="income-source-entry">
+                  <div className="form-row">
+                    <div className="form-group">
+                      <label htmlFor={`borrowers.${borrowerIndex}.incomeSources.${incIndex}.incomeType`}>
+                        Income Type
+                      </label>
+                      <select
+                        id={`borrowers.${borrowerIndex}.incomeSources.${incIndex}.incomeType`}
+                        {...register(`borrowers.${borrowerIndex}.incomeSources.${incIndex}.incomeType`)}
+                      >
+                        <option value="">Select Income Type</option>
+                        <option value="SocialSecurity">Social Security</option>
+                        <option value="Pension">Pension</option>
+                        <option value="Disability">Disability</option>
+                        <option value="Unemployment">Unemployment</option>
+                        <option value="ChildSupport">Child Support</option>
+                        <option value="Alimony">Alimony</option>
+                        <option value="Investment">Dividends / Interest</option>
+                        <option value="Rental">Rental</option>
+                        <option value="Other">Other</option>
+                      </select>
+                    </div>
+
+                    <div className="form-group">
+                      <label htmlFor={`borrowers.${borrowerIndex}.incomeSources.${incIndex}.monthlyAmount`}>
+                        Monthly Amount
+                      </label>
+                      <CurrencyInput
+                        id={`borrowers.${borrowerIndex}.incomeSources.${incIndex}.monthlyAmount`}
+                        name={`borrowers.${borrowerIndex}.incomeSources.${incIndex}.monthlyAmount`}
+                        value={watch(`borrowers.${borrowerIndex}.incomeSources.${incIndex}.monthlyAmount`) || ''}
+                        onChange={(e) => setValue(`borrowers.${borrowerIndex}.incomeSources.${incIndex}.monthlyAmount`, e.target.value)}
+                        placeholder="1,000.00"
+                      />
+                    </div>
+
+                    <div className="form-group">
+                      <label htmlFor={`borrowers.${borrowerIndex}.incomeSources.${incIndex}.description`}>
+                        Description
+                      </label>
+                      <input
+                        type="text"
+                        id={`borrowers.${borrowerIndex}.incomeSources.${incIndex}.description`}
+                        {...register(`borrowers.${borrowerIndex}.incomeSources.${incIndex}.description`)}
+                        placeholder="Optional details"
+                      />
+                    </div>
+
+                    <div className="form-group" style={{ display: 'flex', alignItems: 'flex-end' }}>
+                      <button
+                        type="button"
+                        onClick={() => removeIncome(incIndex)}
+                        className="btn btn-outline-danger btn-sm"
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+
+              <div className="form-row">
+                <div className="form-group">
+                  <button
+                    type="button"
+                    onClick={() => appendIncome(createDefaultIncomeSource())}
+                    className="btn btn-outline-primary"
+                  >
+                    Add Income Source
+                  </button>
+                </div>
+              </div>
+            </div>
           </div>
         );
       })}

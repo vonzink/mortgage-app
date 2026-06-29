@@ -212,6 +212,12 @@ function buildLoan(formData) {
     propertyType: mapPropertyType(formData.propertyType),
     occupancyType: mapOccupancyType(formData.propertyUse),
     numberOfUnits: intOrNull(formData.unitsCount),
+    // Optional monthly escrow estimates (page-3 collapsible block). Read from the
+    // same property.* path as the address fields above; null when blank → omitted.
+    proposedTaxesMonthly: num(formData.property?.proposedTaxesMonthly),
+    proposedHazardInsuranceMonthly: num(formData.property?.proposedHazardInsuranceMonthly),
+    proposedHoaDuesMonthly: num(formData.property?.proposedHoaDuesMonthly),
+    proposedMortgageInsuranceMonthly: num(formData.property?.proposedMortgageInsuranceMonthly),
   };
 }
 
@@ -316,30 +322,53 @@ function buildLiabilities(liabilities) {
     }));
 }
 
+/**
+ * REO use/disposition (FE page-5 select) → suite reo enum fields. Applied ON TOP of
+ * the base mapping below: only the fields named in a branch are overridden; everything
+ * else keeps its base value. propertyStatus is ALWAYS set to a valid ReoPropertyStatus
+ * (never null), defaulting to RETAINED for blank/unknown `use`.
+ */
+function reoUseOverrides(use) {
+  switch (use) {
+    case 'Investment':   return { intendedOccupancy: 'INVESTMENT',  propertyStatus: 'RETAINED' };
+    case 'SecondHome':   return { intendedOccupancy: 'SECOND_HOME', propertyStatus: 'RETAINED' };
+    case 'Timeshare':    return { propertyType: 'TIMESHARE',        propertyStatus: 'RETAINED' };
+    case 'ToBeSold':     return { propertyStatus: 'PENDING_SALE' };
+    case 'PaidByOthers': return { propertyStatus: 'PAID_BY_OTHERS' };
+    default:             return { propertyStatus: 'RETAINED' };
+  }
+}
+
 function buildReo(reoProperties) {
   return (reoProperties || [])
     .filter((r) => hasValue(r.addressLine))
-    .map((r) => ({
-      isSubjectProperty: false,
-      addressLine1: str(r.addressLine),
-      addressLine2: null,
-      city: str(r.city),
-      state: usState(r.state),
-      postalCode: str(r.zipCode),
-      // FE REO has no STRUCTURAL property type; its propertyType is occupancy-style.
-      propertyType: null,
-      intendedOccupancy: mapIntendedOccupancy(r.propertyType),
-      // FE has no REO status field → default RETAINED.
-      propertyStatus: 'RETAINED',
-      marketValue: num(r.propertyValue),
-      grossMonthlyRentalIncome: num(r.monthlyRentalIncome),
-      monthlyTaxes: null,
-      monthlyInsurance: null,
-      monthlyHoaDues: null,
-      monthlyMaintenance: null,
-      mortgageUnpaidBalance: num(r.unpaidBalance),
-      mortgageMonthlyPayment: num(r.monthlyPayment),
-    }));
+    .map((r) => {
+      // Base mapping (preserved): FE REO has no STRUCTURAL property type; its
+      // propertyType field is occupancy-style → intendedOccupancy. propertyStatus
+      // defaults to RETAINED. The `use` overrides below replace ONLY the fields they
+      // name, so the base intendedOccupancy/propertyType survive when not overridden.
+      const base = {
+        isSubjectProperty: false,
+        addressLine1: str(r.addressLine),
+        addressLine2: null,
+        city: str(r.city),
+        state: usState(r.state),
+        postalCode: str(r.zipCode),
+        propertyType: null,
+        intendedOccupancy: mapIntendedOccupancy(r.propertyType),
+        propertyStatus: 'RETAINED',
+        note: str(r.note),
+        marketValue: num(r.propertyValue),
+        grossMonthlyRentalIncome: num(r.monthlyRentalIncome),
+        monthlyTaxes: null,
+        monthlyInsurance: null,
+        monthlyHoaDues: null,
+        monthlyMaintenance: null,
+        mortgageUnpaidBalance: num(r.unpaidBalance),
+        mortgageMonthlyPayment: num(r.monthlyPayment),
+      };
+      return { ...base, ...reoUseOverrides(r.use) };
+    });
 }
 
 // ── Public API ────────────────────────────────────────────────────────────

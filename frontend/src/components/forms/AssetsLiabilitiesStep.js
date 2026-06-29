@@ -393,6 +393,40 @@ const AssetsLiabilitiesStep = ({
 
                       <div className="form-row" style={{ fontSize: '0.9rem' }}>
                         <div className="form-group">
+                          <label htmlFor={`borrowers.0.reoProperties.${reoIndex}.use`} style={{ fontSize: '0.85rem' }}>
+                            Use / Disposition
+                          </label>
+                          <select
+                            id={`borrowers.0.reoProperties.${reoIndex}.use`}
+                            {...register(`borrowers.0.reoProperties.${reoIndex}.use`)}
+                            className="form-select"
+                          >
+                            <option value="">Select…</option>
+                            <option value="Investment">Investment</option>
+                            <option value="SecondHome">Second home</option>
+                            <option value="Timeshare">Timeshare</option>
+                            <option value="ToBeSold">To be sold</option>
+                            <option value="PaidByOthers">Paid by others</option>
+                          </select>
+                        </div>
+                      </div>
+
+                      <div className="form-row" style={{ fontSize: '0.9rem' }}>
+                        <div className="form-group">
+                          <label htmlFor={`borrowers.0.reoProperties.${reoIndex}.note`} style={{ fontSize: '0.85rem' }}>
+                            Notes
+                          </label>
+                          <textarea
+                            id={`borrowers.0.reoProperties.${reoIndex}.note`}
+                            {...register(`borrowers.0.reoProperties.${reoIndex}.note`)}
+                            placeholder="Notes about this property (optional)"
+                            rows={3}
+                          />
+                        </div>
+                      </div>
+
+                      <div className="form-row" style={{ fontSize: '0.9rem' }}>
+                        <div className="form-group">
                           <label htmlFor={`borrowers.0.reoProperties.${reoIndex}.monthlyRentalIncome`} style={{ fontSize: '0.85rem' }}>
                             Monthly Rental Income
                           </label>

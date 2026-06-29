@@ -168,6 +168,8 @@ export const createDefaultREOProperty = () => ({
   state: '',
   zipCode: '',
   propertyType: '',
+  use: '',
+  note: '',
   propertyValue: '',
   monthlyRentalIncome: '',
   monthlyPayment: '',

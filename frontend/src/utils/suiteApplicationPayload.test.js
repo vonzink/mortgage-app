@@ -730,3 +730,48 @@ describe('formToSuiteApplication — defensive type/enum coercion', () => {
     expect(e3.ownershipShare).toBeNull();
   });
 });
+
+// Slice 2 (REO ↔ mortgage-liability restructure): the "Use / Disposition" INPUT moved
+// off the REO card onto the associated mortgage-liability card, but the VALUE still
+// lives on reoProperties[x].use (the select writes to the associated REO's `use`). This
+// locks the contract that buildReo / reoUseOverrides keep reading reoProperties[x].use,
+// so the suite payload is byte-identical regardless of where the input is rendered.
+describe('formToSuiteApplication — REO disposition maps from reoProperties[x].use (Slice 2)', () => {
+  const reoWithUse = (use) => formToSuiteApplication({
+    borrowers: [{
+      firstName: 'Z', lastName: 'Z', email: 'z@e.com', ssn: '111-11-1111',
+      reoProperties: [{ addressLine: '9 Rental Rd', city: 'Dallas', state: 'TX', use }],
+    }],
+  }).reo[0];
+
+  test('Investment → intendedOccupancy INVESTMENT, RETAINED', () => {
+    expect(reoWithUse('Investment')).toMatchObject({
+      intendedOccupancy: 'INVESTMENT', propertyStatus: 'RETAINED',
+    });
+  });
+
+  test('SecondHome → intendedOccupancy SECOND_HOME, RETAINED', () => {
+    expect(reoWithUse('SecondHome')).toMatchObject({
+      intendedOccupancy: 'SECOND_HOME', propertyStatus: 'RETAINED',
+    });
+  });
+
+  test('Timeshare → propertyType TIMESHARE, RETAINED', () => {
+    expect(reoWithUse('Timeshare')).toMatchObject({
+      propertyType: 'TIMESHARE', propertyStatus: 'RETAINED',
+    });
+  });
+
+  test('ToBeSold → propertyStatus PENDING_SALE', () => {
+    expect(reoWithUse('ToBeSold').propertyStatus).toBe('PENDING_SALE');
+  });
+
+  test('PaidByOthers → propertyStatus PAID_BY_OTHERS', () => {
+    expect(reoWithUse('PaidByOthers').propertyStatus).toBe('PAID_BY_OTHERS');
+  });
+
+  test('no disposition picked (blank/absent use) → propertyStatus RETAINED', () => {
+    expect(reoWithUse('').propertyStatus).toBe('RETAINED');
+    expect(reoWithUse(undefined).propertyStatus).toBe('RETAINED');
+  });
+});

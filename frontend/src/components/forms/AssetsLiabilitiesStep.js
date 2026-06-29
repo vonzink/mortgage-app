@@ -157,6 +157,19 @@ const AssetsLiabilitiesStep = ({
           setActiveREOTabs(prev => ({ ...prev, [borrowerIndex]: reoIndex }));
         };
 
+        // Reverse of the REO ↔ liability linkage (associatedLiabilities stores liability
+        // INDICES as strings — see the Associated-Liabilities checkboxes below): given a
+        // liability index, find the REO index it's associated with, or null. The
+        // disposition select on a mortgage-liability card writes to THAT REO's `use`, so
+        // the value still lives on reoProperties[x].use and the suite payload is unchanged.
+        const reoIndexForLiability = (liabIndex) => {
+          for (let r = 0; r < reoFields.length; r++) {
+            const assoc = watch(`borrowers.${borrowerIndex}.reoProperties.${r}.associatedLiabilities`) || [];
+            if (assoc.includes(liabIndex.toString())) return r;
+          }
+          return null;
+        };
+
         return (
           <div key={borrowerField.id} className="borrower-assets-section">
 
@@ -190,6 +203,7 @@ const AssetsLiabilitiesStep = ({
                     <div className="liability-header-item">Account Number</div>
                     <div className="liability-header-item">Monthly Payment</div>
                     <div className="liability-header-item">Unpaid Balance</div>
+                    <div className="liability-header-item">Disposition</div>
                     <div className="liability-header-item">Status</div>
                     <div className="liability-header-item">Actions</div>
                   </div>
@@ -267,6 +281,45 @@ const AssetsLiabilitiesStep = ({
                           placeholder="0.00"
                         />
                       </div>
+
+                      {/* Use / Disposition (Slice 2) — shown on MORTGAGE / HELOC rows only.
+                          Writes to the ASSOCIATED REO's `use` (resolved via
+                          reoIndexForLiability) so the suite payload is byte-identical; the
+                          REO model still owns the value. Disabled with a hint until the
+                          liability is linked to a property in an REO's Associated-Liabilities. */}
+                      {(() => {
+                        const liabilityType = watch(`borrowers.${borrowerIndex}.liabilities.${liabilityIndex}.liabilityType`);
+                        if (liabilityType !== 'MortgageLoan' && liabilityType !== 'HELOC') {
+                          return <div className="form-group" />;
+                        }
+                        const linkedReoIndex = reoIndexForLiability(liabilityIndex);
+                        const useValue = linkedReoIndex === null
+                          ? ''
+                          : (watch(`borrowers.${borrowerIndex}.reoProperties.${linkedReoIndex}.use`) || '');
+                        return (
+                          <div className="form-group">
+                            <select
+                              className="form-select"
+                              title={linkedReoIndex === null
+                                ? 'Associate this mortgage with a property (REO Associated Liabilities) to set its disposition'
+                                : 'Use / Disposition of the associated property'}
+                              value={useValue}
+                              disabled={linkedReoIndex === null}
+                              onChange={(e) => {
+                                if (linkedReoIndex === null) return;
+                                setValue(`borrowers.${borrowerIndex}.reoProperties.${linkedReoIndex}.use`, e.target.value);
+                              }}
+                            >
+                              <option value="">Disposition…</option>
+                              <option value="Investment">Investment</option>
+                              <option value="SecondHome">Second home</option>
+                              <option value="Timeshare">Timeshare</option>
+                              <option value="ToBeSold">To be sold</option>
+                              <option value="PaidByOthers">Paid by others</option>
+                            </select>
+                          </div>
+                        );
+                      })()}
 
                       {/* LO classification — Omit/Payoff/Duplicate. Empty = use as-is in DTI.
                           MISMO LiabilityExclusionIndicator=true preselects "Omit" on import. */}
@@ -468,25 +521,10 @@ const AssetsLiabilitiesStep = ({
                         </div>
                       </div>
 
-                      <div className="form-row" style={{ fontSize: '0.9rem' }}>
-                        <div className="form-group">
-                          <label htmlFor={`borrowers.${borrowerIndex}.reoProperties.${reoIndex}.use`} style={{ fontSize: '0.85rem' }}>
-                            Use / Disposition
-                          </label>
-                          <select
-                            id={`borrowers.${borrowerIndex}.reoProperties.${reoIndex}.use`}
-                            {...register(`borrowers.${borrowerIndex}.reoProperties.${reoIndex}.use`)}
-                            className="form-select"
-                          >
-                            <option value="">Select…</option>
-                            <option value="Investment">Investment</option>
-                            <option value="SecondHome">Second home</option>
-                            <option value="Timeshare">Timeshare</option>
-                            <option value="ToBeSold">To be sold</option>
-                            <option value="PaidByOthers">Paid by others</option>
-                          </select>
-                        </div>
-                      </div>
+                      {/* Use / Disposition moved to the associated mortgage-liability
+                          card (Slice 2). The value still lives on reoProperties[x].use so
+                          the suite payload (buildReo / reoUseOverrides) is byte-identical;
+                          only its INPUT relocated. */}
 
                       <div className="form-row" style={{ fontSize: '0.9rem' }}>
                         <div className="form-group">
@@ -581,7 +619,7 @@ const AssetsLiabilitiesStep = ({
                             }}>
                               {liabilityFields.length === 0 ? (
                                 <p style={{ color: '#666', margin: 0 }}>
-                                  No liabilities added yet. Add liabilities in the section above to link them to this property.
+                                  No liabilities added yet. Use "Add mortgage" below, or add liabilities in the section above to link them to this property.
                                 </p>
                               ) : (
                                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
@@ -683,6 +721,34 @@ const AssetsLiabilitiesStep = ({
                                   })}
                                 </div>
                               )}
+
+                              {/* Add mortgage (Slice 2) — appends a NEW MortgageLoan
+                                  liability to THIS borrower's liabilities array and
+                                  associates it to THIS REO (push the new row's index, as a
+                                  string, into associatedLiabilities — same scheme the
+                                  checkboxes use). Lets a borrower who skipped the top
+                                  Liabilities section record the property's mortgage,
+                                  tagged to the property. */}
+                              <div style={{ marginTop: '0.75rem' }}>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    const newIndex = liabilityFields.length;
+                                    appendLiability({
+                                      ...createDefaultLiability(),
+                                      liabilityType: 'MortgageLoan'
+                                    });
+                                    const currentAssoc = getValues(`borrowers.${borrowerIndex}.reoProperties.${reoIndex}.associatedLiabilities`) || [];
+                                    setValue(
+                                      `borrowers.${borrowerIndex}.reoProperties.${reoIndex}.associatedLiabilities`,
+                                      [...currentAssoc, newIndex.toString()]
+                                    );
+                                  }}
+                                  className="btn btn-outline-primary btn-sm"
+                                >
+                                  + Add mortgage
+                                </button>
+                              </div>
                             </div>
                             {!watch(`borrowers.${borrowerIndex}.reoProperties.${reoIndex}.ownedFreeAndClear`) && (
                               <div style={{ marginTop: '0.5rem', fontSize: '0.85rem', color: '#666' }}>

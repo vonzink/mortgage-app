@@ -27,7 +27,7 @@ import { debug } from '../../utils/debug';
 
 // Components
 import StepNavigation from '../shared/StepNavigation';
-import { ApplyHero, ApplyProgressStrip } from '../design/ApplyChrome';
+import { ApplyHero, ApplyProgressStrip, ApplySidebar } from '../design/ApplyChrome';
 import LoanInformationStep from './LoanInformationStep';
 import BorrowerInformationStep from './BorrowerInformationStep';
 import PropertyDetailsStep from './PropertyDetailsStep';
@@ -575,27 +575,46 @@ const ApplicationForm = () => {
           estTimeRemaining={null}
         />
 
-        <form onSubmit={handleSubmit(onSubmit)} className="apply-form">
-          <div className="card apply-form-card">
-            <fieldset disabled={isViewing} style={{ border: 'none', padding: 0, margin: 0 }}>
-              {renderStepContent()}
-            </fieldset>
+        {/* Below the full-width stepper, the form card (left) and the display-only
+            sidebar (right) sit in a 2-column grid (.apply-body). The grid collapses
+            to one column on tablet/mobile (sidebar drops below). The step content +
+            react-hook-form wiring inside the form card are unchanged — only wrapped. */}
+        <div className="apply-body">
+          <form onSubmit={handleSubmit(onSubmit)} className="apply-form">
+            <div className="card apply-form-card">
+              <fieldset disabled={isViewing} style={{ border: 'none', padding: 0, margin: 0 }}>
+                {renderStepContent()}
+              </fieldset>
 
-            {!isLastStep && (
-              <div className="apply-form-footer">
-                <StepNavigation
-                    currentStep={currentStep}
-                    totalSteps={totalSteps}
-                    onPrev={handlePrevStep}
-                    onNext={handleNextStep}
-                    canGoNext={canGoNext}
-                    canGoPrev={canGoPrev}
-                    isSubmitting={isSubmitting}
-                />
-              </div>
-            )}
-          </div>
-        </form>
+              {!isLastStep && (
+                <div className="apply-form-footer">
+                  <StepNavigation
+                      currentStep={currentStep}
+                      totalSteps={totalSteps}
+                      onPrev={handlePrevStep}
+                      onNext={handleNextStep}
+                      canGoNext={canGoNext}
+                      canGoPrev={canGoPrev}
+                      isSubmitting={isSubmitting}
+                  />
+                </div>
+              )}
+            </div>
+          </form>
+
+          {/* Display-only right rail (read-only indicative quote + docs checklist).
+              Props sourced from the form via watch(). loanTerm has no form field
+              (degrades to '30'); loanOfficer has no assigned-LO data (hides LO card). */}
+          <aside className="apply-rail" aria-label="Application summary">
+            <ApplySidebar
+              loanAmount={watch('loanAmount')}
+              propertyValue={watch('propertyValue')}
+              loanType={watch('loanType')}
+              loanTerm={undefined}
+              loanOfficer={null}
+            />
+          </aside>
+        </div>
       </div>
   );
 };

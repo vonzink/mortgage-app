@@ -156,7 +156,7 @@
 
 /* ── Progress strip — white card floating over the hero, adaptive steps ──── */
 .apply-progress-card {
-  max-width: 1120px;
+  max-width: 1240px;                /* match the new .apply-body width */
   margin: -64px auto 0;             /* pull up to overlap the hero bottom */
   padding: 18px;
   position: relative; z-index: 3;
@@ -251,11 +251,36 @@
   .apply-progress-time { width: 100%; text-align: left; border-left: 0; padding-left: 0; }
 }
 
-/* Full-width form body ---------------------------------------------------- */
+/* Body: 2-column grid — form card (left) + display-only sidebar rail (right).
+   The stepper stays full-width ABOVE this grid. The grid column governs width
+   now, so the inner .apply-form / .apply-form-card max-width + auto margins are
+   neutralized inside .apply-body (below) to let each fill its grid cell. */
+.apply-body {
+  max-width: 1240px;
+  margin: 0 auto;
+  padding: 0 32px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 320px;
+  gap: 28px;
+  align-items: start;
+}
+/* Collapse to one column on tablet/mobile — sidebar drops below the form card. */
+@media (max-width: 1024px) {
+  .apply-body { grid-template-columns: 1fr; }
+}
+
+/* Form body ---------------------------------------------------------------- */
 .apply-form {
   max-width: 1120px;
   margin: 0 auto;
   padding: 0 32px;
+}
+/* Inside the 2-col grid the grid cell owns the width — drop the form's own
+   max-width / centering / side padding so it fills its column flush. */
+.apply-body .apply-form {
+  max-width: none;
+  margin: 0;
+  padding: 0;
 }
 .apply-form-card {
   padding: 44px 48px 0;
@@ -264,10 +289,25 @@
   border: 1px solid var(--line);
   box-shadow: var(--shadow-card-sm);
 }
+/* In the grid, the card fills its cell (no auto-centering). */
+.apply-body .apply-form-card { margin: 30px 0 0; }
+/* Right rail aligns its top with the form card's 30px top offset. */
+.apply-rail { margin-top: 30px; }
+@media (max-width: 1024px) {
+  .apply-rail { margin-top: 0; }
+}
 .apply-form-footer {
   border-top: 1px solid var(--ink-line-soft);
   padding: 18px 0 24px;
   margin-top: 22px;
+}
+
+/* Mobile padding fix — tighten the body gutters, form-card and hero so the
+   content isn't cramped against the viewport edges on small screens. */
+@media (max-width: 600px) {
+  .apply-body { padding: 0 16px; }
+  .apply-form-card { padding: 24px 18px 0; }
+  .apply-hero-band-inner { padding: 0 18px; }
 }
 
 /* ── Section heading → centered brand badge (scoped to the apply page) ─────

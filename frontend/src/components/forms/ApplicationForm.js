@@ -68,7 +68,9 @@ const ApplicationForm = () => {
   // Form setup
   const { register, handleSubmit, control, formState: { errors }, trigger, getValues, watch, setValue, reset } = useForm({
     defaultValues: {
-      borrowers: [createDefaultBorrower(1)]
+      borrowers: [createDefaultBorrower(1)],
+      occupancy: 'OwnerOccupied',   // default the Occupancy field → Owner Occupied (primary residence)
+      propertyUse: 'Primary'        // and Property Use → Primary Residence
     }
   });
 
@@ -553,7 +555,6 @@ const ApplicationForm = () => {
           currentStep={currentStep}
           lastSavedAt={lastSavedAt}
           onSaveAndExit={isViewing ? null : handleSaveAndExit}
-          onBack={() => navigate(-1)}
           onContinue={
             isViewing ? null
             : !isLastStep ? handleNextStep
@@ -570,6 +571,7 @@ const ApplicationForm = () => {
           currentStep={currentStep}
           visitedSteps={visitedSteps}
           onStepClick={handleStepClick}
+          onBack={() => navigate(-1)}
           estTimeRemaining={null}
         />
 

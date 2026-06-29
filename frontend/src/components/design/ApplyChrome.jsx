@@ -30,7 +30,6 @@ export function ApplyHero({
   lastSavedAt,
   onSaveAndExit,
   onContinue,
-  onBack,
   continueLabel = 'Continue',
   currentStep = 1,        // 1-indexed; the display headline shows on the first page only
 }) {
@@ -45,23 +44,6 @@ export function ApplyHero({
        Structure/handlers below are unchanged; only wrappers + classNames added. */
     <div className="apply-hero-band">
       <div className="apply-hero-band-inner">
-        {/* Client header strip: Back (mint pill) + MSFG logo — mirrors the msfg.us funnel chrome. */}
-        <div className="apply-topbar">
-          {onBack && (
-            <button type="button" className="apply-back" onClick={onBack} aria-label="Go back">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
-                   strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                <path d="m15 18-6-6 6-6" />
-              </svg>
-              Back
-            </button>
-          )}
-          {/* White chip so the color-on-light logo reads on the forest band. A
-              reversed/white logo variant would be preferred if one exists. */}
-          <span className="apply-logo-chip">
-            <img className="apply-logo" src="/brand/msfg-logo.png" alt="MSFG Home Loans" />
-          </span>
-        </div>
         <div className="apply-hero">
           <div className="apply-hero-text">
             <div className="eyebrow">{eyebrow}</div>
@@ -106,12 +88,22 @@ export function ApplyProgressStrip({
   currentStep,           // 1-indexed
   visitedSteps,          // Set<number>
   onStepClick,
+  onBack,                // optional Back nav, rendered beside the 1–7 steps
   estTimeRemaining,      // string e.g. "18 min" — pass null to hide
 }) {
   const idx = currentStep - 1;
   const pct = (currentStep / STEPS.length) * 97;
   return (
     <div className="card apply-progress-card">
+      {onBack && (
+        <button type="button" className="apply-progress-back" onClick={onBack} aria-label="Go back">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
+               strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <path d="m15 18-6-6 6-6" />
+          </svg>
+          Back
+        </button>
+      )}
       <div className="apply-progress-ring">
         <svg viewBox="0 0 36 36" style={{ transform: 'rotate(-90deg)', width: 62, height: 62 }}>
           <circle cx="18" cy="18" r="15.5" fill="none" stroke="#E4E9E3" strokeWidth="3" />

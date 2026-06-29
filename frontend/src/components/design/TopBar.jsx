@@ -117,8 +117,6 @@ export default function TopBar() {
         <span className="brand-logo-chip">
           <img className="brand-logo" src="/brand/msfg-logo.png" alt="MSFG Home Loans" />
         </span>
-        <span className="brand-divider" aria-hidden="true" />
-        <small className="brand-subtitle">Mortgage Suite</small>
       </Link>
 
       <nav className="topnav">

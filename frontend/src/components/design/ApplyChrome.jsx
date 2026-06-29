@@ -32,6 +32,7 @@ export function ApplyHero({
   onContinue,
   onBack,
   continueLabel = 'Continue',
+  currentStep = 1,        // 1-indexed; the display headline shows on the first page only
 }) {
   const eyebrow = isViewing
     ? `Viewing · ${applicationNumber ? `APP${applicationNumber}` : 'application'} · read-only`
@@ -64,11 +65,13 @@ export function ApplyHero({
         <div className="apply-hero">
           <div className="apply-hero-text">
             <div className="eyebrow">{eyebrow}</div>
-            <h1 className="apply-h1">
-              {isViewing
-                ? 'Application (read-only)'
-                : isEditing ? 'Continue your application' : "Let's build your mortgage application"}
-            </h1>
+            {currentStep === 1 && (
+              <h1 className="apply-h1">
+                {isViewing
+                  ? 'Application (read-only)'
+                  : isEditing ? 'Continue your application' : "Let's build your mortgage application"}
+              </h1>
+            )}
             <div className="muted apply-subtitle">
               {isViewing
                 ? 'Read-only — fields are locked. Open this application from the apps list to edit.'

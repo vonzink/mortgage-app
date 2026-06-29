@@ -549,6 +549,7 @@ const ApplicationForm = () => {
           applicationNumber={applicationNumber}
           isEditing={isEditing}
           isViewing={isViewing}
+          currentStep={currentStep}
           lastSavedAt={lastSavedAt}
           onSaveAndExit={isViewing ? null : handleSaveAndExit}
           onBack={() => navigate(-1)}

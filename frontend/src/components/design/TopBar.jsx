@@ -110,8 +110,14 @@ export default function TopBar() {
   return (
     <header className="topbar">
       <Link to="/applications" className="brand">
-        <div className="brand-mark">M</div>
-        <span>MSFG</span>
+        {/* Color-on-light MSFG logo sits on a small white chip so it reads on the
+            dark forest bar (matches the design reference). A reversed/white logo
+            variant (e.g. /brand/msfg-logo-white.png) would be preferred if one
+            exists — drop the chip and remove .brand-logo-chip when adopting it. */}
+        <span className="brand-logo-chip">
+          <img className="brand-logo" src="/brand/msfg-logo.png" alt="MSFG Home Loans" />
+        </span>
+        <span className="brand-divider" aria-hidden="true" />
         <small className="brand-subtitle">Mortgage Suite</small>
       </Link>
 

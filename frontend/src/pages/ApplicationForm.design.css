@@ -1,65 +1,182 @@
 /* Apply screen — design chrome around the existing form. Wrapped in `.msfg`. */
 
-.apply-page { /* uses .page from design-system.css */ }
+/* The page has `.page` padding (28px 32px 40px); the hero band + stepper + form
+   are laid out edge-to-edge inside it, so reset the page padding here and let
+   each zone own its spacing. (Behavior unchanged — purely layout.) */
+.apply-page { padding: 0 0 40px; }
 
-/* ── Client header strip: Back pill + MSFG logo (mirrors the msfg.us funnel) ── */
+/* ── Dark forest hero band — full-bleed, concentric-ring texture ─────────── */
+.apply-hero-band {
+  position: relative;
+  overflow: hidden;
+  background: var(--forest);
+  padding: 40px 0 92px;             /* extra bottom so the stepper overlaps in */
+}
+/* Decorative concentric-ring texture echoing the website (pointer-events:none) */
+.apply-hero-band::before {
+  content: "";
+  position: absolute; inset: 0; pointer-events: none;
+  background:
+    radial-gradient(120% 150% at 50% -20%, rgba(130, 226, 166, .10), transparent 55%),
+    repeating-radial-gradient(circle at 50% -10%, transparent 0 78px, rgba(255, 255, 255, .022) 78px 79px);
+}
+.apply-hero-band-inner {
+  position: relative; z-index: 1;
+  max-width: 1120px; margin: 0 auto; padding: 0 32px;
+}
+
+/* Subtle entrance — single play, respects reduced-motion (see bottom of file). */
+@media (prefers-reduced-motion: no-preference) {
+  .apply-hero-band-inner { animation: apply-hero-in .5s ease both; }
+}
+@keyframes apply-hero-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* Back strip: mint pill + logo chip */
 .apply-topbar {
   display: flex;
   align-items: center;
   gap: 14px;
-  margin-bottom: 16px;
+  margin-bottom: 24px;
 }
 .apply-back {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  height: 40px;
-  padding: 0 16px 0 10px;
-  border-radius: 9999px;            /* full pill, like the funnel Back */
-  border: 1px solid #e2e6dd;        /* --color-line */
-  background: #ffffff;
-  color: #0b231c;                   /* --color-ink */
-  font-size: 15px;
+  gap: 8px;
+  padding: 9px 15px 9px 12px;
+  border-radius: 9999px;
+  border: 1px solid var(--forest-line);
+  background: rgba(255, 255, 255, .06);
+  color: var(--mint-head);
+  font-size: 14px;
   font-weight: 700;
   cursor: pointer;
   transition: background-color .15s ease;
 }
-.apply-back:hover { background: #f2f4ef; }   /* --color-paper-2 */
+.apply-back:hover { background: rgba(255, 255, 255, .12); }
 .apply-back svg { width: 18px; height: 18px; }
-.apply-logo { height: 40px; width: auto; display: block; }
+.apply-logo-chip {
+  display: inline-flex; align-items: center;
+  background: #fff; padding: 7px 12px; border-radius: 10px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, .18);
+}
+.apply-logo { height: 26px; width: auto; display: block; }
 
 .apply-hero {
-  display: flex; align-items: flex-end; justify-content: space-between;
-  flex-wrap: wrap; gap: 16px;
-  margin-bottom: 22px;
+  display: flex; align-items: flex-start; justify-content: space-between;
+  flex-wrap: wrap; gap: 40px;
 }
-.apply-h1 { font-size: 32px; line-height: 1.1; margin-top: 8px; }
-.apply-subtitle { margin-top: 8px; font-size: 14px; max-width: 640px; }
-.apply-hero-actions { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.apply-hero-text { flex: 1 1 auto; min-width: 0; }
+.apply-hero .eyebrow {
+  color: var(--green);
+  font-weight: 700; font-size: 12.5px; letter-spacing: .2em;
+  text-transform: uppercase; margin-bottom: 14px;
+}
+.apply-h1 {
+  font-size: 46px; line-height: 1.04; font-weight: 800;
+  letter-spacing: -1px; color: var(--mint-head); max-width: 14ch;
+}
+.apply-subtitle {
+  margin-top: 16px; font-size: 16.5px; line-height: 1.5;
+  color: var(--sage); max-width: 46ch; font-weight: 500;
+}
+.apply-hero-actions {
+  display: flex; flex-direction: column; align-items: flex-end; gap: 14px;
+  flex: 0 0 auto;
+}
 
-/* Progress strip ---------------------------------------------------------- */
+/* Saved-locally pill — bound to the existing autosave state (lastSavedAt). */
+.apply-saved-pill.pill {
+  color: var(--mint-head);
+  background: rgba(41, 194, 78, .14);
+  border: 1px solid rgba(41, 194, 78, .32);
+  padding: 8px 14px; border-radius: 999px;
+  font-size: 13px; font-weight: 600;
+}
+.apply-saved-pill.pill .dot {
+  width: 7px; height: 7px; background: var(--green);
+  box-shadow: 0 0 0 4px rgba(41, 194, 78, .22);
+}
+@media (prefers-reduced-motion: no-preference) {
+  .apply-saved-pill.pill .dot { animation: apply-pulse 2s ease-in-out infinite; }
+}
+@keyframes apply-pulse {
+  0%, 100% { box-shadow: 0 0 0 4px rgba(41, 194, 78, .22); }
+  50%      { box-shadow: 0 0 0 6px rgba(41, 194, 78, .10); }
+}
+
+/* Ghost "Save & exit" pill on the dark band */
+.apply-hero-actions .btn.apply-ghost-btn {
+  background: rgba(255, 255, 255, .07);
+  border: 1px solid var(--forest-line);
+  color: #fff;
+  border-radius: 999px;
+  height: auto; padding: 13px 22px;
+  font-weight: 700; font-size: 14.5px;
+  box-shadow: none;
+}
+.apply-hero-actions .btn.apply-ghost-btn:hover { background: rgba(255, 255, 255, .14); color: #fff; }
+
+/* Primary "Continue" pill on the dark band — bright green with glow */
+.apply-hero-actions .btn.btn-primary {
+  background: var(--green);
+  color: #06281A;
+  border: none;
+  border-radius: 999px;
+  height: auto; padding: 13px 22px;
+  font-weight: 700; font-size: 14.5px;
+  box-shadow: 0 8px 20px -6px rgba(41, 194, 78, .5);
+}
+.apply-hero-actions .btn.btn-primary:hover {
+  background: var(--green-hover); color: #06281A;
+  transform: translateY(-1px);
+  box-shadow: 0 10px 26px -6px rgba(41, 194, 78, .55);
+}
+.apply-hero-actions .btn.btn-primary:active { transform: translateY(1px); }
+
+/* On narrow widths, stack the hero actions under the title (left-aligned). */
+@media (max-width: 820px) {
+  .apply-hero { gap: 22px; }
+  .apply-hero-actions { align-items: flex-start; width: 100%; }
+  .apply-h1 { font-size: 38px; }
+}
+
+/* ── Progress strip — white card floating over the hero, adaptive steps ──── */
 .apply-progress-card {
+  max-width: 1120px;
+  margin: -64px auto 0;             /* pull up to overlap the hero bottom */
   padding: 18px;
-  margin-bottom: 20px;
+  position: relative; z-index: 3;
   display: flex;
   align-items: center;
-  gap: 18px;
+  gap: 14px;
+  border-radius: 22px;
+  border: 1px solid var(--line);
+  box-shadow: var(--shadow-stepper);
 }
-.apply-progress-ring { position: relative; flex: 0 0 auto; }
+.apply-progress-ring { position: relative; flex: 0 0 auto; width: 62px; height: 62px; }
+.apply-progress-ring svg { width: 62px; height: 62px; }
 .apply-progress-ring-label {
   position: absolute; inset: 0;
   display: grid; place-items: center;
-  font-size: 12px; font-weight: 600; color: var(--forest-800);
+  font-size: 13px; font-weight: 800; color: var(--ink);
 }
+/* Steps: a flex row (NOT a fixed 7-col grid). Inactive/done steps collapse to
+   an icon chip; the active step takes the remaining room and shows full text.
+   This keeps every visible label readable at any desktop width. */
 .apply-progress-grid {
-  flex: 1;
-  display: grid; grid-template-columns: repeat(7, 1fr); gap: 8px;
+  flex: 1; min-width: 0;
+  display: flex; gap: 8px; align-items: stretch;
 }
 .apply-step-card {
-  border: 1px solid var(--ink-line);
-  background: var(--paper);
-  border-radius: 10px;
-  padding: 10px 12px;
+  flex: 0 0 auto;                   /* inactive/done = intrinsic width (icon chip) */
+  display: flex; flex-direction: column; justify-content: center;
+  border: 1px solid transparent;
+  background: #F4F7F3;
+  border-radius: 13px;
+  padding: 11px;
   text-align: left;
   font: inherit;
   cursor: pointer;
@@ -68,58 +185,115 @@
 .apply-step-card:disabled { cursor: not-allowed; }
 .apply-step-card--clickable:hover { background: var(--cream); }
 .apply-step-card--active {
-  border-color: var(--forest-700);
-  background: var(--spring-soft);
-  box-shadow: 0 0 0 4px var(--spring-soft);
+  flex: 1 1 auto;                   /* active = takes remaining width, shows text */
+  padding: 11px 15px;
+  border-color: rgba(41, 194, 78, .4);
+  background: #EAF7EE;
+  box-shadow: none;
 }
 .apply-step-card--done {
-  background: var(--forest-25);
+  background: #fff;
+  border-color: var(--line);
 }
-.apply-step-card--todo .apply-step-icon {
-  background: var(--ink-line-soft);
-  color: var(--ink-400);
-}
-.apply-step-card--todo .apply-step-label { color: var(--ink-400); }
 
-.apply-step-row { display: flex; align-items: center; gap: 8px; }
+.apply-step-row { display: flex; align-items: center; gap: 10px; }
 .apply-step-icon {
-  width: 22px; height: 22px; border-radius: 6px;
-  background: var(--forest-800);
-  color: var(--paper);
+  width: 32px; height: 32px; border-radius: 9px;
+  background: #E4E9E3;
+  color: #8A998E;
   display: grid; place-items: center;
   flex: 0 0 auto;
 }
-.apply-step-card--done .apply-step-icon { background: var(--forest-600); }
-.apply-step-label { font-size: 12.5px; font-weight: 600; color: var(--ink-900); }
-.apply-step-sub { font-size: 11px; margin-top: 4px; margin-left: 30px; }
+.apply-step-card--active .apply-step-icon { background: var(--forest); color: var(--mint-head); }
+.apply-step-card--done .apply-step-icon { background: var(--green); color: #06281A; }
+/* Step number chip for upcoming steps (shown via ::after on the icon wrapper) */
+.apply-step-num {
+  font-size: 13.5px; font-weight: 800;
+}
+/* Label + sub-label only render for the active step (inactive collapse to chip) */
+.apply-step-label { font-size: 14px; font-weight: 700; color: var(--ink); white-space: nowrap; }
+.apply-step-sub { font-size: 11.5px; color: var(--ink-soft); white-space: nowrap; margin-top: 0; margin-left: 0; }
+.apply-step-card:not(.apply-step-card--active) .apply-step-label,
+.apply-step-card:not(.apply-step-card--active) .apply-step-sub {
+  /* Collapse to an icon-only chip; full text stays in the title tooltip. */
+  display: none;
+}
+.apply-step-card--active .apply-step-row { margin-bottom: 0; }
+.apply-step-card--active .apply-step-text { display: block; min-width: 0; }
+.apply-step-text { display: none; }
 
 .apply-progress-time {
   text-align: right;
   border-left: 1px solid var(--ink-line-soft);
   padding-left: 18px;
+  flex: 0 0 auto;
 }
 .apply-progress-time-value { font-size: 22px; font-weight: 600; color: var(--forest-800); margin-top: 2px; }
 
-@media (max-width: 1100px) {
-  .apply-progress-card { flex-wrap: wrap; }
-  .apply-progress-grid { grid-template-columns: repeat(4, 1fr); width: 100%; }
-  .apply-progress-time { width: 100%; text-align: left; border-left: 0; padding-left: 0; }
+/* Narrow: below ~1080px drop the active sub-label first (keep the label). */
+@media (max-width: 1080px) {
+  .apply-step-card--active .apply-step-sub { display: none; }
 }
-@media (max-width: 700px) {
-  .apply-progress-grid { grid-template-columns: repeat(2, 1fr); }
+@media (max-width: 720px) {
+  .apply-progress-card { flex-wrap: wrap; }
+  .apply-progress-grid { width: 100%; flex-wrap: wrap; }
+  .apply-progress-time { width: 100%; text-align: left; border-left: 0; padding-left: 0; }
 }
 
 /* Full-width form body ---------------------------------------------------- */
-.apply-form-card {
-  padding: 24px 28px 0;
-  /* Sidebar removed — let the form breathe but keep readability cap */
-  max-width: 1080px;
+.apply-form {
+  max-width: 1120px;
   margin: 0 auto;
+  padding: 0 32px;
+}
+.apply-form-card {
+  padding: 44px 48px 0;
+  margin: 30px auto 0;
+  border-radius: 22px;
+  border: 1px solid var(--line);
+  box-shadow: var(--shadow-card-sm);
 }
 .apply-form-footer {
   border-top: 1px solid var(--ink-line-soft);
   padding: 18px 0 24px;
   margin-top: 22px;
+}
+
+/* ── Section heading → centered brand badge (scoped to the apply page) ─────
+   FormSection renders `.section-header > h3 > .section-icon + title` then a
+   `.section-description`. Only the 7 application steps use FormSection and they
+   only ever render inside .apply-page, so this restyle is safe + non-leaking.
+   No markup change — just turns the green link-style heading into a pill badge. */
+.apply-page .form-section {
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+  padding: 0;
+  margin-bottom: 34px;
+}
+.apply-page .section-header { text-align: center; margin-bottom: 34px; }
+.apply-page .section-header h3 {
+  display: inline-flex; align-items: center; gap: 10px;
+  background: #EAF7EE;
+  border: 1px solid rgba(41, 194, 78, .3);
+  color: var(--forest);
+  padding: 9px 18px;
+  border-radius: 999px;
+  font-weight: 700; font-size: 18px;
+  margin-bottom: 0;
+}
+.apply-page .section-header .section-icon {
+  width: 24px; height: 24px; border-radius: 7px;
+  background: var(--green);
+  color: #06281A;
+  display: grid; place-items: center;
+  font-size: 13px;
+}
+.apply-page .section-header .section-description,
+.apply-page .section-description {
+  color: var(--ink-soft);
+  font-size: 15px;
+  margin-top: 12px;
 }
 
 /* Sidebar — indicative quote (dark) -------------------------------------- */
@@ -177,7 +351,7 @@
    Tokens: --color-line #e2e6dd · --color-green-600 #135e48 · ink #0b231c.
    ════════════════════════════════════════════════════════════════════════ */
 
-/* Field boxes — white, soft 1.5px line, 12px radius, gentle 3D shadow. */
+/* Field boxes — white, 1.5px field-line, 12px radius, ~50px tall. */
 .apply-form input[type="text"],
 .apply-form input[type="email"],
 .apply-form input[type="tel"],
@@ -186,13 +360,16 @@
 .apply-form input[type="password"],
 .apply-form select,
 .apply-form textarea {
-  border: 1.5px solid #e2e6dd;
+  min-height: 50px;
+  border: 1.5px solid var(--field-line);
   border-radius: 12px;
   background: #ffffff;
-  color: #0b231c;
-  box-shadow: 0 2px 4px rgba(7, 39, 30, .08), 0 8px 18px rgba(7, 39, 30, .10);
+  color: var(--ink);
+  font-size: 15px;
+  box-shadow: 0 1px 2px rgba(16, 39, 30, .04);
   transition: border-color .15s ease, box-shadow .15s ease;
 }
+.apply-form textarea { min-height: 96px; }
 /* Focus = border thickens to 2px and turns brand green (the funnel affordance). */
 .apply-form input[type="text"]:focus,
 .apply-form input[type="email"]:focus,
@@ -204,12 +381,21 @@
 .apply-form textarea:focus {
   outline: none;
   border-width: 2px;
-  border-color: #135e48;
-  box-shadow: 0 2px 4px rgba(7, 39, 30, .08), 0 8px 18px rgba(7, 39, 30, .12);
+  border-color: var(--green);
+  box-shadow: 0 0 0 4px rgba(41, 194, 78, .14);
 }
+/* Error = rosy border + pale rose fill + brand error message color. */
 .apply-form input.error,
 .apply-form select.error,
-.apply-form textarea.error { border-color: #d6453d; }
+.apply-form textarea.error {
+  border-color: #E2A0A0;
+  background: #FDF4F4;
+}
+.apply-form .error-message,
+.apply-form .field-error,
+.apply-form .invalid-feedback {
+  color: #C0392B;
+}
 
 /* Primary buttons — forest green with the funnel's 3D "lip". Specificity
    (.apply-page .btn.btn-primary) beats both buttons.css and design-system.css. */

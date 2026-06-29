@@ -59,6 +59,24 @@
   --on-dark: #ffffffeb;
   --on-dark-muted: #ffffff9e;
   --hairline-dark: #ffffff1f;
+
+  /* ── Application-header redesign tokens (msfg.us brand language) ──────────
+     Named to match the design handoff. Added alongside the existing scale so
+     nothing referencing --forest-700 / --spring / --mint changes. These drive
+     the dark hero band, suite top bar, adaptive stepper, and section badges. */
+  --forest: #0E3B2C;          /* hero band background (deep forest green) */
+  --forest-deep: #0A2C20;     /* suite top-bar background (slightly darker) */
+  --forest-line: rgba(255, 255, 255, .10); /* hairlines on dark */
+  --green: #29C24E;           /* primary CTA pills, active accents, ring */
+  --green-hover: #22A843;
+  --mint-head: #82E2A6;       /* display headings on dark, Back link, saved text */
+  --sage: #9FBCAC;            /* muted body text on the dark hero */
+  --ink: #10271E;             /* primary text on light (hero-redesign scale) */
+  --ink-soft: #516A5C;        /* secondary text on light */
+  --field-line: #D9DDD5;      /* input borders */
+  --line: #E5E8E2;            /* card borders / dividers (hero-redesign scale) */
+  --shadow-stepper: 0 24px 60px -20px rgba(8, 40, 28, .45);  /* floats over hero */
+  --shadow-card-sm: 0 1px 2px rgba(16, 39, 30, .06), 0 4px 16px -8px rgba(16, 39, 30, .10);
 }
 
 /* `.msfg` is the design-system scope. Apply it to a wrapper to opt in. */
@@ -87,29 +105,34 @@
 
 /* Top bar ------------------------------------------------------------------- */
 .msfg .topbar {
-  height: 64px;
-  background: linear-gradient(180deg, var(--forest-800) 0%, var(--forest-900) 100%);
+  height: 58px;
+  background: var(--forest-deep);
   color: var(--on-dark);
-  display: flex; align-items: center; padding: 0 28px;
-  border-bottom: 1px solid var(--hairline-dark);
+  display: flex; align-items: center; padding: 0 24px;
+  border-bottom: 1px solid var(--forest-line);
   position: relative;
 }
 .msfg .topbar > * { position: relative; z-index: 1; }
 .msfg .brand {
-  display: flex; align-items: center; gap: 10px;
+  display: flex; align-items: center; gap: 14px;
   font-weight: 600; letter-spacing: -0.01em; font-size: 16px;
   color: var(--on-dark); text-decoration: none;
 }
-.msfg .brand-mark {
-  width: 28px; height: 28px; border-radius: 7px;
-  background: linear-gradient(135deg, #34d17e, #18a359);
-  display: grid; place-items: center; color: var(--forest-900);
-  font-weight: 700; font-size: 13px; letter-spacing: .02em;
-  box-shadow: inset 0 1px 0 var(--hairline-dark);
+/* White chip carries the color-on-light logo so it reads on the forest bar */
+.msfg .brand-logo-chip {
+  display: inline-flex; align-items: center;
+  background: #fff; padding: 7px 12px; border-radius: 10px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, .18);
+}
+.msfg .brand-logo { height: 24px; width: auto; display: block; }
+.msfg .brand-divider {
+  width: 1px; height: 24px; background: rgba(255, 255, 255, .18);
+  flex: 0 0 auto;
 }
 .msfg .brand small {
-  font-weight: 400; opacity: .55; letter-spacing: .04em; font-size: 11px;
-  text-transform: uppercase; margin-left: 4px;
+  font-weight: 600; color: rgba(255, 255, 255, .45);
+  letter-spacing: .14em; font-size: 11px;
+  text-transform: uppercase; margin-left: 0;
   white-space: nowrap;
 }
 /* Hide the brand subtitle below 1280px — preserves space for nav + search +
@@ -117,36 +140,54 @@
 @media (max-width: 1280px) {
   .msfg .brand-subtitle { display: none; }
 }
-.msfg .topnav { display: flex; gap: 4px; margin-left: 36px; }
+.msfg .topnav { display: flex; gap: 6px; margin-left: 14px; }
 .msfg .topnav a {
-  color: var(--on-dark-muted); text-decoration: none;
-  padding: 8px 14px; border-radius: 8px; font-size: 13.5px; font-weight: 500;
-  display: inline-flex; align-items: center; gap: 8px;
+  color: rgba(255, 255, 255, .62); text-decoration: none;
+  padding: 8px 13px; border-radius: 9px; font-size: 13.5px; font-weight: 600;
+  display: inline-flex; align-items: center; gap: 7px;
   transition: background .15s, color .15s;
 }
-.msfg .topnav a:hover { background: var(--hairline-dark); color: var(--on-dark); }
-.msfg .topnav a.active { background: var(--hairline-dark); color: var(--on-dark); }
+.msfg .topnav a:hover { background: var(--forest-line); color: var(--on-dark); }
+.msfg .topnav a.active { background: rgba(41, 194, 78, .16); color: #fff; }
 .msfg .topnav a.active::before {
-  content: ""; width: 4px; height: 4px; border-radius: 50%; background: var(--spring);
+  content: ""; width: 6px; height: 6px; border-radius: 50%; background: var(--green);
+  box-shadow: 0 0 0 3px rgba(41, 194, 78, .25);
 }
 .msfg .top-right { margin-left: auto; display: flex; gap: 10px; align-items: center; }
 .msfg .top-user {
   display: flex; align-items: center; gap: 10px;
-  padding: 5px 10px 5px 5px; border-radius: 999px;
-  background: var(--hairline-dark); color: var(--on-dark); font-size: 13px;
+  padding: 5px 12px 5px 5px; border-radius: 999px;
+  background: var(--forest-line); color: rgba(255, 255, 255, .85); font-size: 13.5px; font-weight: 600;
 }
 .msfg .top-user .av {
-  width: 28px; height: 28px; border-radius: 999px;
-  background: linear-gradient(135deg, #34d17e, #18a359);
-  display: grid; place-items: center; color: var(--forest-900); font-weight: 600; font-size: 12px;
+  width: 32px; height: 32px; border-radius: 999px;
+  background: var(--green);
+  display: grid; place-items: center; color: #06281A; font-weight: 800; font-size: 12px;
 }
 .msfg .top-icon-btn {
   width: 36px; height: 36px; border-radius: 10px;
-  background: var(--hairline-dark); display: grid; place-items: center;
-  color: var(--on-dark-muted); cursor: pointer; border: 0;
+  background: var(--forest-line); display: grid; place-items: center;
+  color: rgba(255, 255, 255, .55); cursor: pointer; border: 0;
   position: relative;
 }
-.msfg .top-icon-btn:hover { background: var(--hairline-dark); color: var(--on-dark); }
+.msfg .top-icon-btn:hover { background: var(--forest-line); color: var(--on-dark); }
+
+/* Translucent search field on the dark bar (staff-only typeahead — behavior
+   unchanged; only the resting appearance is restyled to sit on forest). The
+   results panel keeps its light styling from LoanSearch.css. */
+.msfg .topbar .loan-search-icon { color: rgba(255, 255, 255, .5); }
+.msfg .topbar .loan-search-input {
+  background: rgba(255, 255, 255, .07);
+  border: 1px solid var(--forest-line);
+  border-radius: 11px;
+  color: var(--on-dark);
+}
+.msfg .topbar .loan-search-input::placeholder { color: rgba(255, 255, 255, .5); }
+.msfg .topbar .loan-search-input:focus {
+  outline: none;
+  border-color: rgba(41, 194, 78, .5);
+  box-shadow: 0 0 0 3px rgba(41, 194, 78, .18);
+}
 
 /* Top-bar settings dropdown ------------------------------------------------- */
 .msfg .topbar-menu {

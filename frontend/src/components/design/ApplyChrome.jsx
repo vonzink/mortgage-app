@@ -39,51 +39,60 @@ export function ApplyHero({
       ? `Editing · ${applicationNumber ? `APP${applicationNumber}` : 'application'}`
       : 'New application';
   return (
-   <>
-    {/* Client header strip: Back (pill) + MSFG logo, top-left — mirrors the msfg.us funnel chrome. */}
-    <div className="apply-topbar">
-      {onBack && (
-        <button type="button" className="apply-back" onClick={onBack} aria-label="Go back">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
-               strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-            <path d="m15 18-6-6 6-6" />
-          </svg>
-          Back
-        </button>
-      )}
-      <img className="apply-logo" src="/brand/msfg-logo.png" alt="MSFG Home Loans" />
-    </div>
-    <div className="apply-hero">
-      <div>
-        <div className="eyebrow">{eyebrow}</div>
-        <h1 className="apply-h1">
-          {isViewing
-            ? 'Application (read-only)'
-            : isEditing ? 'Continue your application' : "Let's build your mortgage application"}
-        </h1>
-        <div className="muted apply-subtitle">
-          {isViewing
-            ? 'Read-only — fields are locked. Open this application from the apps list to edit.'
-            : 'Seven short sections. Your progress saves automatically — pick up anywhere, any time.'}
+    /* Full-bleed dark forest hero band — carries the back strip, the title, and
+       the actions over a concentric-ring texture (matches the msfg.us look).
+       Structure/handlers below are unchanged; only wrappers + classNames added. */
+    <div className="apply-hero-band">
+      <div className="apply-hero-band-inner">
+        {/* Client header strip: Back (mint pill) + MSFG logo — mirrors the msfg.us funnel chrome. */}
+        <div className="apply-topbar">
+          {onBack && (
+            <button type="button" className="apply-back" onClick={onBack} aria-label="Go back">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
+                   strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <path d="m15 18-6-6 6-6" />
+              </svg>
+              Back
+            </button>
+          )}
+          {/* White chip so the color-on-light logo reads on the forest band. A
+              reversed/white logo variant would be preferred if one exists. */}
+          <span className="apply-logo-chip">
+            <img className="apply-logo" src="/brand/msfg-logo.png" alt="MSFG Home Loans" />
+          </span>
+        </div>
+        <div className="apply-hero">
+          <div className="apply-hero-text">
+            <div className="eyebrow">{eyebrow}</div>
+            <h1 className="apply-h1">
+              {isViewing
+                ? 'Application (read-only)'
+                : isEditing ? 'Continue your application' : "Let's build your mortgage application"}
+            </h1>
+            <div className="muted apply-subtitle">
+              {isViewing
+                ? 'Read-only — fields are locked. Open this application from the apps list to edit.'
+                : 'Seven short sections. Your progress saves automatically — pick up anywhere, any time.'}
+            </div>
+          </div>
+          <div className="apply-hero-actions">
+            {lastSavedAt && (
+              <Pill tone="active" dot className="apply-saved-pill">{formatAutoSave(lastSavedAt)}</Pill>
+            )}
+            {onSaveAndExit && (
+              <Button onClick={onSaveAndExit} title="Save your progress and leave" className="apply-ghost-btn">
+                <Icon name="download" size={14} /> Save &amp; exit
+              </Button>
+            )}
+            {onContinue && (
+              <Button variant="primary" onClick={onContinue}>
+                {continueLabel} <Icon name="chevron" size={14} />
+              </Button>
+            )}
+          </div>
         </div>
       </div>
-      <div className="apply-hero-actions">
-        {lastSavedAt && (
-          <Pill tone="active" dot>{formatAutoSave(lastSavedAt)}</Pill>
-        )}
-        {onSaveAndExit && (
-          <Button onClick={onSaveAndExit} title="Save your progress and leave">
-            <Icon name="download" size={14} /> Save &amp; exit
-          </Button>
-        )}
-        {onContinue && (
-          <Button variant="primary" onClick={onContinue}>
-            {continueLabel} <Icon name="chevron" size={14} />
-          </Button>
-        )}
-      </div>
     </div>
-   </>
   );
 }
 
@@ -101,11 +110,11 @@ export function ApplyProgressStrip({
   return (
     <div className="card apply-progress-card">
       <div className="apply-progress-ring">
-        <svg viewBox="0 0 36 36" style={{ transform: 'rotate(-90deg)', width: 64, height: 64 }}>
-          <circle cx="18" cy="18" r="15.5" fill="none" stroke="var(--ink-line)" strokeWidth="3" />
+        <svg viewBox="0 0 36 36" style={{ transform: 'rotate(-90deg)', width: 62, height: 62 }}>
+          <circle cx="18" cy="18" r="15.5" fill="none" stroke="#E4E9E3" strokeWidth="3" />
           <circle
             cx="18" cy="18" r="15.5" fill="none"
-            stroke="var(--forest-700)" strokeWidth="3"
+            stroke="var(--green)" strokeWidth="3"
             strokeDasharray={`${pct} 97`} strokeLinecap="round"
           />
         </svg>
@@ -127,6 +136,9 @@ export function ApplyProgressStrip({
             todo && 'apply-step-card--todo',
             reachable && 'apply-step-card--clickable',
           ].filter(Boolean).join(' ');
+          // Active step shows its section glyph; completed steps show a check;
+          // upcoming steps collapse to a numbered chip. Full "label — sub" stays
+          // in the title tooltip so every step is identifiable at any width.
           return (
             <button
               key={s.id}
@@ -135,16 +147,24 @@ export function ApplyProgressStrip({
               onClick={() => reachable && onStepClick?.(s.id)}
               disabled={!reachable}
               aria-current={active ? 'step' : undefined}
-              title={reachable ? s.sub : 'Complete the current step to unlock'}
+              title={`${s.label} — ${s.sub}`}
               style={!reachable ? { cursor: 'not-allowed', opacity: 0.55 } : undefined}
             >
               <div className="apply-step-row">
                 <div className="apply-step-icon">
-                  {done ? <Icon name="check" size={12} stroke={2.4} /> : <Icon name={s.icon} size={12} />}
+                  {done ? (
+                    <Icon name="check" size={14} stroke={2.4} />
+                  ) : active ? (
+                    <Icon name={s.icon} size={14} />
+                  ) : (
+                    <span className="apply-step-num">{s.id}</span>
+                  )}
                 </div>
-                <div className="apply-step-label">{s.label}</div>
+                <div className="apply-step-text">
+                  <div className="apply-step-label">{s.label}</div>
+                  <div className="dim apply-step-sub">{s.sub}</div>
+                </div>
               </div>
-              <div className="dim apply-step-sub">{s.sub}</div>
             </button>
           );
         })}

@@ -134,6 +134,7 @@ if [ "$DEPLOY_FRONTEND" = "true" ]; then
       REACT_APP_COGNITO_USER_POOL_ID=us-west-1_S6iE2uego \
       REACT_APP_COGNITO_CLIENT_ID=34rg0vqoobfv8hhvg8kunkd738 \
       REACT_APP_COGNITO_DOMAIN=https://us-west-1s6ie2uego.auth.us-west-1.amazoncognito.com \
+      REACT_APP_GOOGLE_MAPS_API_KEY="${REACT_APP_GOOGLE_MAPS_API_KEY:-}" \
       REACT_APP_WEBAUTHN_RP_ID=msfgco.com \
       REACT_APP_DEV_SUB= \
       CI=false \

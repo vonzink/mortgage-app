@@ -2,18 +2,104 @@
  * Address Field Component
  * Reusable address input component
  */
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
+import { loadGoogleMaps } from '../../utils/googleMaps';
 
-const AddressField = ({ 
-  register, 
-  errors, 
-  prefix = '', 
+const AddressField = ({
+  register,
+  errors,
+  prefix = '',
   required = false,
   showCounty = false,
-  label = 'Address'
+  label = 'Address',
+  enableAutocomplete = false,
+  setValue
 }) => {
   const getFieldName = (field) => prefix ? `${prefix}.${field}` : field;
   const getError = (field) => prefix ? errors[prefix]?.[field] : errors[field];
+
+  // Keep the addressLine DOM node so we can attach Google Places Autocomplete.
+  // register() also needs this node, so we merge our ref with RHF's ref below.
+  const addressLineRef = useRef(null);
+  // RHF's register() returns its own ref callback; capture it to forward.
+  const addressLineReg = register(getFieldName('addressLine'), {
+    required: required ? `${label} is required` : false
+  });
+
+  useEffect(() => {
+    // Opt-in only, and only when RHF setValue is available to write the parsed
+    // components back into the form. Any missing precondition => plain input.
+    if (!enableAutocomplete || typeof setValue !== 'function') {
+      return undefined;
+    }
+
+    let autocomplete = null;
+    let listener = null;
+    let cancelled = false;
+
+    loadGoogleMaps().then((maps) => {
+      // No key (maps === null), unmounted, or input gone => degrade silently.
+      if (cancelled || !maps || !maps.places || !addressLineRef.current) {
+        return;
+      }
+
+      autocomplete = new maps.places.Autocomplete(addressLineRef.current, {
+        types: ['address'],
+        componentRestrictions: { country: 'us' }
+      });
+
+      listener = autocomplete.addListener('place_changed', () => {
+        const place = autocomplete.getPlace();
+        if (!place || !place.address_components) {
+          return;
+        }
+
+        const get = (type, useShort = false) => {
+          const comp = place.address_components.find((c) =>
+            c.types.includes(type)
+          );
+          if (!comp) return '';
+          return useShort ? comp.short_name : comp.long_name;
+        };
+
+        const streetNumber = get('street_number');
+        const route = get('route');
+        const addressLine = [streetNumber, route].filter(Boolean).join(' ');
+        const city =
+          get('locality') ||
+          get('sublocality') ||
+          get('sublocality_level_1') ||
+          get('postal_town');
+        // administrative_area_level_1 short_name is the 2-letter USPS code the
+        // <select> expects (e.g. "CA"), matching the option values directly.
+        const state = get('administrative_area_level_1', true);
+        const zipCode = get('postal_code');
+
+        const opts = { shouldDirty: true };
+        if (addressLine) setValue(getFieldName('addressLine'), addressLine, opts);
+        if (city) setValue(getFieldName('city'), city, opts);
+        if (state) setValue(getFieldName('state'), state, opts);
+        if (zipCode) setValue(getFieldName('zipCode'), zipCode, opts);
+      });
+    });
+
+    return () => {
+      cancelled = true;
+      // Detach the place_changed listener on unmount / dependency change.
+      if (listener && typeof listener.remove === 'function') {
+        listener.remove();
+      } else if (
+        autocomplete &&
+        window.google &&
+        window.google.maps &&
+        window.google.maps.event
+      ) {
+        window.google.maps.event.clearInstanceListeners(autocomplete);
+      }
+    };
+    // prefix change re-binds field names; setValue/enableAutocomplete are stable.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [enableAutocomplete, prefix]);
 
   return (
     <div className="address-fields">
@@ -25,9 +111,12 @@ const AddressField = ({
           <input
             type="text"
             id={getFieldName('addressLine')}
-            {...register(getFieldName('addressLine'), { 
-              required: required ? `${label} is required` : false 
-            })}
+            {...addressLineReg}
+            ref={(el) => {
+              // Forward the node to both RHF and our Autocomplete ref.
+              addressLineReg.ref(el);
+              addressLineRef.current = el;
+            }}
             placeholder="123 Main Street"
             className={getError('addressLine') ? 'error' : ''}
           />

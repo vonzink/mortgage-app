@@ -292,6 +292,8 @@ const BorrowerInformationStep = ({
                           prefix={`borrowers.0.residences.${resIndex}`}
                           required={false}
                           label="Residence Address"
+                          enableAutocomplete={true}
+                          setValue={setValue}
                         />
 
                         <div className="form-row">

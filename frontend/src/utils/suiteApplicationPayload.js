@@ -189,6 +189,71 @@ export function mapIncomeType(type) {
   }
 }
 
+// ── HMDA demographics (§8) enum maps ──────────────────────────────────────
+//
+// The FE stores race/ethnicity as comma-separated MISMO-style codes (see
+// DeclarationsStep.js HmdaSection) and sex as a single MISMO code. Each FE code
+// maps to its EXACT suite enum constant (declarations/domain/{Race,Ethnicity,Sex}).
+// The FE option sets are COARSE (top-level only — no sub-categories like MEXICAN,
+// CHINESE, SAMOAN), so we map only the top-level values the FE actually offers;
+// any code with no exact suite enum is OMITTED (never invented/guessed).
+// DO_NOT_WISH_TO_PROVIDE comes ONLY from the refusal flags, not from any FE code.
+
+/** One FE race code → suite Race enum constant (null = unmappable → caller omits). */
+export function mapRaceCode(code) {
+  switch (code) {
+    case 'AmericanIndianOrAlaskaNative':         return 'AMERICAN_INDIAN_OR_ALASKA_NATIVE';
+    case 'Asian':                                return 'ASIAN';
+    case 'BlackOrAfricanAmerican':               return 'BLACK_OR_AFRICAN_AMERICAN';
+    case 'NativeHawaiianOrOtherPacificIslander': return 'NATIVE_HAWAIIAN_OR_PACIFIC_ISLANDER';
+    case 'White':                                return 'WHITE';
+    default:                                     return null;
+  }
+}
+
+/** One FE ethnicity code → suite Ethnicity enum constant (null = unmappable → caller omits). */
+export function mapEthnicityCode(code) {
+  switch (code) {
+    case 'HispanicOrLatino':    return 'HISPANIC_OR_LATINO';
+    case 'NotHispanicOrLatino': return 'NOT_HISPANIC_OR_LATINO';
+    default:                    return null;
+  }
+}
+
+/**
+ * FE sex code → suite Sex enum constant (null = unselected/unmappable).
+ * The suite Sex enum is {MALE, FEMALE, DO_NOT_WISH_TO_PROVIDE} — it has NO
+ * "not applicable" / "unknown" value, so the FE 'InformationNotProvidedUnknown'
+ * and 'NotApplicable' are NOT mapped here; a borrower who does not affirmatively
+ * pick Male/Female is represented via the explicit hmdaSexRefusal flag →
+ * DO_NOT_WISH_TO_PROVIDE in buildDemographics. Mapping these soft codes to
+ * DO_NOT_WISH_TO_PROVIDE here would FABRICATE an affirmative refusal the
+ * borrower never made, so they are dropped (regulated data: omit, don't guess).
+ */
+export function mapSexCode(code) {
+  switch (code) {
+    case 'Male':   return 'MALE';
+    case 'Female': return 'FEMALE';
+    default:       return null;
+  }
+}
+
+/** Split a FE comma-separated code string into trimmed, non-empty tokens. */
+function csvTokens(csv) {
+  if (!hasValue(csv)) return [];
+  return String(csv).split(',').map((s) => s.trim()).filter(Boolean);
+}
+
+/** Map a FE CSV of codes through `mapFn`, dropping unmappable codes, de-duped. */
+function mapCsvToEnums(csv, mapFn) {
+  const out = [];
+  for (const token of csvTokens(csv)) {
+    const mapped = mapFn(token);
+    if (mapped && !out.includes(mapped)) out.push(mapped);
+  }
+  return out;
+}
+
 // ── Sub-builders ──────────────────────────────────────────────────────────
 
 /**
@@ -401,6 +466,110 @@ function buildCoBorrowerSection(b) {
   };
 }
 
+/**
+ * §5 Declarations — built from the PRIMARY borrower's declaration fields (the suite
+ * applies declarations to the primary borrower only; co-borrowers don't carry them).
+ *
+ * The live UI (DeclarationsStep.js) stores each §5 answer as a BOOLEAN checkbox under
+ * `borrowers[i].declaration.*`. Every FE checkbox has an EXACT 1:1 suite field in
+ * DeclarationsRequest, so all 15 are mapped. A small set of legacy flat/aliased keys
+ * (from older backend-load hydration) is also coalesced defensively via `pick()` so a
+ * rehydrated form still maps — sibling-level wins, then `declaration.*`.
+ *
+ * `bool()` returns null when the FE carries no value at all (= "unanswered", NOT false),
+ * so an untouched form yields an all-null declarations object → declarationsHaveData()
+ * sends null → the suite SKIPS the section (never clobbers an LO's prior answers).
+ *
+ * The 3 enum/set §5 fields (priorPropertyUsage: OccupancyType, priorPropertyTitleType:
+ * PriorPropertyTitleType, bankruptcyTypes: Set<BankruptcyType>) have NO reliable FE
+ * source — the form collects none of them — so they stay null/omitted (never guessed).
+ */
+function buildDeclarations(b) {
+  if (!b) return null;
+  const d = b.declaration || {};
+  const pick = (k) => (b[k] !== undefined ? b[k] : d[k]);
+
+  // Strict Boolean ONLY when the FE actually carries a value; else null (= unanswered).
+  const bool = (v) => (v === null || v === undefined ? null : !!v);
+  // OR several FE sources; null only when ALL are absent (so a single true wins).
+  const boolAny = (...vals) => {
+    const present = vals.filter((v) => v !== null && v !== undefined);
+    if (present.length === 0) return null;
+    return present.some((v) => !!v);
+  };
+
+  return {
+    occupyAsPrimaryResidence: boolAny(pick('occupyPrimaryResidence'), pick('intentToOccupy')),
+    hadOwnershipInterestLast3Years: bool(pick('ownershipInterestThreeYears')),
+    familyOrBusinessAffiliationWithSeller: bool(pick('familyBusinessAffiliation')),
+    borrowingUndisclosedMoney: bool(pick('borrowingMoneyTransaction')),
+    applyingForOtherMortgageOnProperty: bool(pick('applyingMortgageOtherProperty')),
+    applyingForNewCreditBeforeClosing: bool(pick('applyingNewCredit')),
+    subjectToPriorityLienPace: bool(pick('propertySubjectLien')),
+    coSignerOrGuarantorOnUndisclosedDebt: boolAny(
+      pick('coSignerGuarantor'), pick('comakerEndorser'), pick('coSignerObligation'),
+    ),
+    outstandingJudgments: bool(pick('outstandingJudgments')),
+    delinquentOrDefaultOnFederalDebt: boolAny(pick('delinquentFederalDebt'), pick('presentlyDelinquent')),
+    partyToLawsuit: boolAny(pick('partyToLawsuit'), pick('lawsuit')),
+    conveyedTitleInLieuLast7Years: bool(pick('conveyedTitleLieuForeclosure')),
+    completedPreForeclosureShortSaleLast7Years: bool(pick('preForeclosureSale')),
+    propertyForeclosedLast7Years: boolAny(
+      pick('propertyForeclosedSevenYears'), pick('foreclosure'), pick('loanForeclosure'),
+    ),
+    declaredBankruptcyLast7Years: boolAny(pick('declaredBankruptcySevenYears'), pick('bankruptcy')),
+    // No FE source — never guessed (regulated).
+    priorPropertyUsage: null,
+    priorPropertyTitleType: null,
+    bankruptcyTypes: null,
+  };
+}
+
+/** True if the declarations section carries at least one non-null mapped field. */
+function declarationsHaveData(decl) {
+  return !!decl && Object.values(decl).some((v) => v !== null && v !== undefined);
+}
+
+/**
+ * §8 HMDA Demographics (self-report ONLY) — ethnicity/race/sex from the PRIMARY
+ * borrower's HMDA fields (DeclarationsStep.js HmdaSection). The suite forces the
+ * lender-attestation fields (collectedByVisualObservationOrSurname=false,
+ * applicationTakenMethod=INTERNET) in its orchestrator — the DemographicsInfo record
+ * has ONLY ethnicity/race/sex, so we send exactly those three.
+ *
+ * Race/ethnicity are FE comma-separated MISMO code strings → arrays of EXACT suite
+ * enum constants (Set<Ethnicity>/Set<Race> on the wire). Unmappable codes are DROPPED
+ * (never invented). A refusal flag is an affirmative "decline to provide" → it
+ * overrides to the single suite DO_NOT_WISH_TO_PROVIDE value for that axis. Sex maps
+ * Male/Female; a refusal → DO_NOT_WISH_TO_PROVIDE; anything else → null (omit).
+ */
+function buildDemographics(b) {
+  if (!b) return null;
+  const d = b.declaration || {};
+  const pick = (k) => (b[k] !== undefined ? b[k] : d[k]);
+
+  const ethnicity = pick('hmdaEthnicityRefusal')
+    ? ['DO_NOT_WISH_TO_PROVIDE']
+    : mapCsvToEnums(pick('hmdaEthnicity'), mapEthnicityCode);
+
+  const race = pick('hmdaRaceRefusal')
+    ? ['DO_NOT_WISH_TO_PROVIDE']
+    : mapCsvToEnums(pick('hmdaRace'), mapRaceCode);
+
+  const sex = pick('hmdaSexRefusal')
+    ? 'DO_NOT_WISH_TO_PROVIDE'
+    : mapSexCode(pick('hmdaSex'));
+
+  return { ethnicity, race, sex };
+}
+
+/** True if any of ethnicity/race/sex carries data worth sending. */
+function demographicsHaveData(demo) {
+  return !!demo && ((demo.ethnicity && demo.ethnicity.length > 0)
+    || (demo.race && demo.race.length > 0)
+    || (demo.sex !== null && demo.sex !== undefined));
+}
+
 // ── Public API ────────────────────────────────────────────────────────────
 
 /**
@@ -438,6 +607,12 @@ export function formToSuiteApplication(formData) {
     .filter((b) => borrowerHasData(b))
     .map(buildCoBorrowerSection);
 
+  // §5 Declarations + §8 HMDA Demographics — application-level / PRIMARY-only (the suite
+  // applies both to the primary borrower; co-borrowers don't carry them). Sent (non-null)
+  // only when the borrower answered something; else null → the suite SKIPS the section.
+  const declarations = buildDeclarations(primary);
+  const demographics = buildDemographics(primary);
+
   return {
     loan: loanHasData(loan) ? loan : null,
     borrower: borrowerHasData(primary) ? borrower : null,
@@ -445,12 +620,8 @@ export function formToSuiteApplication(formData) {
     assets: assets.length ? assets : null,
     liabilities: liabilities.length ? liabilities : null,
     reo: reo.length ? reo : null,
-    // TODO: §5 Declarations + §8 HMDA Demographics. The suite endpoint already
-    // accepts `declarations` and `demographics` sections, but the FE field model
-    // (flat declaration/HMDA fields on the borrower row, see applicationPayload.js
-    // buildDeclaration) does not yet match the suite enum shape — DEFERRED.
-    declarations: null,
-    demographics: null,
+    declarations: declarationsHaveData(declarations) ? declarations : null,
+    demographics: demographicsHaveData(demographics) ? demographics : null,
     // Joint applicants. Omitted entirely (spread of {}) when there are none, so the
     // single-borrower body is byte-for-byte unchanged; sent as CoBorrowerSection[] otherwise.
     ...(coBorrowers.length ? { coBorrowers } : {}),

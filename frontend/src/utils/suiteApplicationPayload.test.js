@@ -18,6 +18,9 @@ import formToSuiteApplication, {
   mapAssetType,
   mapLiabilityType,
   mapIncomeType,
+  mapRaceCode,
+  mapEthnicityCode,
+  mapSexCode,
 } from './suiteApplicationPayload';
 
 // ── Enum maps ────────────────────────────────────────────────────────────
@@ -156,6 +159,53 @@ describe('mapIncomeType (otherIncome)', () => {
     ['Mystery', 'OTHER'],
   ])('%s → %s', (input, expected) => {
     expect(mapIncomeType(input)).toBe(expected);
+  });
+});
+
+// ── HMDA enum maps (§8) — must equal suite Race/Ethnicity/Sex constants ───
+
+describe('mapRaceCode (FE MISMO code → suite Race enum)', () => {
+  test.each([
+    ['AmericanIndianOrAlaskaNative', 'AMERICAN_INDIAN_OR_ALASKA_NATIVE'],
+    ['Asian', 'ASIAN'],
+    ['BlackOrAfricanAmerican', 'BLACK_OR_AFRICAN_AMERICAN'],
+    ['NativeHawaiianOrOtherPacificIslander', 'NATIVE_HAWAIIAN_OR_PACIFIC_ISLANDER'],
+    ['White', 'WHITE'],
+    // Unknown / sub-category codes the FE does not offer → dropped (never guessed).
+    ['Chinese', null],
+    ['Samoan', null],
+    ['', null],
+    [undefined, null],
+  ])('%s → %s', (input, expected) => {
+    expect(mapRaceCode(input)).toBe(expected);
+  });
+});
+
+describe('mapEthnicityCode (FE MISMO code → suite Ethnicity enum)', () => {
+  test.each([
+    ['HispanicOrLatino', 'HISPANIC_OR_LATINO'],
+    ['NotHispanicOrLatino', 'NOT_HISPANIC_OR_LATINO'],
+    // Sub-categories the FE does not offer → dropped.
+    ['Mexican', null],
+    ['', null],
+    [undefined, null],
+  ])('%s → %s', (input, expected) => {
+    expect(mapEthnicityCode(input)).toBe(expected);
+  });
+});
+
+describe('mapSexCode (FE MISMO code → suite Sex enum)', () => {
+  test.each([
+    ['Male', 'MALE'],
+    ['Female', 'FEMALE'],
+    // Suite Sex has no N/A or Unknown — the soft codes are NOT fabricated into
+    // an affirmative refusal here; declining is carried by hmdaSexRefusal instead.
+    ['InformationNotProvidedUnknown', null],
+    ['NotApplicable', null],
+    ['', null],
+    [undefined, null],
+  ])('%s → %s', (input, expected) => {
+    expect(mapSexCode(input)).toBe(expected);
   });
 });
 
@@ -341,9 +391,172 @@ describe('formToSuiteApplication', () => {
     });
   });
 
-  test('declarations and demographics deferred → null', () => {
+  test('no §5/§8 data on the fixture → declarations and demographics null (suite skips)', () => {
     expect(out.declarations).toBeNull();
     expect(out.demographics).toBeNull();
+  });
+});
+
+// ── §5 Declarations + §8 HMDA Demographics ───────────────────────────────
+// Regulated data. These lock in the EXACT suite shapes: DeclarationsRequest
+// boolean fields and DemographicsInfo { ethnicity[], race[], sex } with enum
+// NAMES equal to the suite Race/Ethnicity/Sex constants; unmappable codes drop.
+
+describe('formToSuiteApplication — §5 declarations mapping', () => {
+  const out = formToSuiteApplication({
+    borrowers: [
+      {
+        firstName: 'Decl', lastName: 'Arant', email: 'd@e.com',
+        declaration: {
+          occupyPrimaryResidence: true,
+          ownershipInterestThreeYears: false,
+          familyBusinessAffiliation: true,
+          borrowingMoneyTransaction: false,
+          applyingMortgageOtherProperty: true,
+          applyingNewCredit: false,
+          propertySubjectLien: true,
+          coSignerGuarantor: false,
+          outstandingJudgments: true,
+          delinquentFederalDebt: false,
+          partyToLawsuit: true,
+          conveyedTitleLieuForeclosure: false,
+          preForeclosureSale: true,
+          propertyForeclosedSevenYears: false,
+          declaredBankruptcySevenYears: true,
+        },
+      },
+    ],
+  });
+
+  test('all 15 live-UI checkboxes map 1:1 to the suite DeclarationsRequest booleans', () => {
+    expect(out.declarations).toMatchObject({
+      occupyAsPrimaryResidence: true,
+      hadOwnershipInterestLast3Years: false,
+      familyOrBusinessAffiliationWithSeller: true,
+      borrowingUndisclosedMoney: false,
+      applyingForOtherMortgageOnProperty: true,
+      applyingForNewCreditBeforeClosing: false,
+      subjectToPriorityLienPace: true,
+      coSignerOrGuarantorOnUndisclosedDebt: false,
+      outstandingJudgments: true,
+      delinquentOrDefaultOnFederalDebt: false,
+      partyToLawsuit: true,
+      conveyedTitleInLieuLast7Years: false,
+      completedPreForeclosureShortSaleLast7Years: true,
+      propertyForeclosedLast7Years: false,
+      declaredBankruptcyLast7Years: true,
+    });
+  });
+
+  test('the 3 enum/set §5 fields with no FE source stay null (never guessed)', () => {
+    expect(out.declarations.priorPropertyUsage).toBeNull();
+    expect(out.declarations.priorPropertyTitleType).toBeNull();
+    expect(out.declarations.bankruptcyTypes).toBeNull();
+  });
+
+  test('unanswered §5 (no declaration block) → declarations null so the suite skips it', () => {
+    const o = formToSuiteApplication({ borrowers: [{ firstName: 'No', lastName: 'Decl', email: 'n@e.com' }] });
+    expect(o.declarations).toBeNull();
+  });
+
+  test('a single answered checkbox still sends declarations (a true wins over absent siblings)', () => {
+    const o = formToSuiteApplication({
+      borrowers: [{ firstName: 'One', lastName: 'Flag', declaration: { partyToLawsuit: true } }],
+    });
+    expect(o.declarations).not.toBeNull();
+    expect(o.declarations.partyToLawsuit).toBe(true);
+    // Untouched checkboxes are null (= unanswered), NOT false.
+    expect(o.declarations.outstandingJudgments).toBeNull();
+  });
+
+  test('legacy aliased keys still coalesce (rehydrated form) — bankruptcy/foreclosure/lawsuit', () => {
+    const o = formToSuiteApplication({
+      borrowers: [{ firstName: 'Legacy', lastName: 'Form', declaration: {
+        bankruptcy: true, foreclosure: true, lawsuit: true, intentToOccupy: true,
+      } }],
+    });
+    expect(o.declarations).toMatchObject({
+      declaredBankruptcyLast7Years: true,
+      propertyForeclosedLast7Years: true,
+      partyToLawsuit: true,
+      occupyAsPrimaryResidence: true,
+    });
+  });
+});
+
+describe('formToSuiteApplication — §8 HMDA demographics mapping', () => {
+  test('race/ethnicity CSV → suite enum arrays; sex single enum; exact constant names', () => {
+    const out = formToSuiteApplication({
+      borrowers: [
+        {
+          firstName: 'Hmda', lastName: 'Self', email: 'h@e.com',
+          declaration: {
+            hmdaRace: 'Asian,White',
+            hmdaEthnicity: 'HispanicOrLatino',
+            hmdaSex: 'Female',
+          },
+        },
+      ],
+    });
+    expect(out.demographics).toEqual({
+      ethnicity: ['HISPANIC_OR_LATINO'],
+      race: ['ASIAN', 'WHITE'],
+      sex: 'FEMALE',
+    });
+  });
+
+  test('unmappable race codes are DROPPED; valid ones survive (no guessing)', () => {
+    const out = formToSuiteApplication({
+      borrowers: [{ firstName: 'X', lastName: 'Y', declaration: {
+        // 'Chinese' is a real MISMO sub-category but the FE never offers it and the
+        // suite top-level Race enum is coarse → dropped; only White survives.
+        hmdaRace: 'Chinese,White,Klingon',
+      } }],
+    });
+    expect(out.demographics.race).toEqual(['WHITE']);
+  });
+
+  test('refusal flags → DO_NOT_WISH_TO_PROVIDE per axis (override any codes)', () => {
+    const out = formToSuiteApplication({
+      borrowers: [{ firstName: 'Ref', lastName: 'Use', declaration: {
+        hmdaRace: 'Asian', hmdaRaceRefusal: true,
+        hmdaEthnicity: 'HispanicOrLatino', hmdaEthnicityRefusal: true,
+        hmdaSex: 'Male', hmdaSexRefusal: true,
+      } }],
+    });
+    expect(out.demographics).toEqual({
+      ethnicity: ['DO_NOT_WISH_TO_PROVIDE'],
+      race: ['DO_NOT_WISH_TO_PROVIDE'],
+      sex: 'DO_NOT_WISH_TO_PROVIDE',
+    });
+  });
+
+  test('soft sex codes (Not provided / N/A) are NOT fabricated into a refusal → sex null', () => {
+    const out = formToSuiteApplication({
+      borrowers: [{ firstName: 'Soft', lastName: 'Sex', declaration: {
+        hmdaSex: 'InformationNotProvidedUnknown', hmdaRace: 'White',
+      } }],
+    });
+    // race present so demographics is sent, but sex is omitted (null) — no guess.
+    expect(out.demographics.sex).toBeNull();
+    expect(out.demographics.race).toEqual(['WHITE']);
+  });
+
+  test('no HMDA data → demographics null so the suite skips it', () => {
+    const out = formToSuiteApplication({ borrowers: [{ firstName: 'No', lastName: 'Hmda' }] });
+    expect(out.demographics).toBeNull();
+  });
+
+  test('demographics is PRIMARY-only — a co-borrower CoBorrowerSection carries no demographics key', () => {
+    const out = formToSuiteApplication({
+      borrowers: [
+        { firstName: 'Prim', lastName: 'Ary', declaration: { hmdaRace: 'White' } },
+        { firstName: 'Co', lastName: 'Bo', email: 'co@e.com', declaration: { hmdaRace: 'Asian' } },
+      ],
+    });
+    expect(out.demographics.race).toEqual(['WHITE']);
+    expect(out.coBorrowers[0]).not.toHaveProperty('demographics');
+    expect(out.coBorrowers[0]).not.toHaveProperty('declarations');
   });
 });
 

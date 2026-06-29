@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { FaArrowRight } from 'react-icons/fa';
 import { ModalShell, Row } from './ModalShell';
+import { STATUS_ORDER, statusLabel } from './helpers';
 
 /**
  * Move a loan to a new status with an explicit date + optional note.
@@ -8,28 +9,39 @@ import { ModalShell, Row } from './ModalShell';
  * Replaces the orphan in-grid `dash-status-row` dropdown — advancing a loan is
  * a deliberate workflow action, not a stray select, so we promote it to a
  * confirmed modal so the LO can:
- *   - pick the target stage from the workflow order
+ *   - pick the target stage from the suite's server-authoritative legal targets
  *   - backdate the transition (defaults to today; capped at today)
  *   - leave a short note (saved as a dashboard note tagged to the transition,
  *     since the status endpoint itself takes no note field)
  *
  * The two writes (status, optional note) are dispatched via `onSave` so the
  * page can sequence them and refresh once.
+ *
+ * ── msfg-suite cutover ──────────────────────────────────────────────────────
+ * The legal next-states come from GET /loans/{id}/status/transitions
+ * (`allowedTransitions`, role-aware), not a hardcoded order. `statusOrder` is a
+ * fallback for ordering/empty-transitions resilience.
  */
 export function AdvanceStatusModal({
   currentStatus,
-  statusOrder,
+  allowedTransitions,
+  statusOrder = STATUS_ORDER,
   outstandingCount = 0,
   onClose,
   onSave,
 }) {
-  // Default to the next status in the workflow if there is one — saves a
-  // click in the common "advance by one" path, while still letting the LO
-  // skip forward or roll back.
-  const currentIdx = statusOrder.indexOf(currentStatus);
-  const defaultNext = currentIdx >= 0 && currentIdx < statusOrder.length - 1
-    ? statusOrder[currentIdx + 1]
-    : currentStatus;
+  // The selectable targets are the suite's allowed transitions when available;
+  // ordered by the canonical STATUS_ORDER for a stable dropdown. Falls back to
+  // the full order (minus current) if transitions haven't loaded.
+  const allowed = Array.isArray(allowedTransitions) && allowedTransitions.length > 0
+    ? allowedTransitions
+    : statusOrder.filter((s) => s !== currentStatus);
+  const targets = statusOrder.filter((s) => allowed.includes(s))
+    .concat(allowed.filter((s) => !statusOrder.includes(s)));
+
+  // Default to the first legal target — saves a click in the common
+  // "advance by one" path; the LO can still pick any legal target.
+  const defaultNext = targets[0] || currentStatus;
   const [targetStatus, setTargetStatus] = useState(defaultNext);
   const [transitionedAt, setTransitionedAt] = useState(
     () => new Date().toISOString().slice(0, 10),
@@ -59,13 +71,14 @@ export function AdvanceStatusModal({
   };
 
   const today = new Date().toISOString().slice(0, 10);
+  const currentIdx = statusOrder.indexOf(currentStatus);
   const isRollback = currentIdx >= 0 && statusOrder.indexOf(targetStatus) < currentIdx;
 
   return (
     <ModalShell title="Advance status" onClose={onClose}>
       <form onSubmit={submit} className="dashboard-form">
         <Row label="From">
-          <div className="advance-status-from">{currentStatus || '—'}</div>
+          <div className="advance-status-from">{statusLabel(currentStatus) || '—'}</div>
         </Row>
         <Row label="To">
           <select
@@ -73,9 +86,12 @@ export function AdvanceStatusModal({
             onChange={(e) => setTargetStatus(e.target.value)}
             autoFocus
           >
-            {statusOrder.map((s) => (
+            {targets.length === 0 && (
+              <option value="">No transitions available</option>
+            )}
+            {targets.map((s) => (
               <option key={s} value={s}>
-                {s}{s === currentStatus ? ' (current)' : ''}
+                {statusLabel(s)}{s === currentStatus ? ' (current)' : ''}
               </option>
             ))}
           </select>
@@ -103,7 +119,7 @@ export function AdvanceStatusModal({
             Heads up — this rolls the loan <strong>back</strong>. The earlier transition stays in the audit log.
           </p>
         )}
-        {outstandingCount > 0 && targetStatus === 'CTC' && (
+        {outstandingCount > 0 && targetStatus === 'CLEAR_TO_CLOSE' && (
           <p className="dashboard-form-hint dashboard-form-hint--warn">
             {outstandingCount} {outstandingCount === 1 ? 'condition' : 'conditions'} still outstanding — clear before CTC.
           </p>
@@ -116,7 +132,7 @@ export function AdvanceStatusModal({
             Cancel
           </button>
           <button type="submit" className="btn btn-primary" disabled={saving}>
-            <FaArrowRight /> {saving ? 'Advancing…' : `Advance to ${targetStatus}`}
+            <FaArrowRight /> {saving ? 'Advancing…' : `Advance to ${statusLabel(targetStatus) || '—'}`}
           </button>
         </div>
       </form>

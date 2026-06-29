@@ -1,20 +1,85 @@
-/** Status workflow that drives the status dropdown order. Mirrors LoanStatus.java. */
+/**
+ * Status workflow helpers for the LO dashboard.
+ *
+ * ── msfg-suite cutover ────────────────────────────────────────────────────────
+ * The dashboard now speaks the suite `LoanStatus` vocabulary (the suite is the
+ * system of record). The old mortgage-app 12-state model
+ * (REGISTERED, APPLICATION, DISCLOSURES_SENT, DISCLOSURES_SIGNED, UNDERWRITING,
+ *  APPROVED, APPRAISAL, INSURANCE, CTC, DOCS_OUT, FUNDED, DISPOSITIONED) is
+ *  replaced wholesale by the suite enum:
+ *
+ *   STARTED, APPLICATION_IN_PROGRESS, SUBMITTED, IN_UNDERWRITING,
+ *   APPROVED_WITH_CONDITIONS, CLEAR_TO_CLOSE, CLOSING, FUNDED,
+ *   WITHDRAWN, CANCELLED, DENIED, SUSPENDED
+ *
+ * The first 8 are the forward "happy path" (drive the milestone strip + progress);
+ * the last 4 are terminal/exception states the old model lacked. The Advance-status
+ * modal's legal targets are now driven server-side by GET /status/transitions, not
+ * by this array — STATUS_ORDER only feeds ordering/progress + a default-next hint.
+ */
 export const STATUS_ORDER = [
-  'REGISTERED', 'APPLICATION', 'DISCLOSURES_SENT', 'DISCLOSURES_SIGNED',
-  'UNDERWRITING', 'APPROVED', 'APPRAISAL', 'INSURANCE',
-  'CTC', 'DOCS_OUT', 'FUNDED', 'DISPOSITIONED',
+  'STARTED', 'APPLICATION_IN_PROGRESS', 'SUBMITTED', 'IN_UNDERWRITING',
+  'APPROVED_WITH_CONDITIONS', 'CLEAR_TO_CLOSE', 'CLOSING', 'FUNDED',
+  'WITHDRAWN', 'CANCELLED', 'DENIED', 'SUSPENDED',
 ];
 
-/** The 8 milestones drawn in the new timeline strip. Maps from LoanStatus values. */
+/** Human labels for each suite LoanStatus (drives chips + the "To" dropdown copy). */
+export const STATUS_LABELS = {
+  STARTED: 'Started',
+  APPLICATION_IN_PROGRESS: 'Application in progress',
+  SUBMITTED: 'Submitted',
+  IN_UNDERWRITING: 'In underwriting',
+  APPROVED_WITH_CONDITIONS: 'Approved with conditions',
+  CLEAR_TO_CLOSE: 'Clear to close',
+  CLOSING: 'Closing',
+  FUNDED: 'Funded',
+  WITHDRAWN: 'Withdrawn',
+  CANCELLED: 'Cancelled',
+  DENIED: 'Denied',
+  SUSPENDED: 'Suspended',
+};
+
+/**
+ * Tone bucket for the status chip/pill colour. Greens for forward progress,
+ * red for the failure terminals, amber for the in-flight/exception ones.
+ */
+export const STATUS_TONE = {
+  STARTED: 'muted',
+  APPLICATION_IN_PROGRESS: 'muted',
+  SUBMITTED: 'review',
+  IN_UNDERWRITING: 'review',
+  APPROVED_WITH_CONDITIONS: 'review',
+  CLEAR_TO_CLOSE: 'active',
+  CLOSING: 'active',
+  FUNDED: 'active',
+  WITHDRAWN: 'danger',
+  CANCELLED: 'danger',
+  DENIED: 'danger',
+  SUSPENDED: 'danger',
+};
+
+/** Map a suite LoanStatus → a Pill tone token (default 'muted' for unknowns). */
+export function statusTone(status) {
+  return STATUS_TONE[status] || 'muted';
+}
+
+/** Map a suite LoanStatus → a human label (falls back to a prettified enum). */
+export function statusLabel(status) {
+  if (!status) return null;
+  return STATUS_LABELS[status]
+    || (status.charAt(0) + status.slice(1).toLowerCase().replace(/_/g, ' '));
+}
+
+/** The forward "happy path" milestones drawn in the timeline strip. */
 export const MILESTONE_DEFS = [
-  { key: 'APPLICATION',         label: 'Application' },
-  { key: 'DISCLOSURES_SIGNED',  label: 'Disclosures' },
-  { key: 'UNDERWRITING',        label: 'Underwriting' },
-  { key: 'APPRAISAL',           label: 'Appraisal' },
-  { key: 'INSURANCE',           label: 'Insurance' },
-  { key: 'CTC',                 label: 'Clear to close' },
-  { key: 'DOCS_OUT',            label: 'Docs out' },
-  { key: 'FUNDED',              label: 'Funded' },
+  { key: 'STARTED',                  label: 'Started' },
+  { key: 'APPLICATION_IN_PROGRESS',  label: 'Application' },
+  { key: 'SUBMITTED',                label: 'Submitted' },
+  { key: 'IN_UNDERWRITING',          label: 'Underwriting' },
+  { key: 'APPROVED_WITH_CONDITIONS', label: 'Approved' },
+  { key: 'CLEAR_TO_CLOSE',           label: 'Clear to close' },
+  { key: 'CLOSING',                  label: 'Closing' },
+  { key: 'FUNDED',                   label: 'Funded' },
 ];
 
 export function statusReachedIndex(status) {
@@ -47,7 +112,7 @@ export function buildMilestones(currentStatus, history) {
 
 export function buildStatusLabel(status, history) {
   if (!status) return null;
-  const pretty = status.charAt(0) + status.slice(1).toLowerCase().replace(/_/g, ' ');
+  const pretty = statusLabel(status);
   // Find when we entered this status to compute "day N"
   const entry = (history || []).find((h) => h.status === status);
   if (!entry?.transitionedAt) return pretty;

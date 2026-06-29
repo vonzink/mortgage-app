@@ -11,6 +11,7 @@ export function EditTermsModal({ initial, onClose, onSave }) {
     amortizationType: initial.amortizationType ?? '',
     amortizationTermMonths: initial.amortizationTermMonths ?? '',
     lienPriorityType: initial.lienPriorityType ?? '',
+    loanPurpose: initial.loanPurpose ?? '',
     applicationReceivedDate: initial.applicationReceivedDate ?? '',
   });
   const [saving, setSaving] = useState(false);
@@ -51,10 +52,9 @@ export function EditTermsModal({ initial, onClose, onSave }) {
         <Row label="Amortization type">
           <select value={form.amortizationType} onChange={set('amortizationType')}>
             <option value="">—</option>
-            <option value="Fixed">Fixed</option>
-            <option value="AdjustableRate">Adjustable Rate</option>
-            <option value="GraduatedPaymentMortgage">Graduated Payment</option>
-            <option value="Other">Other</option>
+            <option value="FIXED">Fixed</option>
+            <option value="ADJUSTABLE_RATE">Adjustable Rate</option>
+            <option value="OTHER">Other</option>
           </select>
         </Row>
         <Row label="Term (months)">
@@ -63,9 +63,17 @@ export function EditTermsModal({ initial, onClose, onSave }) {
         <Row label="Lien priority">
           <select value={form.lienPriorityType} onChange={set('lienPriorityType')}>
             <option value="">—</option>
-            <option value="FirstLien">First Lien</option>
-            <option value="SecondLien">Second Lien</option>
-            <option value="ThirdLien">Third Lien</option>
+            <option value="FIRST_LIEN">First Lien</option>
+            <option value="SECOND_LIEN">Second Lien</option>
+          </select>
+        </Row>
+        <Row label="Loan purpose">
+          <select value={form.loanPurpose} onChange={set('loanPurpose')}>
+            <option value="">—</option>
+            <option value="PURCHASE">Purchase</option>
+            <option value="REFINANCE">Refinance</option>
+            <option value="CONSTRUCTION">Construction</option>
+            <option value="OTHER">Other</option>
           </select>
         </Row>
         <Row label="Application received">

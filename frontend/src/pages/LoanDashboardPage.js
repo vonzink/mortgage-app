@@ -56,6 +56,7 @@ export default function LoanDashboardPage() {
   const [editingTerms, setEditingTerms] = useState(false);
   const [showAddCondition, setShowAddCondition] = useState(false);
   const [showAdvanceStatus, setShowAdvanceStatus] = useState(false);
+  const [allowedTransitions, setAllowedTransitions] = useState([]);
   const [newNote, setNewNote] = useState('');
 
   const load = useCallback(async () => {
@@ -85,24 +86,26 @@ export default function LoanDashboardPage() {
 
   useEffect(() => { load(); }, [load]);
 
+  // Open the Advance-status modal, pre-fetching the suite's server-authoritative
+  // legal next-states so the modal only offers transitions the lifecycle allows.
+  const openAdvanceStatus = async () => {
+    try {
+      const t = await dashboardService.getTransitions(loanId);
+      setAllowedTransitions(t.allowedTransitions || []);
+    } catch (e) {
+      // Non-fatal — the modal falls back to the canonical order if transitions fail.
+      console.warn('Failed to load status transitions:', e);
+      setAllowedTransitions([]);
+    }
+    setShowAdvanceStatus(true);
+  };
+
   // Advance the loan via the AdvanceStatusModal. The modal owns the date +
-  // optional note; we sequence the writes (status first, then note) and
-  // refresh once. Status endpoint has no `note` field — we tack the note on
-  // as a dashboard note so it lands in the same audit surface.
+  // optional note; the note is carried as the transition `reason` (the suite
+  // status endpoint records it on the history row). We refresh once after.
   const advanceStatus = async ({ status, transitionedAt, note }) => {
     const from = data.status;
-    await dashboardService.updateStatus(loanId, status, transitionedAt);
-    if (note) {
-      try {
-        await dashboardService.createNote(
-          loanId,
-          `[${from} → ${status}${transitionedAt ? ` on ${transitionedAt}` : ''}] ${note}`,
-        );
-      } catch (e) {
-        // Note failure shouldn't block the status transition success message.
-        console.warn('Status advanced but note attach failed:', e);
-      }
-    }
+    await dashboardService.updateStatus(loanId, status, transitionedAt, note || undefined);
     toast.success(`Status: ${from} → ${status}${transitionedAt ? ` (${transitionedAt})` : ''}`);
     setShowAdvanceStatus(false);
     await load();
@@ -227,7 +230,7 @@ export default function LoanDashboardPage() {
         onExportMismo={handleExportMismo}
         onViewApplication={() => navigate(`/apply?edit=${loanId}&view=1`)}
         onOpenDocuments={() => navigate(`/applications/${loanId}`)}
-        onAdvanceStatus={() => setShowAdvanceStatus(true)}
+        onAdvanceStatus={openAdvanceStatus}
       />
 
       <div className="dash-stat-row">
@@ -561,6 +564,7 @@ export default function LoanDashboardPage() {
       {showAdvanceStatus && (
         <AdvanceStatusModal
           currentStatus={data.status}
+          allowedTransitions={allowedTransitions}
           statusOrder={STATUS_ORDER}
           outstandingCount={outstandingCount}
           onClose={() => setShowAdvanceStatus(false)}

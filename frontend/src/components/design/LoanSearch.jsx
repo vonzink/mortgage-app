@@ -4,19 +4,13 @@ import Icon from './Icon';
 import Pill from './Pill';
 import mortgageService from '../../services/mortgageService';
 import { getRecentLoans, pushRecentLoan } from '../../utils/recentLoans';
+// Shared status→tone map (suite LoanStatus vocabulary, post-cutover).
+import { statusTone } from '../../pages/loanDashboard/helpers';
 import './LoanSearch.css';
 
 const DEBOUNCE_MS = 200;
 const MIN_QUERY_LEN = 2;
 const MAX_RECENT_SHOWN = 5;
-
-function statusTone(status) {
-  if (!status) return 'muted';
-  if (status === 'FUNDED' || status === 'CTC' || status === 'DOCS_OUT') return 'active';
-  if (status === 'DISPOSITIONED') return 'danger';
-  if (status === 'REGISTERED' || status === 'APPLICATION') return 'muted';
-  return 'review';
-}
 
 function Highlighted({ text, query }) {
   if (!query || !text) return <>{text}</>;

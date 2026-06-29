@@ -114,6 +114,125 @@ function adaptSuiteLoanDetail(payload) {
     borrowers: [],
   };
 }
+/**
+ * Adapt the suite DashboardResponse envelope → the exact shape LoanDashboardPage
+ * consumes (the LO-dashboard cutover onto the suite system of record).
+ *
+ * The suite DashboardResponse uses suite-native names; the page still reads the old
+ * mortgage-app field names, so we rename in one place here (no component changes):
+ *   - loanTerms.interestRate     → loanTerms.noteRatePercent
+ *   - loanTerms.loanTermMonths   → loanTerms.amortizationTermMonths
+ *   - loanTerms.lienPriority     → loanTerms.lienPriorityType
+ *   - property.salesPrice        → property.purchasePrice
+ *   - property.{appraised/estimated/sales}Value coalesce → property.propertyValue
+ *   - property.numberOfUnits     → property.unitsCount
+ *   - conditions.items[]         → conditions[]   (status passes through PascalCase)
+ *   - statusHistory[].toStatus   → statusHistory[].status (suite LoanStatus enum)
+ *   - closingInformation.consummationDate → closingInformation.closingDate
+ *
+ * `status` passes through as the suite LoanStatus enum (the helpers now speak it).
+ * Sections with no suite source degrade to []/null (the page renders '—'/empty hints).
+ * `housingExpenses` differs materially (suite = a single monthly-inputs object vs the
+ * page's row array) → [] this slice; the MISMO-imported expense table stays empty.
+ */
+function adaptSuiteDashboard(payload) {
+  const d = unwrapEnvelope(payload) || {};
+
+  const lt = d.loanTerms || null;
+  const loanTerms = lt
+    ? {
+        baseLoanAmount: lt.baseLoanAmount ?? null,
+        noteAmount: lt.noteAmount ?? null,
+        noteRatePercent: lt.interestRate ?? null,
+        downPaymentAmount: lt.downPaymentAmount ?? null,
+        amortizationType: lt.amortizationType ?? null,
+        amortizationTermMonths: lt.loanTermMonths ?? null,
+        lienPriorityType: lt.lienPriority ?? null,
+        // New first-class suite fields (populated once the backend half lands).
+        loanPurpose: lt.loanPurpose ?? null,
+        applicationReceivedDate: lt.applicationReceivedDate ?? null,
+      }
+    : null;
+
+  const p = d.property || null;
+  const property = p
+    ? {
+        addressLine: [p.addressLine1, p.addressLine2].filter(Boolean).join(' ') || null,
+        city: p.city ?? null,
+        state: p.state ?? null,
+        zipCode: p.postalCode ?? null,
+        purchasePrice: p.salesPrice ?? null,
+        propertyValue: p.appraisedValue ?? p.estimatedValue ?? p.salesPrice ?? null,
+        unitsCount: p.numberOfUnits ?? null,
+        // No suite source on the dashboard property this slice → page renders '—'.
+        propertyUse: null,
+        projectType: null,
+        attachmentType: null,
+        constructionType: null,
+        yearBuilt: null,
+        county: null,
+      }
+    : null;
+
+  const conditions = Array.isArray(d.conditions?.items) ? d.conditions.items : [];
+
+  const statusHistory = Array.isArray(d.statusHistory)
+    ? d.statusHistory.map((h) => ({
+        status: h.toStatus ?? null,
+        fromStatus: h.fromStatus ?? null,
+        transitionedAt: h.transitionedAt ?? null,
+        note: h.note ?? null,
+        transitionedBy: h.transitionedBy ?? null,
+      }))
+    : [];
+
+  const ci = d.closingInformation || null;
+  const closingInformation = ci
+    ? {
+        closingDate: ci.consummationDate ?? null,
+        titleCompanyName: ci.titleCompany ?? null,
+        escrowOfficer: ci.escrowOfficer ?? null,
+        appraiserName: ci.appraiser ?? null,
+      }
+    : null;
+
+  return {
+    id: d.loanId ?? null,
+    applicationNumber: d.applicationNumber ?? null,
+    status: d.status ?? null,
+    identifiers: d.identifiers ?? null,
+    primaryBorrower: d.primaryBorrower ?? null,
+    property,
+    loanTerms,
+    conditions,
+    notes: Array.isArray(d.notes) ? d.notes : [],
+    statusHistory,
+    loanAgents: Array.isArray(d.loanAgents) ? d.loanAgents : [],
+    closingInformation,
+    purchaseCredits: Array.isArray(d.purchaseCredits) ? d.purchaseCredits : [],
+    // Suite housing-expenses shape differs from the page's row table → empty this slice.
+    housingExpenses: [],
+    createdDate: d.createdAt ?? null,
+    updatedDate: d.updatedAt ?? null,
+  };
+}
+
+/**
+ * Adapt one suite LoanSearchHit → the row shape LoanSearch renders + navigates with.
+ * Renames loanNumber→applicationNumber, propertyCity→city, propertyState→state; carries
+ * the suite UUID through as `id` so `/loan/{id}` lands on a valid suite dashboard.
+ */
+function adaptSuiteSearchHit(hit = {}) {
+  return {
+    id: hit.id,
+    applicationNumber: hit.loanNumber ?? null,
+    borrowerName: hit.borrowerName ?? null,
+    city: hit.propertyCity ?? null,
+    state: hit.propertyState ?? null,
+    status: hit.status ?? null,
+  };
+}
+
 const mortgageService = {
   // ────────────────── Loan applications ──────────────────
 
@@ -161,11 +280,16 @@ const mortgageService = {
     const params = new URLSearchParams();
     if (q) params.set('q', q);
     if (opts.limit) params.set('limit', String(opts.limit));
-    const { data } = await apiClient.get(
-      `/loan-applications/search?${params.toString()}`,
+    // msfg-suite cutover: hit the suite typeahead so hits carry suite UUIDs (the
+    // /loan/{id} dashboard now resolves suite UUIDs, not old numeric ids). The suite
+    // wraps the list in an { success, data } envelope and uses LoanSearchHit field
+    // names; adapt them to the row shape LoanSearch already renders.
+    const { data } = await suiteClient.get(
+      `/loans/search?${params.toString()}`,
       { signal: opts.signal },
     );
-    return Array.isArray(data) ? data : [];
+    const hits = unwrapEnvelope(data);
+    return Array.isArray(hits) ? hits.map(adaptSuiteSearchHit) : [];
   },
 
   /**
@@ -441,6 +565,12 @@ const mortgageService = {
 
 // Named exports of the pure suite→FE adapters for unit testing. These are
 // side-effect-free transforms (no HTTP) so they can be exercised directly.
-export { adaptSuiteLoanList, adaptSuiteLoanDetail, unwrapEnvelope };
+export {
+  adaptSuiteLoanList,
+  adaptSuiteLoanDetail,
+  adaptSuiteDashboard,
+  adaptSuiteSearchHit,
+  unwrapEnvelope,
+};
 
 export default mortgageService;

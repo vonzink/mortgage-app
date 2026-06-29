@@ -47,13 +47,14 @@ import { useDraftAutosave, clearDraft } from '../../hooks/useDraftAutosave';
 import { formToApplicationPayload } from '../../utils/applicationPayload';
 import { formToSuiteApplication } from '../../utils/suiteApplicationPayload';
 
-// Borrower self-submit → suite (system of record). DISABLED 2026-06-28: the
-// suiteApplicationPayload mapping isn't yet reconciled with the live suite's
-// BorrowerApplicationRequest DTO (enum/type mismatches → "Malformed request body"
-// 400). Until it round-trips against the real suite, submit uses the legacy
-// mortgage-app create path (QA-validated). Flip back to true once the mapping
-// is fixed + integration-tested.
-const SUITE_SELF_SUBMIT_ENABLED = false;
+// Borrower self-submit → suite (system of record). RE-ENABLED 2026-06-29: the
+// enum/type mismatches that forced the 2026-06-28 rollback (ownershipShare,
+// reo.state) are reconciled in suiteApplicationPayload.js (b7bf663). Submit now
+// writes the full 1003 into the SoR via PUT /api/loans/{id}/application (borrower
+// self-writable). NOTE: §5 Declarations + §8 HMDA are still sent null and the
+// suite SKIPS null sections (no 400) — those two map from the stash and land as a
+// tested fast-follow. The legacy POST /loan-applications path 403s for borrowers.
+const SUITE_SELF_SUBMIT_ENABLED = true;
 
 const ApplicationForm = () => {
   const navigate = useNavigate();

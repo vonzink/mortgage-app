@@ -4,7 +4,8 @@
  * Extracted from AssetsLiabilitiesStep.js as part of audit item SI-6 (the
  * parent was 701 lines stacking three concerns: assets, liabilities, REO).
  * Each row is a single asset (type, owner, bank, account #, value, used-for-
- * downpayment). All assets live under borrower 0 in form state — they're
+ * downpayment). Assets live under the borrower identified by `borrowerIndex`
+ * (the parent renders one Assets section per borrower tab) — each row is also
  * tagged with an "owner" string for actual ownership attribution.
  */
 import React from 'react';
@@ -15,6 +16,7 @@ export default function AssetsSection({
   register,
   watch,
   setValue,
+  borrowerIndex,
   borrowerFields,
   getBorrowerName,
   assetFields,
@@ -45,7 +47,7 @@ export default function AssetsSection({
             <div key={assetField.id} className="asset-entry">
               <div className="form-group">
                 <select
-                  {...register(`borrowers.0.assets.${assetIndex}.assetType`)}
+                  {...register(`borrowers.${borrowerIndex}.assets.${assetIndex}.assetType`)}
                   className="form-select"
                 >
                   <option value="">Select Type</option>
@@ -66,7 +68,7 @@ export default function AssetsSection({
 
               <div className="form-group">
                 <select
-                  {...register(`borrowers.0.assets.${assetIndex}.owner`)}
+                  {...register(`borrowers.${borrowerIndex}.assets.${assetIndex}.owner`)}
                   className="form-select"
                 >
                   <option value="">Select Owner</option>
@@ -83,7 +85,7 @@ export default function AssetsSection({
               <div className="form-group">
                 <input
                   type="text"
-                  {...register(`borrowers.0.assets.${assetIndex}.bankName`)}
+                  {...register(`borrowers.${borrowerIndex}.assets.${assetIndex}.bankName`)}
                   placeholder="Bank Name"
                 />
               </div>
@@ -91,17 +93,17 @@ export default function AssetsSection({
               <div className="form-group">
                 <input
                   type="text"
-                  {...register(`borrowers.0.assets.${assetIndex}.accountNumber`)}
+                  {...register(`borrowers.${borrowerIndex}.assets.${assetIndex}.accountNumber`)}
                   placeholder="Account Number"
                 />
               </div>
 
               <div className="form-group">
                 <CurrencyInput
-                  id={`borrowers.0.assets.${assetIndex}.assetValue`}
-                  name={`borrowers.0.assets.${assetIndex}.assetValue`}
-                  value={watch(`borrowers.0.assets.${assetIndex}.assetValue`) || ''}
-                  onChange={(e) => setValue(`borrowers.0.assets.${assetIndex}.assetValue`, e.target.value)}
+                  id={`borrowers.${borrowerIndex}.assets.${assetIndex}.assetValue`}
+                  name={`borrowers.${borrowerIndex}.assets.${assetIndex}.assetValue`}
+                  value={watch(`borrowers.${borrowerIndex}.assets.${assetIndex}.assetValue`) || ''}
+                  onChange={(e) => setValue(`borrowers.${borrowerIndex}.assets.${assetIndex}.assetValue`, e.target.value)}
                   placeholder="0.00"
                 />
               </div>
@@ -109,7 +111,7 @@ export default function AssetsSection({
               <div className="form-group checkbox-group">
                 <input
                   type="checkbox"
-                  {...register(`borrowers.0.assets.${assetIndex}.usedForDownpayment`)}
+                  {...register(`borrowers.${borrowerIndex}.assets.${assetIndex}.usedForDownpayment`)}
                   className="form-checkbox"
                 />
               </div>

@@ -1,6 +1,12 @@
 /**
  * Assets & Liabilities Step Component
- * Step 5: Assets and liabilities including REO properties
+ * Step 5: Assets, liabilities, and REO properties — entered PER BORROWER.
+ *
+ * Mirrors the EmploymentStep borrower-tab pattern: a tab per borrower (primary +
+ * co-borrowers), each owning its own assets / liabilities / reoProperties field
+ * arrays under `borrowers.${borrowerIndex}.*`. These flow through
+ * suiteApplicationPayload.buildCoBorrowerSection so each co-borrower's assets,
+ * liabilities and REO reach the suite `coBorrowers[]` payload.
  */
 import React, { useState, useEffect, useRef } from 'react';
 import { FaFileAlt } from 'react-icons/fa';
@@ -13,16 +19,19 @@ import {
 import { bubbleTabStyle } from '../shared/bubbleTabStyle';
 import AssetsSection from './AssetsSection';
 
-const AssetsLiabilitiesStep = ({ 
-  register, 
-  errors, 
-  watch, 
-  getValues, 
+const AssetsLiabilitiesStep = ({
+  register,
+  errors,
+  watch,
+  getValues,
   setValue,
   getFieldArray,
   borrowerFields
 }) => {
-  const [activeREOTab, setActiveREOTab] = useState(0);
+  const [activeBorrowerTab, setActiveBorrowerTab] = useState(0);
+  // Per-borrower active REO tab (borrowerIndex -> reoIndex), so each borrower keeps
+  // its own selected REO property — mirrors EmploymentStep's activeEmploymentTabs.
+  const [activeREOTabs, setActiveREOTabs] = useState({});
 
   const getBorrowerName = (index) => {
     const firstName = watch(`borrowers.${index}.firstName`);
@@ -33,8 +42,8 @@ const AssetsLiabilitiesStep = ({
     return `Borrower ${index + 1}`;
   };
 
-  const getREOPropertyName = (reoIndex) => {
-    const addressLine = watch(`borrowers.0.reoProperties.${reoIndex}.addressLine`);
+  const getREOPropertyName = (borrowerIndex, reoIndex) => {
+    const addressLine = watch(`borrowers.${borrowerIndex}.reoProperties.${reoIndex}.addressLine`);
     if (addressLine && addressLine.trim()) {
       return addressLine;
     }
@@ -43,63 +52,131 @@ const AssetsLiabilitiesStep = ({
 
   // bubbleTabStyle imported from shared/bubbleTabStyle (audit M-4).
 
-  // Get field arrays for primary borrower (index 0) - all items will be added here
-  const { fields: assetFields, append: appendAsset, remove: removeAsset } = getFieldArray(0, 'assets');
-  const { fields: liabilityFields, append: appendLiability, remove: removeLiability } = getFieldArray(0, 'liabilities');
-  const { fields: reoFields, append: appendReo, remove: removeReo } = getFieldArray(0, 'reoProperties');
+  // Borrower visibility — same rule as EmploymentStep: borrower 1 always shown, the
+  // active tab always shown, and any borrower already claimed (named) in the Borrower
+  // Information step. Capped at 4 (the field arrays cover borrowers 0-3). Because
+  // co-borrowers are added sequentially, the visible position equals the real index.
+  const visibleBorrowers = borrowerFields.slice(0, 4).filter((b, i) => {
+    if (i === 0) return true;
+    if (i === activeBorrowerTab) return true;
+    const fn = watch(`borrowers.${i}.firstName`);
+    const ln = watch(`borrowers.${i}.lastName`);
+    return !!(fn || ln);
+  });
 
-  // Auto-seed ONE REO entry from the applicant's primary (Current) residence so the
-  // borrower is prompted to address that property's debt. Runs at most once, and only
-  // when the REO list is currently empty (never clobbers/duplicates user-entered REO).
-  const reoSeededRef = useRef(false);
+  // Clamp active tab if borrowers vanished
   useEffect(() => {
-    if (reoSeededRef.current) return;
-    if (reoFields.length > 0) {
-      // User already has REO (entered or loaded) — don't seed, and mark done so we
-      // never seed later even if they remove all entries.
-      reoSeededRef.current = true;
-      return;
+    const maxIndex = visibleBorrowers.length - 1;
+    if (activeBorrowerTab > maxIndex) {
+      setActiveBorrowerTab(Math.max(0, maxIndex));
     }
-    const residence = getValues('borrowers.0.residences.0');
-    const addressLine = (residence?.addressLine || '').trim();
-    // Only auto-seed a residence the borrower OWNS — REO = real estate OWNED, so a
-    // renter's (or living-rent-free) current address must NOT become an owned-property
-    // entry. residencyBasis comes from the page-2 Own/Rent/LivingRentFree selector.
-    if (!addressLine || residence?.residencyBasis !== 'Own') return;
-    reoSeededRef.current = true;
-    appendReo({
-      ...createDefaultREOProperty(),
-      addressLine: residence.addressLine,
-      city: residence.city || '',
-      state: residence.state || '',
-      zipCode: residence.zipCode || '',
-      category: 'Primary'
-    });
+  }, [visibleBorrowers.length, activeBorrowerTab]);
+
+  // Per-borrower owned-residence REO auto-seed. For EACH borrower (0-3) seed ONE REO
+  // entry from THAT borrower's primary (Current) residence so they're prompted to
+  // address that property's debt. Runs at most once per borrower (reoSeededRef keyed by
+  // index) and only when the borrower's REO list is currently empty (never clobbers /
+  // duplicates entered or loaded REO). Only a residence the borrower OWNS is seeded —
+  // REO = real estate OWNED, so a renter's (or living-rent-free) current address must
+  // NOT become an owned-property entry. residencyBasis comes from the page-2 selector.
+  const borrowerCount = Math.min(borrowerFields.length, 4);
+  // Length signature across every borrower's REO array — the multi-borrower analog of
+  // the original single-borrower [reoFields.length] dep, so the seed re-evaluates when
+  // REO data loads/changes or a co-borrower is added.
+  const reoLenSignature = Array.from({ length: borrowerCount })
+    .map((_, i) => getFieldArray(i, 'reoProperties').fields.length)
+    .join(',');
+  const reoSeededRef = useRef({});
+  useEffect(() => {
+    for (let bIdx = 0; bIdx < borrowerCount; bIdx++) {
+      if (reoSeededRef.current[bIdx]) continue;
+      const { fields: bReoFields, append: bAppendReo } = getFieldArray(bIdx, 'reoProperties');
+      if (bReoFields.length > 0) {
+        // User already has REO (entered or loaded) — don't seed, and mark done so we
+        // never seed later even if they remove all entries.
+        reoSeededRef.current[bIdx] = true;
+        continue;
+      }
+      const residence = getValues(`borrowers.${bIdx}.residences.0`);
+      const addressLine = (residence?.addressLine || '').trim();
+      if (!addressLine || residence?.residencyBasis !== 'Own') continue;
+      reoSeededRef.current[bIdx] = true;
+      bAppendReo({
+        ...createDefaultREOProperty(),
+        addressLine: residence.addressLine,
+        city: residence.city || '',
+        state: residence.state || '',
+        zipCode: residence.zipCode || '',
+        category: 'Primary'
+      });
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [reoFields.length]);
+  }, [reoLenSignature, borrowerCount]);
 
   return (
     <FormSection
       title="Assets & Liabilities"
       icon={<FaFileAlt />}
-      description="Assets, liabilities, and real estate owned properties for all borrowers. Use the Owner field to identify who owns each item."
+      description="Assets, liabilities, and real estate owned (REO) properties for each borrower. Switch borrowers with the tabs; use the Owner field to attribute each item."
     >
-      {/* Assets — extracted to AssetsSection.js as part of audit SI-6. */}
-      <AssetsSection
-        register={register}
-        watch={watch}
-        setValue={setValue}
-        borrowerFields={borrowerFields}
-        getBorrowerName={getBorrowerName}
-        assetFields={assetFields}
-        appendAsset={appendAsset}
-        removeAsset={removeAsset}
-      />
+      {/* Borrower Tabs — hidden when only one borrower exists */}
+      {visibleBorrowers.length > 1 && (
+      <div className="borrower-tabs" style={{
+        display: 'flex',
+        flexWrap: 'wrap',
+        marginBottom: '2rem',
+        marginTop: '1rem'
+      }}>
+        {visibleBorrowers.map((borrowerField, borrowerIndex) => (
+          <button
+            key={borrowerField.id}
+            type="button"
+            className="form-tab"
+            onClick={() => setActiveBorrowerTab(borrowerIndex)}
+            style={bubbleTabStyle(activeBorrowerTab === borrowerIndex)}
+          >
+            {getBorrowerName(borrowerIndex)}
+          </button>
+        ))}
+      </div>
+      )}
+
+      {visibleBorrowers.map((borrowerField, borrowerIndex) => {
+        // Only render the active borrower tab.
+        if (borrowerIndex !== activeBorrowerTab) return null;
+
+        // Field arrays for THIS borrower. getFieldArray is a pure lookup over arrays that
+        // are all pre-instantiated in useBorrowerFieldArrays, so calling it after the
+        // early-return above is hook-safe.
+        const { fields: assetFields, append: appendAsset, remove: removeAsset } = getFieldArray(borrowerIndex, 'assets');
+        const { fields: liabilityFields, append: appendLiability, remove: removeLiability } = getFieldArray(borrowerIndex, 'liabilities');
+        const { fields: reoFields, append: appendReo, remove: removeReo } = getFieldArray(borrowerIndex, 'reoProperties');
+
+        const activeREOTab = activeREOTabs[borrowerIndex] ?? 0;
+        const setActiveREOTab = (reoIndex) => {
+          setActiveREOTabs(prev => ({ ...prev, [borrowerIndex]: reoIndex }));
+        };
+
+        return (
+          <div key={borrowerField.id} className="borrower-assets-section">
+
+          {/* Assets — extracted to AssetsSection.js as part of audit SI-6. */}
+          <AssetsSection
+            register={register}
+            watch={watch}
+            setValue={setValue}
+            borrowerIndex={borrowerIndex}
+            borrowerFields={borrowerFields}
+            getBorrowerName={getBorrowerName}
+            assetFields={assetFields}
+            appendAsset={appendAsset}
+            removeAsset={removeAsset}
+          />
 
             {/* Liabilities Section */}
             <div className="liabilities-section">
               <h5>Liabilities</h5>
-              
+
               {liabilityFields.length === 0 ? (
                 <div className="no-items-message">
                   <p>No liabilities added yet. Click "Add Liability" to get started.</p>
@@ -121,7 +198,7 @@ const AssetsLiabilitiesStep = ({
                     <div key={liabilityField.id} className="liability-entry">
                       <div className="form-group">
                         <select
-                          {...register(`borrowers.0.liabilities.${liabilityIndex}.liabilityType`)}
+                          {...register(`borrowers.${borrowerIndex}.liabilities.${liabilityIndex}.liabilityType`)}
                           className="form-select"
                         >
                           <option value="">Select Type</option>
@@ -138,10 +215,10 @@ const AssetsLiabilitiesStep = ({
                           <option value="Other">Other</option>
                         </select>
                       </div>
-                      
+
                       <div className="form-group">
                         <select
-                          {...register(`borrowers.0.liabilities.${liabilityIndex}.owner`)}
+                          {...register(`borrowers.${borrowerIndex}.liabilities.${liabilityIndex}.owner`)}
                           className="form-select"
                         >
                           <option value="">Select Owner</option>
@@ -154,39 +231,39 @@ const AssetsLiabilitiesStep = ({
                           <option value="Other">Other</option>
                         </select>
                       </div>
-                      
+
                       <div className="form-group">
                         <input
                           type="text"
-                          {...register(`borrowers.0.liabilities.${liabilityIndex}.creditorName`)}
+                          {...register(`borrowers.${borrowerIndex}.liabilities.${liabilityIndex}.creditorName`)}
                           placeholder="Creditor Name"
                         />
                       </div>
-                      
+
                       <div className="form-group">
                         <input
                           type="text"
-                          {...register(`borrowers.0.liabilities.${liabilityIndex}.accountNumber`)}
+                          {...register(`borrowers.${borrowerIndex}.liabilities.${liabilityIndex}.accountNumber`)}
                           placeholder="Account Number"
                         />
                       </div>
-                      
+
                       <div className="form-group">
                         <CurrencyInput
-                          id={`borrowers.0.liabilities.${liabilityIndex}.monthlyPayment`}
-                          name={`borrowers.0.liabilities.${liabilityIndex}.monthlyPayment`}
-                          value={watch(`borrowers.0.liabilities.${liabilityIndex}.monthlyPayment`) || ''}
-                          onChange={(e) => setValue(`borrowers.0.liabilities.${liabilityIndex}.monthlyPayment`, e.target.value)}
+                          id={`borrowers.${borrowerIndex}.liabilities.${liabilityIndex}.monthlyPayment`}
+                          name={`borrowers.${borrowerIndex}.liabilities.${liabilityIndex}.monthlyPayment`}
+                          value={watch(`borrowers.${borrowerIndex}.liabilities.${liabilityIndex}.monthlyPayment`) || ''}
+                          onChange={(e) => setValue(`borrowers.${borrowerIndex}.liabilities.${liabilityIndex}.monthlyPayment`, e.target.value)}
                           placeholder="0.00"
                         />
                       </div>
-                      
+
                       <div className="form-group">
                         <CurrencyInput
-                          id={`borrowers.0.liabilities.${liabilityIndex}.unpaidBalance`}
-                          name={`borrowers.0.liabilities.${liabilityIndex}.unpaidBalance`}
-                          value={watch(`borrowers.0.liabilities.${liabilityIndex}.unpaidBalance`) || ''}
-                          onChange={(e) => setValue(`borrowers.0.liabilities.${liabilityIndex}.unpaidBalance`, e.target.value)}
+                          id={`borrowers.${borrowerIndex}.liabilities.${liabilityIndex}.unpaidBalance`}
+                          name={`borrowers.${borrowerIndex}.liabilities.${liabilityIndex}.unpaidBalance`}
+                          value={watch(`borrowers.${borrowerIndex}.liabilities.${liabilityIndex}.unpaidBalance`) || ''}
+                          onChange={(e) => setValue(`borrowers.${borrowerIndex}.liabilities.${liabilityIndex}.unpaidBalance`, e.target.value)}
                           placeholder="0.00"
                         />
                       </div>
@@ -195,7 +272,7 @@ const AssetsLiabilitiesStep = ({
                           MISMO LiabilityExclusionIndicator=true preselects "Omit" on import. */}
                       <div className="form-group">
                         <select
-                          {...register(`borrowers.0.liabilities.${liabilityIndex}.exclusionReason`)}
+                          {...register(`borrowers.${borrowerIndex}.liabilities.${liabilityIndex}.exclusionReason`)}
                           className="form-select"
                           title="Mark how this debt should be treated for DTI"
                         >
@@ -237,11 +314,11 @@ const AssetsLiabilitiesStep = ({
             {reoFields.length > 0 && (
               <div className="reo-properties-section">
                 <h5>Real Estate Owned (REO) Properties</h5>
-                
+
                 {/* REO Tabs - Only show if there are multiple properties */}
                 {reoFields.length > 1 && (
-                  <div style={{ 
-                    display: 'flex', 
+                  <div style={{
+                    display: 'flex',
                     flexWrap: 'wrap',
                     marginBottom: '1.5rem',
                     marginTop: '1rem'
@@ -254,21 +331,21 @@ const AssetsLiabilitiesStep = ({
                         onClick={() => setActiveREOTab(reoIndex)}
                         style={bubbleTabStyle(activeREOTab === reoIndex)}
                       >
-                        {getREOPropertyName(reoIndex)}
+                        {getREOPropertyName(borrowerIndex, reoIndex)}
                       </button>
                     ))}
                   </div>
                 )}
-                
+
                 <div className="reo-list-section">
                   {reoFields.map((reoField, reoIndex) => {
                     // Only show the active REO tab if there are multiple properties
                     if (reoFields.length > 1 && reoIndex !== activeREOTab) return null;
-                    
+
                     return (
                     <div key={reoField.id} className="reo-entry">
                       <div className="reo-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-                        <h6>{reoFields.length === 1 ? getREOPropertyName(reoIndex) : ''}</h6>
+                        <h6>{reoFields.length === 1 ? getREOPropertyName(borrowerIndex, reoIndex) : ''}</h6>
                         <button
                           type="button"
                           onClick={() => {
@@ -286,12 +363,12 @@ const AssetsLiabilitiesStep = ({
 
                       <div className="form-row">
                         <div className="form-group">
-                          <label htmlFor={`borrowers.0.reoProperties.${reoIndex}.category`}>
+                          <label htmlFor={`borrowers.${borrowerIndex}.reoProperties.${reoIndex}.category`}>
                             Property Category
                           </label>
                           <select
-                            id={`borrowers.0.reoProperties.${reoIndex}.category`}
-                            {...register(`borrowers.0.reoProperties.${reoIndex}.category`)}
+                            id={`borrowers.${borrowerIndex}.reoProperties.${reoIndex}.category`}
+                            {...register(`borrowers.${borrowerIndex}.reoProperties.${reoIndex}.category`)}
                             className="form-select"
                           >
                             <option value="">Select Category</option>
@@ -305,12 +382,12 @@ const AssetsLiabilitiesStep = ({
                         </div>
 
                         <div className="form-group">
-                          <label htmlFor={`borrowers.0.reoProperties.${reoIndex}.owner`}>
+                          <label htmlFor={`borrowers.${borrowerIndex}.reoProperties.${reoIndex}.owner`}>
                             Owner
                           </label>
                           <select
-                            id={`borrowers.0.reoProperties.${reoIndex}.owner`}
-                            {...register(`borrowers.0.reoProperties.${reoIndex}.owner`)}
+                            id={`borrowers.${borrowerIndex}.reoProperties.${reoIndex}.owner`}
+                            {...register(`borrowers.${borrowerIndex}.reoProperties.${reoIndex}.owner`)}
                             className="form-select"
                           >
                             <option value="">Select Owner</option>
@@ -327,13 +404,13 @@ const AssetsLiabilitiesStep = ({
 
                       <div className="form-row">
                         <div className="form-group">
-                          <label htmlFor={`borrowers.0.reoProperties.${reoIndex}.addressLine`}>
+                          <label htmlFor={`borrowers.${borrowerIndex}.reoProperties.${reoIndex}.addressLine`}>
                             Property Address
                           </label>
                           <input
                             type="text"
-                            id={`borrowers.0.reoProperties.${reoIndex}.addressLine`}
-                            {...register(`borrowers.0.reoProperties.${reoIndex}.addressLine`)}
+                            id={`borrowers.${borrowerIndex}.reoProperties.${reoIndex}.addressLine`}
+                            {...register(`borrowers.${borrowerIndex}.reoProperties.${reoIndex}.addressLine`)}
                             placeholder="123 Property St"
                           />
                         </div>
@@ -343,21 +420,21 @@ const AssetsLiabilitiesStep = ({
                         <div className="form-group">
                           <input
                             type="text"
-                            {...register(`borrowers.0.reoProperties.${reoIndex}.city`)}
+                            {...register(`borrowers.${borrowerIndex}.reoProperties.${reoIndex}.city`)}
                             placeholder="City"
                           />
                         </div>
                         <div className="form-group">
                           <input
                             type="text"
-                            {...register(`borrowers.0.reoProperties.${reoIndex}.state`)}
+                            {...register(`borrowers.${borrowerIndex}.reoProperties.${reoIndex}.state`)}
                             placeholder="State"
                           />
                         </div>
                         <div className="form-group">
                           <input
                             type="text"
-                            {...register(`borrowers.0.reoProperties.${reoIndex}.zipCode`)}
+                            {...register(`borrowers.${borrowerIndex}.reoProperties.${reoIndex}.zipCode`)}
                             placeholder="ZIP Code"
                           />
                         </div>
@@ -365,10 +442,10 @@ const AssetsLiabilitiesStep = ({
 
                       <div className="form-row" style={{ fontSize: '0.9rem' }}>
                         <div className="form-group">
-                          <label htmlFor={`borrowers.0.reoProperties.${reoIndex}.propertyType`} style={{ fontSize: '0.85rem' }}>
+                          <label htmlFor={`borrowers.${borrowerIndex}.reoProperties.${reoIndex}.propertyType`} style={{ fontSize: '0.85rem' }}>
                             Property Type
                           </label>
-                          <select {...register(`borrowers.0.reoProperties.${reoIndex}.propertyType`)}>
+                          <select {...register(`borrowers.${borrowerIndex}.reoProperties.${reoIndex}.propertyType`)}>
                             <option value="">Select Property Type</option>
                             <option value="SingleFamily">Single Family</option>
                             <option value="Condo">Condominium</option>
@@ -377,14 +454,14 @@ const AssetsLiabilitiesStep = ({
                           </select>
                         </div>
                         <div className="form-group">
-                          <label htmlFor={`borrowers.0.reoProperties.${reoIndex}.propertyValue`} style={{ fontSize: '0.85rem' }}>
+                          <label htmlFor={`borrowers.${borrowerIndex}.reoProperties.${reoIndex}.propertyValue`} style={{ fontSize: '0.85rem' }}>
                             Property Value
                           </label>
                           <CurrencyInput
-                            id={`borrowers.0.reoProperties.${reoIndex}.propertyValue`}
-                            name={`borrowers.0.reoProperties.${reoIndex}.propertyValue`}
-                            value={watch(`borrowers.0.reoProperties.${reoIndex}.propertyValue`) || ''}
-                            onChange={(e) => setValue(`borrowers.0.reoProperties.${reoIndex}.propertyValue`, e.target.value)}
+                            id={`borrowers.${borrowerIndex}.reoProperties.${reoIndex}.propertyValue`}
+                            name={`borrowers.${borrowerIndex}.reoProperties.${reoIndex}.propertyValue`}
+                            value={watch(`borrowers.${borrowerIndex}.reoProperties.${reoIndex}.propertyValue`) || ''}
+                            onChange={(e) => setValue(`borrowers.${borrowerIndex}.reoProperties.${reoIndex}.propertyValue`, e.target.value)}
                             placeholder="0.00"
                             style={{ fontSize: '0.85rem' }}
                           />
@@ -393,12 +470,12 @@ const AssetsLiabilitiesStep = ({
 
                       <div className="form-row" style={{ fontSize: '0.9rem' }}>
                         <div className="form-group">
-                          <label htmlFor={`borrowers.0.reoProperties.${reoIndex}.use`} style={{ fontSize: '0.85rem' }}>
+                          <label htmlFor={`borrowers.${borrowerIndex}.reoProperties.${reoIndex}.use`} style={{ fontSize: '0.85rem' }}>
                             Use / Disposition
                           </label>
                           <select
-                            id={`borrowers.0.reoProperties.${reoIndex}.use`}
-                            {...register(`borrowers.0.reoProperties.${reoIndex}.use`)}
+                            id={`borrowers.${borrowerIndex}.reoProperties.${reoIndex}.use`}
+                            {...register(`borrowers.${borrowerIndex}.reoProperties.${reoIndex}.use`)}
                             className="form-select"
                           >
                             <option value="">Select…</option>
@@ -413,12 +490,12 @@ const AssetsLiabilitiesStep = ({
 
                       <div className="form-row" style={{ fontSize: '0.9rem' }}>
                         <div className="form-group">
-                          <label htmlFor={`borrowers.0.reoProperties.${reoIndex}.note`} style={{ fontSize: '0.85rem' }}>
+                          <label htmlFor={`borrowers.${borrowerIndex}.reoProperties.${reoIndex}.note`} style={{ fontSize: '0.85rem' }}>
                             Notes
                           </label>
                           <textarea
-                            id={`borrowers.0.reoProperties.${reoIndex}.note`}
-                            {...register(`borrowers.0.reoProperties.${reoIndex}.note`)}
+                            id={`borrowers.${borrowerIndex}.reoProperties.${reoIndex}.note`}
+                            {...register(`borrowers.${borrowerIndex}.reoProperties.${reoIndex}.note`)}
                             placeholder="Notes about this property (optional)"
                             rows={3}
                           />
@@ -427,40 +504,40 @@ const AssetsLiabilitiesStep = ({
 
                       <div className="form-row" style={{ fontSize: '0.9rem' }}>
                         <div className="form-group">
-                          <label htmlFor={`borrowers.0.reoProperties.${reoIndex}.monthlyRentalIncome`} style={{ fontSize: '0.85rem' }}>
+                          <label htmlFor={`borrowers.${borrowerIndex}.reoProperties.${reoIndex}.monthlyRentalIncome`} style={{ fontSize: '0.85rem' }}>
                             Monthly Rental Income
                           </label>
                           <CurrencyInput
-                            id={`borrowers.0.reoProperties.${reoIndex}.monthlyRentalIncome`}
-                            name={`borrowers.0.reoProperties.${reoIndex}.monthlyRentalIncome`}
-                            value={watch(`borrowers.0.reoProperties.${reoIndex}.monthlyRentalIncome`) || ''}
-                            onChange={(e) => setValue(`borrowers.0.reoProperties.${reoIndex}.monthlyRentalIncome`, e.target.value)}
+                            id={`borrowers.${borrowerIndex}.reoProperties.${reoIndex}.monthlyRentalIncome`}
+                            name={`borrowers.${borrowerIndex}.reoProperties.${reoIndex}.monthlyRentalIncome`}
+                            value={watch(`borrowers.${borrowerIndex}.reoProperties.${reoIndex}.monthlyRentalIncome`) || ''}
+                            onChange={(e) => setValue(`borrowers.${borrowerIndex}.reoProperties.${reoIndex}.monthlyRentalIncome`, e.target.value)}
                             placeholder="0.00"
                             style={{ fontSize: '0.85rem' }}
                           />
                         </div>
                         <div className="form-group">
-                          <label htmlFor={`borrowers.0.reoProperties.${reoIndex}.monthlyPayment`} style={{ fontSize: '0.85rem' }}>
+                          <label htmlFor={`borrowers.${borrowerIndex}.reoProperties.${reoIndex}.monthlyPayment`} style={{ fontSize: '0.85rem' }}>
                             Monthly Payment
                           </label>
                           <CurrencyInput
-                            id={`borrowers.0.reoProperties.${reoIndex}.monthlyPayment`}
-                            name={`borrowers.0.reoProperties.${reoIndex}.monthlyPayment`}
-                            value={watch(`borrowers.0.reoProperties.${reoIndex}.monthlyPayment`) || ''}
-                            onChange={(e) => setValue(`borrowers.0.reoProperties.${reoIndex}.monthlyPayment`, e.target.value)}
+                            id={`borrowers.${borrowerIndex}.reoProperties.${reoIndex}.monthlyPayment`}
+                            name={`borrowers.${borrowerIndex}.reoProperties.${reoIndex}.monthlyPayment`}
+                            value={watch(`borrowers.${borrowerIndex}.reoProperties.${reoIndex}.monthlyPayment`) || ''}
+                            onChange={(e) => setValue(`borrowers.${borrowerIndex}.reoProperties.${reoIndex}.monthlyPayment`, e.target.value)}
                             placeholder="0.00"
                             style={{ fontSize: '0.85rem' }}
                           />
                         </div>
                         <div className="form-group">
-                          <label htmlFor={`borrowers.0.reoProperties.${reoIndex}.unpaidBalance`} style={{ fontSize: '0.85rem' }}>
+                          <label htmlFor={`borrowers.${borrowerIndex}.reoProperties.${reoIndex}.unpaidBalance`} style={{ fontSize: '0.85rem' }}>
                             Unpaid Balance
                           </label>
                           <CurrencyInput
-                            id={`borrowers.0.reoProperties.${reoIndex}.unpaidBalance`}
-                            name={`borrowers.0.reoProperties.${reoIndex}.unpaidBalance`}
-                            value={watch(`borrowers.0.reoProperties.${reoIndex}.unpaidBalance`) || ''}
-                            onChange={(e) => setValue(`borrowers.0.reoProperties.${reoIndex}.unpaidBalance`, e.target.value)}
+                            id={`borrowers.${borrowerIndex}.reoProperties.${reoIndex}.unpaidBalance`}
+                            name={`borrowers.${borrowerIndex}.reoProperties.${reoIndex}.unpaidBalance`}
+                            value={watch(`borrowers.${borrowerIndex}.reoProperties.${reoIndex}.unpaidBalance`) || ''}
+                            onChange={(e) => setValue(`borrowers.${borrowerIndex}.reoProperties.${reoIndex}.unpaidBalance`, e.target.value)}
                             placeholder="0.00"
                             style={{ fontSize: '0.85rem' }}
                           />
@@ -473,14 +550,14 @@ const AssetsLiabilitiesStep = ({
                           <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}>
                             <input
                               type="checkbox"
-                              {...register(`borrowers.0.reoProperties.${reoIndex}.ownedFreeAndClear`)}
+                              {...register(`borrowers.${borrowerIndex}.reoProperties.${reoIndex}.ownedFreeAndClear`)}
                               onChange={(e) => {
-                                setValue(`borrowers.0.reoProperties.${reoIndex}.ownedFreeAndClear`, e.target.checked);
+                                setValue(`borrowers.${borrowerIndex}.reoProperties.${reoIndex}.ownedFreeAndClear`, e.target.checked);
                                 // Clear associated liabilities and amounts if owned free and clear
                                 if (e.target.checked) {
-                                  setValue(`borrowers.0.reoProperties.${reoIndex}.associatedLiabilities`, []);
-                                  setValue(`borrowers.0.reoProperties.${reoIndex}.monthlyPayment`, 0);
-                                  setValue(`borrowers.0.reoProperties.${reoIndex}.unpaidBalance`, 0);
+                                  setValue(`borrowers.${borrowerIndex}.reoProperties.${reoIndex}.associatedLiabilities`, []);
+                                  setValue(`borrowers.${borrowerIndex}.reoProperties.${reoIndex}.monthlyPayment`, 0);
+                                  setValue(`borrowers.${borrowerIndex}.reoProperties.${reoIndex}.unpaidBalance`, 0);
                                 }
                               }}
                               style={{ width: 'auto', margin: 0 }}
@@ -491,13 +568,13 @@ const AssetsLiabilitiesStep = ({
                       </div>
 
                       {/* Associated Liabilities - Only show if NOT owned free and clear */}
-                      {!watch(`borrowers.0.reoProperties.${reoIndex}.ownedFreeAndClear`) && (
+                      {!watch(`borrowers.${borrowerIndex}.reoProperties.${reoIndex}.ownedFreeAndClear`) && (
                         <div className="form-row" style={{ marginTop: '1rem' }}>
                           <div className="form-group">
                             <label>Associated Liabilities (Mortgages/Liens on this Property)</label>
-                            <div style={{ 
-                              border: '1px solid #ddd', 
-                              borderRadius: '4px', 
+                            <div style={{
+                              border: '1px solid #ddd',
+                              borderRadius: '4px',
                               padding: '1rem',
                               background: '#f9f9f9',
                               marginTop: '0.5rem'
@@ -509,27 +586,27 @@ const AssetsLiabilitiesStep = ({
                               ) : (
                                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
                                   {liabilityFields.map((liability, liabIndex) => {
-                                    const liabilityType = watch(`borrowers.0.liabilities.${liabIndex}.liabilityType`);
-                                    const creditorName = watch(`borrowers.0.liabilities.${liabIndex}.creditorName`);
-                                    
+                                    const liabilityType = watch(`borrowers.${borrowerIndex}.liabilities.${liabIndex}.liabilityType`);
+                                    const creditorName = watch(`borrowers.${borrowerIndex}.liabilities.${liabIndex}.creditorName`);
+
                                     // Only show Mortgage or HELOC/Revolving
                                     if (liabilityType !== 'MortgageLoan' && liabilityType !== 'Revolving') {
                                       return null;
                                     }
-                                    
-                                    const owner = watch(`borrowers.0.liabilities.${liabIndex}.owner`) || '';
+
+                                    const owner = watch(`borrowers.${borrowerIndex}.liabilities.${liabIndex}.owner`) || '';
                                     const baseName = creditorName || (liabilityType === 'MortgageLoan' ? 'Mortgage' : 'HELOC / Revolving') || `Liability ${liabIndex + 1}`;
                                     const displayName = owner ? `${baseName} — ${owner}` : baseName;
-                                    
-                                    const associatedLiabilities = watch(`borrowers.0.reoProperties.${reoIndex}.associatedLiabilities`) || [];
+
+                                    const associatedLiabilities = watch(`borrowers.${borrowerIndex}.reoProperties.${reoIndex}.associatedLiabilities`) || [];
                                     const isChecked = associatedLiabilities.includes(liabIndex.toString());
 
                                     return (
-                                      <label 
+                                      <label
                                         key={liabIndex}
-                                        style={{ 
-                                          display: 'flex', 
-                                          alignItems: 'center', 
+                                        style={{
+                                          display: 'flex',
+                                          alignItems: 'center',
                                           gap: '0.75rem',
                                           padding: '0.5rem',
                                           background: isChecked ? '#1fb46324' : 'white',
@@ -542,63 +619,63 @@ const AssetsLiabilitiesStep = ({
                                           type="checkbox"
                                           checked={isChecked}
                                           onChange={(e) => {
-                                            const currentLiabilities = watch(`borrowers.0.reoProperties.${reoIndex}.associatedLiabilities`) || [];
+                                            const currentLiabilities = watch(`borrowers.${borrowerIndex}.reoProperties.${reoIndex}.associatedLiabilities`) || [];
                                             let newLiabilities;
-                                            
+
                                             if (e.target.checked) {
                                               // Add liability
                                               newLiabilities = [...currentLiabilities, liabIndex.toString()];
-                                              
+
                                               // Auto-populate amounts if this is the first liability added
                                               if (currentLiabilities.length === 0) {
-                                                const liability = getValues(`borrowers.0.liabilities.${liabIndex}`);
+                                                const liability = getValues(`borrowers.${borrowerIndex}.liabilities.${liabIndex}`);
                                                 if (liability) {
                                                   if (liability.monthlyPayment) {
-                                                    setValue(`borrowers.0.reoProperties.${reoIndex}.monthlyPayment`, liability.monthlyPayment);
+                                                    setValue(`borrowers.${borrowerIndex}.reoProperties.${reoIndex}.monthlyPayment`, liability.monthlyPayment);
                                                   }
                                                   if (liability.unpaidBalance) {
-                                                    setValue(`borrowers.0.reoProperties.${reoIndex}.unpaidBalance`, liability.unpaidBalance);
+                                                    setValue(`borrowers.${borrowerIndex}.reoProperties.${reoIndex}.unpaidBalance`, liability.unpaidBalance);
                                                   }
                                                 }
                                               } else {
                                                 // If multiple, sum the amounts
-                                                const liability = getValues(`borrowers.0.liabilities.${liabIndex}`);
-                                                const currentPayment = parseFloat(getValues(`borrowers.0.reoProperties.${reoIndex}.monthlyPayment`)) || 0;
-                                                const currentBalance = parseFloat(getValues(`borrowers.0.reoProperties.${reoIndex}.unpaidBalance`)) || 0;
-                                                
+                                                const liability = getValues(`borrowers.${borrowerIndex}.liabilities.${liabIndex}`);
+                                                const currentPayment = parseFloat(getValues(`borrowers.${borrowerIndex}.reoProperties.${reoIndex}.monthlyPayment`)) || 0;
+                                                const currentBalance = parseFloat(getValues(`borrowers.${borrowerIndex}.reoProperties.${reoIndex}.unpaidBalance`)) || 0;
+
                                                 if (liability) {
                                                   const newPayment = currentPayment + (parseFloat(liability.monthlyPayment) || 0);
                                                   const newBalance = currentBalance + (parseFloat(liability.unpaidBalance) || 0);
-                                                  setValue(`borrowers.0.reoProperties.${reoIndex}.monthlyPayment`, newPayment);
-                                                  setValue(`borrowers.0.reoProperties.${reoIndex}.unpaidBalance`, newBalance);
+                                                  setValue(`borrowers.${borrowerIndex}.reoProperties.${reoIndex}.monthlyPayment`, newPayment);
+                                                  setValue(`borrowers.${borrowerIndex}.reoProperties.${reoIndex}.unpaidBalance`, newBalance);
                                                 }
                                               }
                                             } else {
                                               // Remove liability
                                               newLiabilities = currentLiabilities.filter(id => id !== liabIndex.toString());
-                                              
+
                                               // Subtract the amounts
-                                              const liability = getValues(`borrowers.0.liabilities.${liabIndex}`);
-                                              const currentPayment = parseFloat(getValues(`borrowers.0.reoProperties.${reoIndex}.monthlyPayment`)) || 0;
-                                              const currentBalance = parseFloat(getValues(`borrowers.0.reoProperties.${reoIndex}.unpaidBalance`)) || 0;
-                                              
+                                              const liability = getValues(`borrowers.${borrowerIndex}.liabilities.${liabIndex}`);
+                                              const currentPayment = parseFloat(getValues(`borrowers.${borrowerIndex}.reoProperties.${reoIndex}.monthlyPayment`)) || 0;
+                                              const currentBalance = parseFloat(getValues(`borrowers.${borrowerIndex}.reoProperties.${reoIndex}.unpaidBalance`)) || 0;
+
                                               if (liability) {
                                                 const newPayment = Math.max(0, currentPayment - (parseFloat(liability.monthlyPayment) || 0));
                                                 const newBalance = Math.max(0, currentBalance - (parseFloat(liability.unpaidBalance) || 0));
-                                                setValue(`borrowers.0.reoProperties.${reoIndex}.monthlyPayment`, newPayment);
-                                                setValue(`borrowers.0.reoProperties.${reoIndex}.unpaidBalance`, newBalance);
+                                                setValue(`borrowers.${borrowerIndex}.reoProperties.${reoIndex}.monthlyPayment`, newPayment);
+                                                setValue(`borrowers.${borrowerIndex}.reoProperties.${reoIndex}.unpaidBalance`, newBalance);
                                               }
                                             }
-                                            
-                                            setValue(`borrowers.0.reoProperties.${reoIndex}.associatedLiabilities`, newLiabilities);
+
+                                            setValue(`borrowers.${borrowerIndex}.reoProperties.${reoIndex}.associatedLiabilities`, newLiabilities);
                                           }}
                                           style={{ width: 'auto', margin: 0 }}
                                         />
                                         <div style={{ flex: 1 }}>
                                           <div style={{ fontWeight: '500' }}>{displayName}</div>
                                           <div style={{ fontSize: '0.85rem', color: '#666' }}>
-                                            Payment: ${parseFloat(watch(`borrowers.0.liabilities.${liabIndex}.monthlyPayment`) || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} | 
-                                            Balance: ${parseFloat(watch(`borrowers.0.liabilities.${liabIndex}.unpaidBalance`) || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                            Payment: ${parseFloat(watch(`borrowers.${borrowerIndex}.liabilities.${liabIndex}.monthlyPayment`) || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} |
+                                            Balance: ${parseFloat(watch(`borrowers.${borrowerIndex}.liabilities.${liabIndex}.unpaidBalance`) || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                           </div>
                                         </div>
                                       </label>
@@ -607,7 +684,7 @@ const AssetsLiabilitiesStep = ({
                                 </div>
                               )}
                             </div>
-                            {!watch(`borrowers.0.reoProperties.${reoIndex}.ownedFreeAndClear`) && (
+                            {!watch(`borrowers.${borrowerIndex}.reoProperties.${reoIndex}.ownedFreeAndClear`) && (
                               <div style={{ marginTop: '0.5rem', fontSize: '0.85rem', color: '#666' }}>
                                 <em>Tip: Select all mortgages and liens that apply to this property. Amounts will be automatically summed.</em>
                               </div>
@@ -622,21 +699,24 @@ const AssetsLiabilitiesStep = ({
               </div>
             )}
 
-      {/* Add REO Property Button */}
-      <div className="form-row">
-        <div className="form-group">
-          <button
-            type="button"
-            onClick={() => {
-              appendReo(createDefaultREOProperty());
-              setActiveREOTab(reoFields.length);
-            }}
-            className="btn btn-outline-primary"
-          >
-            Add REO Property
-          </button>
-        </div>
-      </div>
+            {/* Add REO Property Button */}
+            <div className="form-row">
+              <div className="form-group">
+                <button
+                  type="button"
+                  onClick={() => {
+                    appendReo(createDefaultREOProperty());
+                    setActiveREOTab(reoFields.length);
+                  }}
+                  className="btn btn-outline-primary"
+                >
+                  Add REO Property
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      })}
     </FormSection>
   );
 };

@@ -347,6 +347,103 @@ describe('formToSuiteApplication', () => {
   });
 });
 
+// AssetsLiabilitiesStep now lets each co-borrower enter their OWN assets/liabilities/REO
+// (borrowers[1..].{assets,liabilities,reoProperties}). This locks in that those per-co-
+// borrower arrays reach coBorrowers[].{assets,liabilities,reo} — not just the primary.
+describe('formToSuiteApplication — co-borrower assets/liabilities/reo', () => {
+  const out = formToSuiteApplication({
+    borrowers: [
+      { firstName: 'Jane', lastName: 'Borrower' },
+      {
+        firstName: 'John',
+        lastName: 'Coborrower',
+        email: 'john@example.com',
+        assets: [
+          { assetType: 'Savings', bankName: 'CreditUnion', accountNumber: '222', assetValue: '12000' },
+          // Blank asset → filtered out.
+          { assetType: '', assetValue: '999' },
+        ],
+        liabilities: [
+          {
+            liabilityType: 'AutoLoan',
+            creditorName: 'CarFinance',
+            accountNumber: '7777',
+            unpaidBalance: '15000',
+            monthlyPayment: '300',
+          },
+          // No creditor → filtered out.
+          { liabilityType: 'CreditCard', creditorName: '' },
+        ],
+        reoProperties: [
+          {
+            addressLine: '42 CoOwned Ln',
+            city: 'Denver',
+            state: 'CO',
+            zipCode: '80202',
+            propertyType: 'Secondary',
+            propertyValue: '450000',
+            monthlyPayment: '2100',
+            unpaidBalance: '250000',
+          },
+          // No address → filtered out.
+          { addressLine: '' },
+        ],
+      },
+    ],
+  });
+
+  test('co-borrower is mapped into coBorrowers[0]', () => {
+    expect(out.coBorrowers).toHaveLength(1);
+    expect(out.coBorrowers[0].borrower).toMatchObject({
+      firstName: 'John',
+      lastName: 'Coborrower',
+      email: 'john@example.com',
+    });
+  });
+
+  test('co-borrower assets flow through (blanks filtered, type mapped)', () => {
+    expect(out.coBorrowers[0].assets).toHaveLength(1);
+    expect(out.coBorrowers[0].assets[0]).toMatchObject({
+      assetType: 'SAVINGS',
+      financialInstitution: 'CreditUnion',
+      accountNumber: '222',
+      cashOrMarketValue: 12000,
+    });
+  });
+
+  test('co-borrower liabilities flow through (blanks filtered, type mapped)', () => {
+    expect(out.coBorrowers[0].liabilities).toHaveLength(1);
+    expect(out.coBorrowers[0].liabilities[0]).toMatchObject({
+      liabilityType: 'INSTALLMENT',
+      creditorName: 'CarFinance',
+      unpaidBalance: 15000,
+      monthlyPayment: 300,
+    });
+  });
+
+  test('co-borrower reo flows through (no-address filtered, occupancy mapped)', () => {
+    expect(out.coBorrowers[0].reo).toHaveLength(1);
+    expect(out.coBorrowers[0].reo[0]).toMatchObject({
+      addressLine1: '42 CoOwned Ln',
+      city: 'Denver',
+      state: 'CO',
+      postalCode: '80202',
+      intendedOccupancy: 'SECOND_HOME',
+      propertyStatus: 'RETAINED',
+      marketValue: 450000,
+      mortgageUnpaidBalance: 250000,
+      mortgageMonthlyPayment: 2100,
+      isSubjectProperty: false,
+    });
+  });
+
+  test('primary (borrowers[0]) sections stay empty — co-borrower data is NOT bled up', () => {
+    expect(out.assets).toBeNull();
+    expect(out.liabilities).toBeNull();
+    expect(out.reo).toBeNull();
+  });
+});
+
 describe('formToSuiteApplication — empty-section skip rule', () => {
   test('empty form yields all-null sections', () => {
     const out = formToSuiteApplication({ borrowers: [{}] });

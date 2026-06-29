@@ -17,6 +17,7 @@ import {
   createDefaultREOProperty
 } from '../../utils/fieldArrayHelpers';
 import { bubbleTabStyle } from '../shared/bubbleTabStyle';
+import { getVisibleBorrowers } from '../../utils/visibleBorrowers';
 import AssetsSection from './AssetsSection';
 
 const AssetsLiabilitiesStep = ({
@@ -52,25 +53,24 @@ const AssetsLiabilitiesStep = ({
 
   // bubbleTabStyle imported from shared/bubbleTabStyle (audit M-4).
 
-  // Borrower visibility — same rule as EmploymentStep: borrower 1 always shown, the
-  // active tab always shown, and any borrower already claimed (named) in the Borrower
-  // Information step. Capped at 4 (the field arrays cover borrowers 0-3). Because
-  // co-borrowers are added sequentially, the visible position equals the real index.
-  const visibleBorrowers = borrowerFields.slice(0, 4).filter((b, i) => {
-    if (i === 0) return true;
-    if (i === activeBorrowerTab) return true;
-    const fn = watch(`borrowers.${i}.firstName`);
-    const ln = watch(`borrowers.${i}.lastName`);
-    return !!(fn || ln);
-  });
+  // Borrower-tab visibility: primary-OR-active-OR-named (shared rule, identical to the
+  // Borrower Information and Employment steps). Index-preserving { field, index } entries
+  // so each shown tab maps to its REAL borrower index for `borrowers.${index}.*`.
+  const visibleBorrowers = getVisibleBorrowers(
+    borrowerFields,
+    activeBorrowerTab,
+    (i) => watch(`borrowers.${i}.firstName`),
+    (i) => watch(`borrowers.${i}.lastName`)
+  );
 
-  // Clamp active tab if borrowers vanished
+  // Clamp the active tab to a real borrower index (active is a real field index, not a
+  // position in the filtered visible list). Capped at 4 to match the wired field arrays.
   useEffect(() => {
-    const maxIndex = visibleBorrowers.length - 1;
+    const maxIndex = Math.min(borrowerFields.length, 4) - 1;
     if (activeBorrowerTab > maxIndex) {
       setActiveBorrowerTab(Math.max(0, maxIndex));
     }
-  }, [visibleBorrowers.length, activeBorrowerTab]);
+  }, [borrowerFields.length, activeBorrowerTab]);
 
   // Per-borrower owned-residence REO auto-seed. For EACH borrower (0-3) seed ONE REO
   // entry from THAT borrower's primary (Current) residence so they're prompted to
@@ -127,7 +127,7 @@ const AssetsLiabilitiesStep = ({
         marginBottom: '2rem',
         marginTop: '1rem'
       }}>
-        {visibleBorrowers.map((borrowerField, borrowerIndex) => (
+        {visibleBorrowers.map(({ field: borrowerField, index: borrowerIndex }) => (
           <button
             key={borrowerField.id}
             type="button"
@@ -141,7 +141,7 @@ const AssetsLiabilitiesStep = ({
       </div>
       )}
 
-      {visibleBorrowers.map((borrowerField, borrowerIndex) => {
+      {visibleBorrowers.map(({ field: borrowerField, index: borrowerIndex }) => {
         // Only render the active borrower tab.
         if (borrowerIndex !== activeBorrowerTab) return null;
 

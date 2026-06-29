@@ -14,8 +14,9 @@ import {
   createDefaultIncomeSource
 } from '../../utils/fieldArrayHelpers';
 import { bubbleTabStyle } from '../shared/bubbleTabStyle';
+import { getVisibleBorrowers } from '../../utils/visibleBorrowers';
 
-const EmploymentStep = ({ 
+const EmploymentStep = ({
   register, 
   errors, 
   watch, 
@@ -36,25 +37,25 @@ const EmploymentStep = ({
     return `Borrower ${index + 1}`;
   };
 
-  // Only show tabs for borrowers that actually have data (a first or last name).
-  // Borrower 1 is always visible; the rest only appear once they've been claimed
-  // in the Borrower Information step. The currently-active tab is also kept
-  // visible so a user mid-edit doesn't lose their tab when fields are blank.
-  const visibleBorrowers = borrowerFields.slice(0, 4).filter((b, i) => {
-    if (i === 0) return true;
-    if (i === activeBorrowerTab) return true;
-    const fn = watch(`borrowers.${i}.firstName`);
-    const ln = watch(`borrowers.${i}.lastName`);
-    return !!(fn || ln);
-  });
+  // Borrower-tab visibility: primary-OR-active-OR-named (shared rule, identical to the
+  // Borrower Information and Assets & Liabilities steps). Index-preserving { field, index }
+  // entries so each shown tab maps to its REAL borrower index for `borrowers.${index}.*`.
+  const visibleBorrowers = getVisibleBorrowers(
+    borrowerFields,
+    activeBorrowerTab,
+    (i) => watch(`borrowers.${i}.firstName`),
+    (i) => watch(`borrowers.${i}.lastName`)
+  );
 
-  // Clamp active tab if borrowers vanished
+  // Clamp the active tab to a real borrower index (active is a real field index, not a
+  // position in the filtered visible list). Borrower count is capped at 4 to match the
+  // wired field arrays.
   useEffect(() => {
-    const maxIndex = visibleBorrowers.length - 1;
+    const maxIndex = Math.min(borrowerFields.length, 4) - 1;
     if (activeBorrowerTab > maxIndex) {
       setActiveBorrowerTab(Math.max(0, maxIndex));
     }
-  }, [visibleBorrowers.length, activeBorrowerTab]);
+  }, [borrowerFields.length, activeBorrowerTab]);
 
   // bubbleTabStyle imported from shared/bubbleTabStyle (audit M-4).
 
@@ -72,7 +73,7 @@ const EmploymentStep = ({
         marginBottom: '2rem',
         marginTop: '1rem'
       }}>
-        {visibleBorrowers.map((borrowerField, borrowerIndex) => (
+        {visibleBorrowers.map(({ field: borrowerField, index: borrowerIndex }) => (
           <button
             key={borrowerField.id}
             type="button"
@@ -86,7 +87,7 @@ const EmploymentStep = ({
       </div>
       )}
 
-      {visibleBorrowers.map((borrowerField, borrowerIndex) => {
+      {visibleBorrowers.map(({ field: borrowerField, index: borrowerIndex }) => {
         // Only show the active borrower tab
         if (borrowerIndex !== activeBorrowerTab) return null;
 

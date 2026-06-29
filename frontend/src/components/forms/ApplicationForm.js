@@ -27,7 +27,7 @@ import { debug } from '../../utils/debug';
 
 // Components
 import StepNavigation from '../shared/StepNavigation';
-import { ApplyHero, ApplyProgressStrip, ApplySidebar } from '../design/ApplyChrome';
+import { ApplyHero, ApplyProgressStrip } from '../design/ApplyChrome';
 import AskAiWidget from '../assistant/AskAiWidget';
 import LoanInformationStep from './LoanInformationStep';
 import BorrowerInformationStep from './BorrowerInformationStep';
@@ -579,10 +579,9 @@ const ApplicationForm = () => {
           estTimeRemaining={null}
         />
 
-        {/* Below the full-width stepper, the form card (left) and the display-only
-            sidebar (right) sit in a 2-column grid (.apply-body). The grid collapses
-            to one column on tablet/mobile (sidebar drops below). The step content +
-            react-hook-form wiring inside the form card are unchanged — only wrapped. */}
+        {/* Below the full-width stepper, the form card spans the full content
+            width (no sidebar). The step content + react-hook-form wiring inside
+            the form card are unchanged — only wrapped in the .apply-body block. */}
         <div className="apply-body">
           <form onSubmit={handleSubmit(onSubmit)} className="apply-form">
             <div className="card apply-form-card">
@@ -605,19 +604,6 @@ const ApplicationForm = () => {
               )}
             </div>
           </form>
-
-          {/* Display-only right rail (read-only indicative quote + docs checklist).
-              Props sourced from the form via watch(). loanTerm has no form field
-              (degrades to '30'); loanOfficer has no assigned-LO data (hides LO card). */}
-          <aside className="apply-rail" aria-label="Application summary">
-            <ApplySidebar
-              loanAmount={watch('loanAmount')}
-              propertyValue={watch('propertyValue')}
-              loanType={watch('loanType')}
-              loanTerm={undefined}
-              loanOfficer={null}
-            />
-          </aside>
         </div>
 
         {/* Ask MSFG AI — floating trigger + slide-in drawer. Rendered once at the

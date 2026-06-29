@@ -24,11 +24,12 @@ import {
   createDefaultBorrower
 } from '../../utils/fieldArrayHelpers';
 import { bubbleTabStyle } from '../shared/bubbleTabStyle';
-
 // URLA norm: a loan supports up to 4 borrowers. The field-array hook
 // (useBorrowerFieldArrays) only wires nested arrays for indices 0-3, so this is also
 // the hard cap for which co-borrowers can carry employment/income/assets/etc.
-const MAX_BORROWERS = 4;
+// Shared visibility rule (primary-OR-active-OR-named) lives in utils so this step,
+// EmploymentStep and AssetsLiabilitiesStep all hide empty borrower tabs identically.
+import { MAX_BORROWERS, getVisibleBorrowers } from '../../utils/visibleBorrowers';
 
 const BorrowerInformationStep = ({
   register,
@@ -65,7 +66,15 @@ const BorrowerInformationStep = ({
     }
   }, [borrowerFields.length, activeBorrowerTab]);
 
-  const visibleBorrowers = borrowerFields.slice(0, MAX_BORROWERS);
+  // Index-preserving visible list ({ field, index }) — primary, the active tab, and any
+  // named co-borrower. Empty non-active co-borrowers are hidden. Real index retained so
+  // downstream `borrowers.${index}.*` paths stay correct even when an earlier tab is hidden.
+  const visibleBorrowers = getVisibleBorrowers(
+    borrowerFields,
+    activeBorrowerTab,
+    (i) => watch(`borrowers.${i}.firstName`),
+    (i) => watch(`borrowers.${i}.lastName`)
+  );
 
   const addBorrower = () => {
     if (isAddingRef.current) {
@@ -533,7 +542,7 @@ const BorrowerInformationStep = ({
       {/* Borrower tab strip: one tab per borrower (primary + co-borrowers), plus an
           "Add Co-Borrower" action capped at MAX_BORROWERS total. */}
       <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '0.5rem', marginBottom: '1.5rem', marginTop: '1rem' }}>
-        {visibleBorrowers.map((borrowerField, i) => (
+        {visibleBorrowers.map(({ field: borrowerField, index: i }) => (
           <button
             key={borrowerField.id}
             type="button"
@@ -545,7 +554,7 @@ const BorrowerInformationStep = ({
           </button>
         ))}
 
-        {visibleBorrowers.length < MAX_BORROWERS && (
+        {borrowerFields.length < MAX_BORROWERS && (
           <button
             type="button"
             onClick={addBorrower}
@@ -565,9 +574,10 @@ const BorrowerInformationStep = ({
       </div>
 
       {/* Render only the active borrower's section; all borrowers' fields stay mounted in
-          react-hook-form state via the per-index `borrowers.${i}.*` paths regardless. */}
-      {visibleBorrowers[activeBorrowerTab] &&
-        renderBorrowerSection(visibleBorrowers[activeBorrowerTab], activeBorrowerTab)}
+          react-hook-form state via the per-index `borrowers.${i}.*` paths regardless.
+          Index by the REAL field array (the active tab is always a valid borrower). */}
+      {borrowerFields[activeBorrowerTab] &&
+        renderBorrowerSection(borrowerFields[activeBorrowerTab], activeBorrowerTab)}
     </FormSection>
   );
 };

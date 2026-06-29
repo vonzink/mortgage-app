@@ -70,6 +70,7 @@ const ApplicationForm = () => {
   const { register, handleSubmit, control, formState: { errors }, trigger, getValues, watch, setValue, reset } = useForm({
     defaultValues: {
       borrowers: [createDefaultBorrower(1)],
+      loanType: 'TBD',              // default the Loan Type → To Be Determined (borrower may not know the program)
       occupancy: 'OwnerOccupied',   // default the Occupancy field → Owner Occupied (primary residence)
       propertyUse: 'Primary'        // and Property Use → Primary Residence
     }

@@ -31,6 +31,7 @@ describe('mapMortgageType', () => {
     ['FHA', 'FHA'],
     ['VA', 'VA'],
     ['USDA', 'USDA_RURAL_DEVELOPMENT'],
+    ['TBD', null],
     ['Whatever', 'OTHER'],
     [undefined, 'OTHER'],
   ])('%s → %s', (input, expected) => {

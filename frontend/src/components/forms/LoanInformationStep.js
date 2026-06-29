@@ -118,7 +118,7 @@ const LoanInformationStep = ({ register, errors, watch, setValue, getValues }) =
             {...register('loanType')}
             className={errors.loanType ? 'error' : ''}
           >
-            <option value="">Select Loan Type</option>
+            <option value="TBD">To Be Determined</option>
             <option value="FHA">FHA</option>
             <option value="Conventional">Conventional</option>
             <option value="VA">VA</option>

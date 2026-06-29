@@ -136,7 +136,7 @@ export const createDefaultBorrower = (sequenceNumber) => ({
   dependents: 0,
   citizenshipType: '',
   mailingSameAsPresent: true, // Mailing address defaults to same as present address
-  employmentSituation: 'Employed', // Drives which Employment-step inputs render
+  employmentSituation: 'Employed', // Legacy: the Employment-step situation dropdown was removed; kept only for back-compat with old drafts/legacy payload. Not sent to the suite.
   employmentHistory: [createDefaultEmployment(1)], // Start with one employer entry
   incomeSources: [],
   residences: [createDefaultResidence(1, 'Current')], // Start with primary residence

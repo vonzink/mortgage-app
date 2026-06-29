@@ -85,6 +85,9 @@ export function mapMortgageType(loanType) {
     case 'FHA':          return 'FHA';
     case 'VA':           return 'VA';
     case 'USDA':         return 'USDA_RURAL_DEVELOPMENT';
+    // 'TBD' is the form's "To Be Determined" default — the borrower hasn't picked a program.
+    // Send null (the suite column is nullable) so we never stamp a guessed 'OTHER'.
+    case 'TBD':          return null;
     default:             return 'OTHER';
   }
 }
@@ -287,9 +290,9 @@ function buildLoan(formData) {
   };
 }
 
-// mortgageType + propertyType ALWAYS resolve to a default ('OTHER' / 'SINGLE_FAMILY')
-// even with no input, so they must NOT, on their own, make an otherwise-empty loan
-// section look populated.
+// mortgageType resolves to 'OTHER' for unknown input (or null for the explicit 'TBD'
+// default) and propertyType ALWAYS resolves to 'SINGLE_FAMILY' even with no input, so
+// neither must, on its own, make an otherwise-empty loan section look populated.
 const LOAN_DEFAULTED_KEYS = new Set(['mortgageType', 'propertyType']);
 
 /** True if the loan section carries any genuinely user-provided data worth sending. */

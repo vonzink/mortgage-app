@@ -16,6 +16,7 @@ const PersonalInfoField = ({
   watch,
   prefix = '',
   required = false,
+  ssnRequired = false,   // SSN is decoupled from `required` — never forced (per product: SSN optional)
   label = 'Personal Information'
 }) => {
   const getFieldName = (field) => prefix ? `${prefix}.${field}` : field;
@@ -98,14 +99,14 @@ const PersonalInfoField = ({
       <div className="form-row">
         <div className="form-group">
           <label htmlFor={getFieldName('ssn')}>
-            Social Security Number {required && '*'}
+            Social Security Number {ssnRequired && '*'}
           </label>
           <div className="ssn-input-wrap">
             <input
               type={showSsn ? 'text' : 'password'}
               id={getFieldName('ssn')}
               {...maskedRegister(getFieldName('ssn'), {
-                required: required ? 'SSN is required' : false,
+                required: ssnRequired ? 'SSN is required' : false,
                 pattern: {
                   value: /^\d{3}-\d{2}-\d{4}$/,
                   message: 'Invalid SSN format'
@@ -283,7 +284,10 @@ function DependentsStepper({ name, register, setValue, watch }) {
             max={DEPENDENTS_MAX}
             className="num-stepper-input"
             {...register(name, {
-              valueAsNumber: true,
+              // NOTE: intentionally NO valueAsNumber here. With it, an empty field coerces
+              // to NaN and trips React's "specified value NaN cannot be parsed" warning on
+              // this number input. The stepper writes clean integers via set() and coerces
+              // reads via clampDependents(), so the raw registered string value is fine.
               min: DEPENDENTS_MIN,
               max: DEPENDENTS_MAX,
             })}

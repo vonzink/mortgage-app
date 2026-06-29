@@ -95,12 +95,6 @@ const EmploymentStep = ({
         const { fields: incomeFields, append: appendIncome, remove: removeIncome } = getFieldArray(borrowerIndex, 'incomeSources');
         const warning = checkEmploymentHistoryWarning(empFields);
 
-        // Employment-situation selector drives which inputs render for this borrower.
-        // Employed / SelfEmployed / EmploymentGap keep the employer-rows UI; Retired /
-        // Unemployed / OtherIncome lead with the non-employment income sources sub-form.
-        const employmentSituation = watch(`borrowers.${borrowerIndex}.employmentSituation`) || 'Employed';
-        const showEmployerRows = ['Employed', 'SelfEmployed', 'EmploymentGap'].includes(employmentSituation);
-        
         // Get or initialize the active employment tab for this borrower
         const activeEmploymentTab = activeEmploymentTabs[borrowerIndex] ?? 0;
         const setActiveEmploymentTab = (empIndex) => {
@@ -110,44 +104,6 @@ const EmploymentStep = ({
         return (
           <div key={borrowerField.id} className="borrower-employment-section">
 
-            {/* Employment Situation selector — drives the conditional UI below. */}
-            <div className="form-row">
-              <div className="form-group">
-                <label htmlFor={`borrowers.${borrowerIndex}.employmentSituation`}>
-                  Employment Situation
-                </label>
-                <select
-                  id={`borrowers.${borrowerIndex}.employmentSituation`}
-                  {...register(`borrowers.${borrowerIndex}.employmentSituation`)}
-                >
-                  <option value="Employed">Employed</option>
-                  <option value="SelfEmployed">Self-employed</option>
-                  <option value="Retired">Retired</option>
-                  <option value="Unemployed">Unemployed</option>
-                  <option value="OtherIncome">Other income</option>
-                  <option value="EmploymentGap">Employment gap</option>
-                </select>
-              </div>
-            </div>
-
-            {/* Gap explanation — FE-local only (no suite field yet; see suiteApplicationPayload).
-                TODO: needs a suite note/field to persist to the SoR later. */}
-            {employmentSituation === 'EmploymentGap' && (
-              <div className="form-row">
-                <div className="form-group">
-                  <label htmlFor={`borrowers.${borrowerIndex}.employmentGapExplanation`}>
-                    Gap Explanation
-                  </label>
-                  <textarea
-                    id={`borrowers.${borrowerIndex}.employmentGapExplanation`}
-                    {...register(`borrowers.${borrowerIndex}.employmentGapExplanation`)}
-                    rows={3}
-                    placeholder="Briefly explain any gaps in your employment history."
-                  />
-                </div>
-              </div>
-            )}
-
             {warning.hasWarning && (
               <div className="alert alert-warning">
                 <strong>Warning:</strong> Your employment history covers approximately {Math.round(warning.totalDuration)} months. 
@@ -155,12 +111,9 @@ const EmploymentStep = ({
               </div>
             )}
             
-            {/* Employer rows — shown for Employed / SelfEmployed / EmploymentGap.
-                For Retired / Unemployed / OtherIncome the income-sources sub-form
-                below is the primary input; these inputs are unmounted (so RHF does
-                not validate them — fine, everything here is optional). */}
-            {showEmployerRows && (
-            <>
+            {/* Employment history — always shown (no situation gate). The Other /
+                Non-Employment Income section below is always available too, so a borrower
+                records jobs and/or non-employment income without picking a "situation". */}
             {/* Employment Tabs */}
             {empFields.length > 1 && (
               <div className="employment-tabs" style={{ 
@@ -425,12 +378,8 @@ const EmploymentStep = ({
                 </div>
               </div>
             )}
-            </>
-            )}
-
             {/* Other / non-employment income — wires the borrower's incomeSources array.
-                Always rendered so it's available regardless of situation; it is the
-                primary input for Retired / Unemployed / OtherIncome. Rows flow through
+                Always rendered alongside employment history. Rows flow through
                 suiteApplicationPayload.buildOtherIncome → mapIncomeType → suite IncomeType. */}
             <div className="income-sources-section" style={{ marginTop: '1.5rem' }}>
               <h5>Other / Non-Employment Income</h5>

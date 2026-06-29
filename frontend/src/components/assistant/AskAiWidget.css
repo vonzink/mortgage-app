@@ -1,0 +1,315 @@
+/* ============================================================================
+ * Ask MSFG AI — floating trigger pill + right-side slide-in drawer.
+ * Matches the msfg.us "Ask MSFG AI" component using the existing brand tokens
+ * from styles/design-system.css (--forest, --green, --mint-head, --ink, …).
+ * Self-contained: imported by AskAiWidget.jsx. Fixed-position overlay, lives
+ * OUTSIDE the apply <form> so it never interferes with form behavior.
+ * ========================================================================== */
+
+.askai {
+  font-family: 'Hanken Grotesk', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ── Trigger pill — floating bottom-right on every apply step ──────────────── */
+.askai-trigger {
+  position: fixed;
+  right: 24px;
+  bottom: 24px;
+  z-index: 1200;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 18px 7px 7px;
+  border: 0;
+  border-radius: 9999px;
+  background: var(--forest, #0e3b2c);
+  color: #fff;
+  font-family: inherit;
+  font-weight: 700;
+  font-size: 14px;
+  letter-spacing: -0.01em;
+  cursor: pointer;
+  box-shadow: 0 8px 24px rgba(8, 40, 28, 0.34), 0 2px 6px rgba(8, 40, 28, 0.22);
+  transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+}
+.askai-trigger:hover {
+  background: var(--forest-deep, #0a2c20);
+  transform: translateY(-1px);
+  box-shadow: 0 12px 32px rgba(8, 40, 28, 0.4), 0 3px 8px rgba(8, 40, 28, 0.26);
+}
+.askai-trigger:active { transform: translateY(0); }
+.askai-trigger:focus-visible {
+  outline: none;
+  box-shadow: 0 8px 24px rgba(8, 40, 28, 0.34), 0 0 0 4px rgba(41, 194, 78, 0.4);
+}
+.askai-trigger-icon {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: var(--green, #29c24e);
+  color: #06281a;
+  font-size: 16px;
+  flex: 0 0 auto;
+}
+.askai-trigger-label { white-space: nowrap; }
+
+/* Mobile — keep clear of the mobile fold / sticky footers, shrink slightly. */
+@media (max-width: 640px) {
+  .askai-trigger { right: 16px; bottom: 84px; }
+}
+
+/* ── Overlay (dims the page behind the drawer) ────────────────────────────── */
+.askai-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1300;
+  background: rgba(8, 40, 28, 0.42);
+  opacity: 0;
+  animation: askai-overlay-in 0.2s ease forwards;
+}
+
+/* ── Drawer ───────────────────────────────────────────────────────────────── */
+.askai-drawer {
+  position: fixed;
+  top: 0;
+  right: 0;
+  z-index: 1301;
+  display: flex;
+  flex-direction: column;
+  width: 440px;
+  max-width: 100vw;
+  height: 100vh;
+  height: 100dvh;
+  background: #fff;
+  box-shadow: -18px 0 48px rgba(8, 40, 28, 0.22);
+  transform: translateX(100%);
+  animation: askai-drawer-in 0.28s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+/* Header */
+.askai-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 18px;
+  border-bottom: 1px solid var(--line, #e5e8e2);
+  flex: 0 0 auto;
+}
+.askai-logo {
+  height: 26px;
+  width: auto;
+  display: block;
+  flex: 0 0 auto;
+}
+.askai-title {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: -0.015em;
+  color: var(--ink, #10271e);
+}
+.askai-close {
+  margin-left: auto;
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: 9px;
+  background: transparent;
+  color: var(--ink-soft, #516a5c);
+  font-size: 17px;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+.askai-close:hover { background: var(--forest-25, #f2f4ef); color: var(--ink, #10271e); }
+.askai-close:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(41, 194, 78, 0.32);
+}
+
+/* Scrollable message area */
+.askai-body {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+/* Greeting */
+.askai-greeting {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--ink-soft, #516a5c);
+}
+
+/* Suggested-question pills */
+.askai-suggestions {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  margin-top: 2px;
+}
+.askai-suggestion {
+  align-self: flex-start;
+  max-width: 100%;
+  text-align: left;
+  padding: 9px 15px;
+  border: 1px solid var(--green, #29c24e);
+  border-radius: 9999px;
+  background: #fff;
+  color: var(--lip, #0c6b39);
+  font-family: inherit;
+  font-size: 13.5px;
+  font-weight: 600;
+  line-height: 1.3;
+  cursor: pointer;
+  transition: background 0.15s ease, transform 0.05s ease;
+}
+.askai-suggestion:hover { background: var(--forest-50, #e7f6ee); }
+.askai-suggestion:active { transform: translateY(0.5px); }
+.askai-suggestion:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(41, 194, 78, 0.28);
+}
+
+/* Chat bubbles */
+.askai-msg { display: flex; }
+.askai-msg.user { justify-content: flex-end; }
+.askai-msg.assistant { justify-content: flex-start; }
+.askai-bubble {
+  max-width: 82%;
+  padding: 10px 14px;
+  border-radius: 16px;
+  font-size: 14px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.askai-msg.user .askai-bubble {
+  background: var(--forest-50, #e7f6ee);
+  color: var(--ink, #10271e);
+  border-bottom-right-radius: 5px;
+}
+.askai-msg.assistant .askai-bubble {
+  background: var(--forest-25, #f2f4ef);
+  color: var(--ink, #10271e);
+  border-bottom-left-radius: 5px;
+}
+
+/* Typing indicator */
+.askai-typing {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 13px 16px;
+}
+.askai-typing span {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--ink-soft, #516a5c);
+  opacity: 0.5;
+  animation: askai-bounce 1.2s infinite ease-in-out;
+}
+.askai-typing span:nth-child(2) { animation-delay: 0.18s; }
+.askai-typing span:nth-child(3) { animation-delay: 0.36s; }
+
+/* Input row */
+.askai-inputbar {
+  flex: 0 0 auto;
+  border-top: 1px solid var(--line, #e5e8e2);
+  padding: 12px 16px 6px;
+}
+.askai-inputrow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.askai-input {
+  flex: 1 1 auto;
+  height: 44px;
+  padding: 0 16px;
+  border: 1px solid var(--field-line, #d9ddd5);
+  border-radius: 9999px;
+  background: #fff;
+  font-family: inherit;
+  font-size: 14px;
+  color: var(--ink, #10271e);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.askai-input::placeholder { color: var(--ink-400, #828f86); }
+.askai-input:focus {
+  outline: none;
+  border-color: var(--green, #29c24e);
+  box-shadow: 0 0 0 4px rgba(41, 194, 78, 0.14);
+}
+.askai-iconbtn {
+  flex: 0 0 auto;
+  width: 38px;
+  height: 38px;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--ink-soft, #516a5c);
+  font-size: 16px;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+.askai-iconbtn:hover { background: var(--forest-25, #f2f4ef); color: var(--ink, #10271e); }
+.askai-iconbtn:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(41, 194, 78, 0.28);
+}
+.askai-send {
+  flex: 0 0 auto;
+  width: 40px;
+  height: 40px;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: 50%;
+  background: var(--green, #29c24e);
+  color: #06281a;
+  font-size: 16px;
+  cursor: pointer;
+  transition: background 0.15s ease, transform 0.05s ease, opacity 0.15s ease;
+}
+.askai-send:hover { background: var(--green-hover, #22a843); }
+.askai-send:active { transform: scale(0.96); }
+.askai-send:disabled { opacity: 0.45; cursor: not-allowed; }
+.askai-send:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(41, 194, 78, 0.4);
+}
+
+/* Footer disclaimer */
+.askai-disclaimer {
+  margin: 8px 2px 2px;
+  font-size: 11px;
+  line-height: 1.45;
+  color: var(--ink-400, #828f86);
+}
+
+/* ── Animations (respect prefers-reduced-motion) ──────────────────────────── */
+@keyframes askai-overlay-in { to { opacity: 1; } }
+@keyframes askai-drawer-in { to { transform: translateX(0); } }
+@keyframes askai-bounce {
+  0%, 80%, 100% { transform: translateY(0); opacity: 0.4; }
+  40% { transform: translateY(-4px); opacity: 0.9; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .askai-trigger { transition: none; }
+  .askai-overlay { animation: none; opacity: 1; }
+  .askai-drawer { animation: none; transform: translateX(0); }
+  .askai-typing span { animation: none; opacity: 0.6; }
+}

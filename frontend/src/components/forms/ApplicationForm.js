@@ -28,6 +28,7 @@ import { debug } from '../../utils/debug';
 // Components
 import StepNavigation from '../shared/StepNavigation';
 import { ApplyHero, ApplyProgressStrip, ApplySidebar } from '../design/ApplyChrome';
+import AskAiWidget from '../assistant/AskAiWidget';
 import LoanInformationStep from './LoanInformationStep';
 import BorrowerInformationStep from './BorrowerInformationStep';
 import PropertyDetailsStep from './PropertyDetailsStep';
@@ -323,9 +324,8 @@ const ApplicationForm = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [editId]);
 
-  // Step definitions
-  // TODO(wip): wire this into a stepper/progress UI; defined but not yet rendered.
-  // eslint-disable-next-line no-unused-vars
+  // Step definitions. Also used to give the Ask MSFG AI widget a human-readable
+  // label for the current step (so "Help me with this step" is contextual).
   const steps = [
     { number: 1, title: 'Loan Info', icon: <FaHome />, description: 'Basic loan details' },
     { number: 2, title: 'Borrower', icon: <FaUser />, description: 'Personal details and residence history' },
@@ -537,6 +537,10 @@ const ApplicationForm = () => {
   // Strip-level applicationNumber for the eyebrow — pulled out of carry-over / loaded data.
   const applicationNumber = getValues('applicationNumber') || null;
 
+  // Human label for the current step, fed to the Ask MSFG AI widget so
+  // "Help me with this step" carries the right context.
+  const currentStepLabel = steps.find((s) => s.number === currentStep)?.title || null;
+
   const handleSaveAndExit = () => {
     // useDraftAutosave already wrote to sessionStorage; bounce to the list.
     // Honest wording: drafts live in this browser's sessionStorage only and
@@ -615,6 +619,11 @@ const ApplicationForm = () => {
             />
           </aside>
         </div>
+
+        {/* Ask MSFG AI — floating trigger + slide-in drawer. Rendered once at the
+            apply-flow root (a sibling of .apply-body, OUTSIDE the form) so it
+            shows on every step without touching form state or submission. */}
+        <AskAiWidget currentStep={currentStepLabel} />
       </div>
   );
 };

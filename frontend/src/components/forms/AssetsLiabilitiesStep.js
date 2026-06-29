@@ -2,7 +2,7 @@
  * Assets & Liabilities Step Component
  * Step 5: Assets and liabilities including REO properties
  */
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { FaFileAlt } from 'react-icons/fa';
 import FormSection from '../shared/FormSection';
 import CurrencyInput from '../form-fields/CurrencyInput';
@@ -47,6 +47,36 @@ const AssetsLiabilitiesStep = ({
   const { fields: assetFields, append: appendAsset, remove: removeAsset } = getFieldArray(0, 'assets');
   const { fields: liabilityFields, append: appendLiability, remove: removeLiability } = getFieldArray(0, 'liabilities');
   const { fields: reoFields, append: appendReo, remove: removeReo } = getFieldArray(0, 'reoProperties');
+
+  // Auto-seed ONE REO entry from the applicant's primary (Current) residence so the
+  // borrower is prompted to address that property's debt. Runs at most once, and only
+  // when the REO list is currently empty (never clobbers/duplicates user-entered REO).
+  const reoSeededRef = useRef(false);
+  useEffect(() => {
+    if (reoSeededRef.current) return;
+    if (reoFields.length > 0) {
+      // User already has REO (entered or loaded) — don't seed, and mark done so we
+      // never seed later even if they remove all entries.
+      reoSeededRef.current = true;
+      return;
+    }
+    const residence = getValues('borrowers.0.residences.0');
+    const addressLine = (residence?.addressLine || '').trim();
+    // Only auto-seed a residence the borrower OWNS — REO = real estate OWNED, so a
+    // renter's (or living-rent-free) current address must NOT become an owned-property
+    // entry. residencyBasis comes from the page-2 Own/Rent/LivingRentFree selector.
+    if (!addressLine || residence?.residencyBasis !== 'Own') return;
+    reoSeededRef.current = true;
+    appendReo({
+      ...createDefaultREOProperty(),
+      addressLine: residence.addressLine,
+      city: residence.city || '',
+      state: residence.state || '',
+      zipCode: residence.zipCode || '',
+      category: 'Primary'
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [reoFields.length]);
 
   return (
     <FormSection

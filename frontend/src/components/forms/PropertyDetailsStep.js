@@ -27,7 +27,7 @@ const PropertyDetailsStep = ({ register, errors, watch, getValues, setValue }) =
   
   return (
     <FormSection
-      title="Property Details"
+      title="Subject Property Details"
       icon={<FaHome />}
       description="Tell us about the property you're purchasing or refinancing."
     >

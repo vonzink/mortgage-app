@@ -123,6 +123,7 @@ export const createDefaultBorrower = (sequenceNumber) => ({
   maritalStatus: '',
   dependents: 0,
   citizenshipType: '',
+  mailingSameAsPresent: true, // Mailing address defaults to same as present address
   employmentHistory: [createDefaultEmployment(1)], // Start with one employer entry
   incomeSources: [],
   residences: [createDefaultResidence(1, 'Current')], // Start with primary residence

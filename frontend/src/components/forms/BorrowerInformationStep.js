@@ -425,23 +425,33 @@ const BorrowerInformationStep = ({
                         >
                           Add Another Address
                         </button>
-                        
-                        <button
-                          type="button"
-                          onClick={() => {
-                            appendRes({ 
-                              ...createDefaultResidence(resFields.length + 1),
-                              residencyType: 'Mailing',
-                              isMailing: true
-                            });
-                            setActiveResidenceTab(0, resFields.length);
-                          }}
-                          className="btn btn-outline-secondary"
-                        >
-                          Add Mailing Address
-                        </button>
                       </div>
                     )}
+
+                    {/* Mailing address: same as present by default; reveal a dedicated
+                        mailing AddressField (NOT a residences entry) when unchecked. */}
+                    <div className="mailing-address-section" style={{ marginTop: '1.5rem' }}>
+                      <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}>
+                        <input
+                          type="checkbox"
+                          {...register('borrowers.0.mailingSameAsPresent')}
+                          style={{ width: 'auto', margin: 0 }}
+                        />
+                        <span>Mailing address same as present address</span>
+                      </label>
+
+                      {!watch('borrowers.0.mailingSameAsPresent') && (
+                        <div style={{ marginTop: '1rem' }}>
+                          <AddressField
+                            register={register}
+                            errors={errors}
+                            prefix="borrowers.0.mailingAddress"
+                            required={false}
+                            label="Mailing Address"
+                          />
+                        </div>
+                      )}
+                    </div>
                     
                     {resFields.length < 6 && (
                       <div className="form-row" style={{ display: 'none' }}>

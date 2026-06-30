@@ -311,6 +311,7 @@ const AssetsLiabilitiesStep = ({
                               }}
                             >
                               <option value="">Disposition…</option>
+                              <option value="Primary">Primary residence</option>
                               <option value="Investment">Investment</option>
                               <option value="SecondHome">Second home</option>
                               <option value="Timeshare">Timeshare</option>
@@ -329,7 +330,7 @@ const AssetsLiabilitiesStep = ({
                           className="form-select"
                           title="Mark how this debt should be treated for DTI"
                         >
-                          <option value="">— Include —</option>
+                          <option value="">Included</option>
                           <option value="Omit">Omit</option>
                           <option value="Payoff">Payoff</option>
                           <option value="Duplicate">Duplicate</option>

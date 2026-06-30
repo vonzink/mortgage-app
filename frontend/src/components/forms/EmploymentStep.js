@@ -93,7 +93,10 @@ const EmploymentStep = ({
 
         const { fields: empFields, append: appendEmp, remove: removeEmp } = getFieldArray(borrowerIndex, 'employmentHistory');
         const { fields: incomeFields, append: appendIncome, remove: removeIncome } = getFieldArray(borrowerIndex, 'incomeSources');
-        const warning = checkEmploymentHistoryWarning(empFields);
+        // Compute the 2-year warning from LIVE values (watch), not the react-hook-form
+        // `fields` snapshot — the snapshot doesn't reflect typed start/end dates, so the
+        // warning would never update as the borrower fills the form.
+        const warning = checkEmploymentHistoryWarning(watch(`borrowers.${borrowerIndex}.employmentHistory`) || []);
 
         // Get or initialize the active employment tab for this borrower
         const activeEmploymentTab = activeEmploymentTabs[borrowerIndex] ?? 0;
@@ -104,13 +107,6 @@ const EmploymentStep = ({
         return (
           <div key={borrowerField.id} className="borrower-employment-section">
 
-            {warning.hasWarning && (
-              <div className="alert alert-warning">
-                <strong>Warning:</strong> Your employment history covers approximately {Math.round(warning.totalDuration)} months. 
-                Most lenders require at least 24 months (2 years) of employment history.
-              </div>
-            )}
-            
             {/* Employment history — always shown (no situation gate). The Other /
                 Non-Employment Income section below is always available too, so a borrower
                 records jobs and/or non-employment income without picking a "situation". */}
@@ -365,12 +361,21 @@ const EmploymentStep = ({
                 verify their ability to repay.
               </p>
             )}
+            {/* Subtle nudge to add prior employment when history is under 2 years.
+                Computed from live values, so it disappears the moment 24 months is reached. */}
+            {warning.hasWarning && (
+              <p className="history-hint" role="note">
+                Lenders typically need <strong>2 years</strong> of employment history — you have about{' '}
+                {Math.round(warning.totalDuration)} month{Math.round(warning.totalDuration) === 1 ? '' : 's'}.
+                Add a prior employer to cover the gap.
+              </p>
+            )}
             {empFields.length < 5 && (
               <div className="form-row">
                 <div className="form-group">
                   <button
                     type="button"
-                    onClick={() => appendEmp(createDefaultEmployment(empFields.length + 1))}
+                    onClick={() => appendEmp(createDefaultEmployment(empFields.length + 1, 'Prior'))}
                     className="btn btn-outline-primary"
                   >
                     Add Employer
@@ -465,6 +470,22 @@ const EmploymentStep = ({
           </div>
         );
       })}
+
+      {/* Free-text notes for the borrower to leave context for their loan officer
+          (e.g. an employment gap, a recent job change, seasonal income). Autosaves
+          with the rest of the draft. */}
+      <div className="application-notes-section" style={{ marginTop: '2rem', paddingTop: '1.5rem', borderTop: '1px solid var(--border-color)' }}>
+        <label htmlFor="notes" style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 600 }}>
+          Notes <span className="muted" style={{ fontWeight: 400 }}>(optional)</span>
+        </label>
+        <textarea
+          id="notes"
+          {...register('notes')}
+          rows={3}
+          placeholder="Anything you'd like your loan officer to know — employment gaps, upcoming changes, etc."
+          style={{ width: '100%', resize: 'vertical' }}
+        />
+      </div>
     </FormSection>
   );
 };

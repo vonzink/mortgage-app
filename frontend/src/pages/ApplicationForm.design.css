@@ -75,6 +75,28 @@
 .apply-progress-back:hover { background: #F4F7F3; }
 .apply-progress-back svg { width: 16px; height: 16px; }
 
+/* Continue/Submit pill — same look as Back, pinned to the far (right) end of the strip. */
+.apply-progress-next { margin-left: auto; }
+@media (max-width: 720px) {
+  /* When the strip wraps, let Back + Continue sit on their own full-width row split apart. */
+  .apply-progress-next { margin-left: auto; }
+}
+
+/* Subtle "under 2 years of history" nudge — sits just above the Add Employer / Add
+   Address buttons and disappears once 24 months is reached. Intentionally soft (not the
+   loud red alert box it replaced). */
+.apply-page .history-hint {
+  margin: 14px 0 4px;
+  padding: 9px 13px;
+  font-size: 13px;
+  line-height: 1.45;
+  color: #7a5a16;
+  background: #FFF7E6;
+  border: 1px solid #F0D9A8;
+  border-radius: 10px;
+}
+.apply-page .history-hint strong { font-weight: 700; }
+
 .apply-hero {
   display: flex; align-items: flex-start; justify-content: space-between;
   flex-wrap: wrap; gap: 40px;
@@ -85,7 +107,10 @@
   font-weight: 700; font-size: 12.5px; letter-spacing: .2em;
   text-transform: uppercase; margin-bottom: 14px;
 }
-.apply-h1 {
+/* Scoped under .apply-page so the mint color beats the global `.msfg h1`
+   rule (color: var(--ink-900)), which is more specific than a bare `.apply-h1`
+   and was rendering this headline near-black on the dark hero band. */
+.apply-page .apply-h1 {
   font-size: 46px; line-height: 1.04; font-weight: 800;
   letter-spacing: -1px; color: #7FE3A8; max-width: 14ch;
 }

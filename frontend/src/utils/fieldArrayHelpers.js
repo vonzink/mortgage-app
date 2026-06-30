@@ -93,13 +93,13 @@ export const createDefaultResidence = (sequenceNumber, residencyType = 'Prior') 
  * @param {number} sequenceNumber - Sequence number for the employment
  * @returns {Object} Default employment object
  */
-export const createDefaultEmployment = (sequenceNumber) => ({
+export const createDefaultEmployment = (sequenceNumber, employmentStatus = 'Present') => ({
   sequenceNumber,
   employerName: '',
   position: '',
   startDate: '',
   endDate: '',
-  employmentStatus: 'Present',
+  employmentStatus,
   monthlyIncome: '',
   employerAddress: '',
   employerPhone: '',

@@ -49,6 +49,27 @@ describe('residence history duration', () => {
       { durationMonths: 6 },
     ])).toBe(30);
   });
+
+  test('derives months from years + monthsOnly when durationMonths is missing/zero', () => {
+    expect(calculateResidenceHistoryDuration([
+      { residencyType: 'Current', durationYears: '1', durationMonthsOnly: '6', durationMonths: 0 },
+    ])).toBe(18);
+  });
+
+  test('counts PRIOR residences from start/end dates (regression: these were ignored)', () => {
+    const months = calculateResidenceHistoryDuration([
+      { residencyType: 'Prior', startDate: '2020-01-01', endDate: '2022-01-01' },
+    ]);
+    expect(months).toBeGreaterThanOrEqual(23);
+    expect(months).toBeLessThanOrEqual(26);
+  });
+
+  test('sums across a mix of current + prior residences', () => {
+    expect(calculateResidenceHistoryDuration([
+      { residencyType: 'Current', durationMonths: 12 },
+      { residencyType: 'Prior', startDate: '2021-01-01', endDate: '2022-01-01' },
+    ])).toBeGreaterThanOrEqual(24);
+  });
 });
 
 describe('employment history duration', () => {
@@ -80,6 +101,14 @@ describe('history warnings', () => {
 
   test('residence: no warning when no data entered', () => {
     const result = checkResidenceHistoryWarning([{ durationMonths: 0 }], 24);
+    expect(result.hasWarning).toBe(false);
+  });
+
+  test('residence: a second (prior) address with dates clears the under-2-year warning', () => {
+    const result = checkResidenceHistoryWarning([
+      { residencyType: 'Current', durationMonths: 12 },
+      { residencyType: 'Prior', startDate: '2021-01-01', endDate: '2022-02-01' },
+    ], 24);
     expect(result.hasWarning).toBe(false);
   });
 

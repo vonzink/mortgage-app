@@ -14,11 +14,24 @@ export default function ContinuePage() {
   const navigate = useNavigate();
   const [params] = useSearchParams();
   const payload = useMemo(() => decodeHandoffToken(params.get('t')), [params]);
+  // Co-borrower invite entry: the funnel is also reached via the emailed invite link
+  // (app.msfgco.com/continue#invite=<token>&loan=<loanId>). There is NO handoff `t` then — the
+  // co-borrower authenticates (OTP to the invited email) and then accepts the invite, which binds
+  // their Cognito sub to the co-borrower party. Both values live in the URL FRAGMENT (not the query,
+  // so the token isn't sent in Referer / server logs).
+  const invite = useMemo(() => {
+    const h = typeof window !== 'undefined' ? window.location.hash : '';
+    if (!h || h.length < 2) return null;
+    const p = new URLSearchParams(h.slice(1));
+    const token = p.get('invite');
+    const loanId = p.get('loan');
+    return token && loanId ? { token, loanId } : null;
+  }, []);
   const auth = useMemo(() => getPasswordlessAuth(), []);
   const [email, setEmail] = useState(payload?.borrower?.email || '');
   const [working, setWorking] = useState(false);
 
-  if (!payload) {
+  if (!payload && !invite) {
     return (
       <div className="page continue-page">
         <p>This link has expired or is invalid. Please restart your application.</p>
@@ -59,6 +72,52 @@ export default function ContinuePage() {
       throw e;
     }
   };
+
+  // Co-borrower invite tail: bind the invitee to their co-borrower party (accept-invite), set the
+  // suite loan id so /apply loads THIS loan, then hard-navigate (same mintSession rationale as the
+  // primary path). No intake/createLoanFromIntake — the loan already exists.
+  const finishCoBorrowerInvite = async () => {
+    setWorking(true);
+    try {
+      await mortgageService.acceptCoBorrowerInvite(invite.loanId, invite.token);
+      sessionStorage.setItem('suiteLoanId', String(invite.loanId));
+      if (process.env.REACT_APP_DEV_SUB) {
+        navigate('/apply');
+      } else {
+        window.location.assign('/apply');
+      }
+    } catch (e) {
+      toast.error("We couldn't accept your invite. Make sure you signed in with the email it was sent to.");
+      setWorking(false);
+      throw e;
+    }
+  };
+
+  // ── Co-borrower invite flow (no handoff payload — they came from the emailed invite link) ──────
+  if (invite && !payload) {
+    return (
+      <div className="page continue-page">
+        <h1 className="continue-h1">You&apos;ve been invited</h1>
+        <p className="muted">
+          You&apos;ve been added as a co-borrower on a mortgage application. Sign in with the email
+          your invitation was sent to, and we&apos;ll take you to your part of the application.
+        </p>
+        {working ? (
+          <p className="muted">Finishing sign-in…</p>
+        ) : (
+          <FactorChooser
+            auth={auth}
+            email={email}
+            onEmailChange={setEmail}
+            onAuthenticated={finishCoBorrowerInvite}
+            onError={(msg) => toast.error(msg)}
+            onBack={() => window.history.back()}
+            emailAutoComplete="off"
+          />
+        )}
+      </div>
+    );
+  }
 
   const first = payload.borrower?.firstName || 'there';
 

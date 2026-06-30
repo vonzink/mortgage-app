@@ -73,3 +73,29 @@ describe('mortgageService.inviteCoBorrower (suite /co-borrowers/invite)', () => 
     ).rejects.toThrow('bad ordinal');
   });
 });
+
+describe('mortgageService.acceptCoBorrowerInvite (suite /co-borrowers/accept-invite)', () => {
+  test('POSTs the accept path + token and unwraps the envelope', async () => {
+    suiteClient.post.mockResolvedValue({
+      data: { success: true, data: { loanId: 'loan-uuid-1', partyId: 'party-uuid-1' } },
+    });
+
+    const result = await mortgageService.acceptCoBorrowerInvite('loan-uuid-1', 'tok.sig');
+
+    expect(suiteClient.post).toHaveBeenCalledWith(
+      '/loans/loan-uuid-1/co-borrowers/accept-invite',
+      { token: 'tok.sig' },
+    );
+    expect(result).toEqual({ loanId: 'loan-uuid-1', partyId: 'party-uuid-1' });
+  });
+
+  test('propagates the suite error (e.g. wrong email / already claimed)', async () => {
+    const err = new Error('forbidden');
+    err.response = { data: { message: 'Invite was sent to a different email address' } };
+    suiteClient.post.mockRejectedValue(err);
+
+    await expect(
+      mortgageService.acceptCoBorrowerInvite('loan-3', 'tok'),
+    ).rejects.toThrow('forbidden');
+  });
+});

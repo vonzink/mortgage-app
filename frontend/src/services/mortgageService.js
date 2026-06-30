@@ -339,6 +339,21 @@ const mortgageService = {
     return unwrapEnvelope(data);
   },
 
+  /**
+   * Accept a co-borrower invite after the invitee's passwordless login (the funnel reads the
+   * token + loanId from the /continue URL fragment). The suite validates the signed token
+   * (signature + expiry + token.loanId == path) and that the caller's VERIFIED email matches the
+   * invited address, then binds the co-borrower party's user_id to the caller's Cognito sub.
+   *
+   * @param {string} loanId  The suite loan UUID (from the invite link `&loan=`).
+   * @param {string} token   The opaque signed invite token (from the invite link `#invite=`).
+   * @returns {Promise<{ loanId: string, partyId: string }>}  Unwrapped suite data.
+   */
+  acceptCoBorrowerInvite: async (loanId, token) => {
+    const { data } = await suiteClient.post(`/loans/${loanId}/co-borrowers/accept-invite`, { token });
+    return unwrapEnvelope(data);
+  },
+
   deleteApplication: async (id) => {
     await apiClient.delete(`/loan-applications/${id}`);
   },

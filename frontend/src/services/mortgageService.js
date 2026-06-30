@@ -319,6 +319,26 @@ const mortgageService = {
     return data;
   },
 
+  /**
+   * Invite a co-borrower to apply via a passwordless login link emailed by the suite
+   * (system of record). Gated server-side to the PRIMARY borrower or staff/LO.
+   *
+   * The `ordinal` MUST be the suite party ordinal the borrower-self submit writes this
+   * co-borrower's data to (its position among the DATA-bearing co-borrowers, 1-indexed) —
+   * see the ordinal computation in BorrowerInformationStep. Sending the raw FE array index
+   * would diverge the invite from the row the application data lands on.
+   *
+   * @param {string} suiteLoanId  The suite loan UUID (from sessionStorage 'suiteLoanId').
+   * @param {{ ordinal: number, email: string, firstName: string, lastName: string }} invite
+   * @returns {Promise<{ partyId: string, sent: boolean, link: string }>}  Unwrapped suite data.
+   */
+  inviteCoBorrower: async (suiteLoanId, { ordinal, email, firstName, lastName }) => {
+    const { data } = await suiteClient.post(`/loans/${suiteLoanId}/co-borrowers/invite`, {
+      ordinal, email, firstName, lastName,
+    });
+    return unwrapEnvelope(data);
+  },
+
   deleteApplication: async (id) => {
     await apiClient.delete(`/loan-applications/${id}`);
   },

@@ -324,7 +324,7 @@ function buildBorrower(b) {
   };
 }
 
-function borrowerHasData(b) {
+export function borrowerHasData(b) {
   return !!b && (hasValue(b.firstName) || hasValue(b.lastName) || hasValue(b.email) || hasValue(b.ssn));
 }
 

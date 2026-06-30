@@ -24,6 +24,11 @@ import {
   createDefaultBorrower
 } from '../../utils/fieldArrayHelpers';
 import { bubbleTabStyle } from '../shared/bubbleTabStyle';
+import mortgageService from '../../services/mortgageService';
+// borrowerHasData is the SAME predicate the borrower-self submit uses to compact the
+// co-borrower array (utils/suiteApplicationPayload formToSuiteApplication). Reusing it
+// here keeps the invite ordinal in lock-step with the row the application data writes to.
+import { borrowerHasData } from '../../utils/suiteApplicationPayload';
 // URLA norm: a loan supports up to 4 borrowers. The field-array hook
 // (useBorrowerFieldArrays) only wires nested arrays for indices 0-3, so this is also
 // the hard cap for which co-borrowers can carry employment/income/assets/etc.
@@ -46,6 +51,69 @@ const BorrowerInformationStep = ({
   const [activeBorrowerTab, setActiveBorrowerTab] = useState(0);
   const [activeResidenceTabs, setActiveResidenceTabs] = useState({});
   const isAddingRef = useRef(false);
+
+  // Per-co-borrower invite UI state, keyed by the FE borrower index:
+  //   { [i]: 'sending' | 'sent' | 'error' }  (absent = idle) and an error message map.
+  const [inviteStatus, setInviteStatus] = useState({});
+  const [inviteError, setInviteError] = useState({});
+
+  // The suite loan id is stashed by the funnel → /continue flow (ContinuePage sets it
+  // post-intake); the borrower-self submit in ApplicationForm reads it the same way. Read
+  // it once per render so the button can disable + hint when the flow wasn't started via
+  // the secure link.
+  const suiteLoanId =
+    typeof window !== 'undefined' ? window.sessionStorage.getItem('suiteLoanId') : null;
+
+  /**
+   * Suite party ordinal for the co-borrower at FE index `i` (i >= 1). This MUST mirror the
+   * borrower-self submit's co-borrower ordering: formToSuiteApplication() compacts
+   * borrowers.slice(1) through borrowerHasData() (empty co-borrowers are dropped), and the
+   * suite assigns coOrdinal = primaryOrdinal(0) + position + 1 within that compacted list.
+   * So this co-borrower's ordinal = 1 + (count of EARLIER co-borrowers that bear data).
+   * Sending the raw array index `i` would diverge the invite from the data row.
+   */
+  const suiteOrdinalFor = (i) => {
+    let dataBearingBefore = 0;
+    for (let j = 1; j < i; j += 1) {
+      const b = {
+        firstName: watch(`borrowers.${j}.firstName`),
+        lastName: watch(`borrowers.${j}.lastName`),
+        email: watch(`borrowers.${j}.email`),
+        ssn: watch(`borrowers.${j}.ssn`),
+      };
+      if (borrowerHasData(b)) dataBearingBefore += 1;
+    }
+    return 1 + dataBearingBefore;
+  };
+
+  const handleInviteCoBorrower = async (i) => {
+    const firstName = (watch(`borrowers.${i}.firstName`) || '').trim();
+    const lastName = (watch(`borrowers.${i}.lastName`) || '').trim();
+    const email = (watch(`borrowers.${i}.email`) || '').trim();
+    if (!suiteLoanId || !email || !firstName) return;
+
+    setInviteError((prev) => ({ ...prev, [i]: null }));
+    setInviteStatus((prev) => ({ ...prev, [i]: 'sending' }));
+    try {
+      await mortgageService.inviteCoBorrower(suiteLoanId, {
+        ordinal: suiteOrdinalFor(i),
+        email,
+        firstName,
+        lastName,
+      });
+      setInviteStatus((prev) => ({ ...prev, [i]: 'sent' }));
+      if (toast && toast.success) toast.success(`Invite sent to ${email}`);
+    } catch (err) {
+      const msg =
+        err?.response?.data?.message ||
+        err?.response?.data?.error ||
+        err?.message ||
+        'Could not send invite. Please try again.';
+      setInviteStatus((prev) => ({ ...prev, [i]: 'error' }));
+      setInviteError((prev) => ({ ...prev, [i]: msg }));
+      if (toast && toast.error) toast.error(msg);
+    }
+  };
 
   // Helper to get/set active residence tab for a borrower
   const getActiveResidenceTab = (borrowerIndex) => activeResidenceTabs[borrowerIndex] || 0;
@@ -128,6 +196,21 @@ const BorrowerInformationStep = ({
   const renderBorrowerSection = (borrowerField, i) => {
     const isCoBorrower = i > 0;
 
+    // Invite gating: needs the suite loan id (funnel/secure-link flow) plus a co-borrower
+    // first name + a non-blank email (the link is emailed there). 'sent' locks the button.
+    const inviteFirstName = (watch(`borrowers.${i}.firstName`) || '').trim();
+    const inviteEmail = (watch(`borrowers.${i}.email`) || '').trim();
+    const inviteState = inviteStatus[i];
+    const inviteSent = inviteState === 'sent';
+    const inviteSending = inviteState === 'sending';
+    const inviteReady = !!suiteLoanId && !!inviteEmail && !!inviteFirstName;
+    const inviteDisabled = !inviteReady || inviteSending || inviteSent;
+    const inviteHint = !suiteLoanId
+      ? 'Available after starting via the secure link'
+      : (!inviteFirstName || !inviteEmail
+          ? 'Add a first name and email to invite'
+          : null);
+
     return (
       <div key={borrowerField.id} className="borrower-section">
         {/* Co-borrowers can be removed; the primary borrower cannot. */}
@@ -141,6 +224,48 @@ const BorrowerInformationStep = ({
             >
               <FaTimes /> Remove This Borrower
             </button>
+          </div>
+        )}
+
+        {/* Invite a co-borrower to apply (emails a passwordless login link via the suite). */}
+        {isCoBorrower && (
+          <div
+            className="co-borrower-invite"
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'flex-start',
+              gap: '0.35rem',
+              marginBottom: '1.25rem',
+            }}
+          >
+            <button
+              type="button"
+              onClick={() => handleInviteCoBorrower(i)}
+              disabled={inviteDisabled}
+              className="btn btn-outline-primary btn-sm"
+              title={inviteHint || undefined}
+              style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}
+            >
+              {inviteSent
+                ? 'Invite sent ✓'
+                : (inviteSending ? 'Sending invite…' : 'Invite to apply')}
+            </button>
+            {inviteSent && (
+              <span style={{ fontSize: '0.85rem', color: 'var(--primary-color)' }}>
+                Invite sent {'✓'}
+              </span>
+            )}
+            {inviteState === 'error' && inviteError[i] && (
+              <span style={{ fontSize: '0.85rem', color: 'var(--danger-color, #c0392b)' }}>
+                {inviteError[i]}
+              </span>
+            )}
+            {!inviteSent && inviteState !== 'error' && inviteHint && (
+              <span style={{ fontSize: '0.85rem', color: 'var(--text-muted, #6b7280)' }}>
+                {inviteHint}
+              </span>
+            )}
           </div>
         )}
 

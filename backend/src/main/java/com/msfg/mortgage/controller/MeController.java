@@ -59,7 +59,7 @@ public class MeController {
                     loans = loanApplicationRepository.findAll();   // all
             case "lo", "processor" ->
                     loans = loanApplicationRepository.findByAssignedLoIdOrderByCreatedDateDesc(me.getId());
-            case "realestateagent", "agent" ->
+            case "realestateagent" ->
                     loans = loanApplicationRepository.findByAgentUserId(me.getId());
             case "borrower" ->
                     loans = loanApplicationRepository.findByBorrowerUserId(me.getId());

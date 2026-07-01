@@ -34,7 +34,7 @@ public class User {
 
     private String initials;
 
-    /** borrower | agent | lo | processor | manager | admin (lower-case). */
+    /** borrower | realestateagent | lo | processor | manager | admin (lower-case, = Cognito group lower-cased). */
     @Column(nullable = false)
     private String role;
 

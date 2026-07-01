@@ -82,7 +82,7 @@ export default function FactorChooser({ auth, email, onEmailChange, onAuthentica
       setCode('');
       setNote('New code sent — check your inbox (and spam).');
     } catch (e) {
-      setCodeError('Could not send a new code. Try again in a moment.');
+      setCodeError(sendCodeErrorMessage(e));
     } finally {
       setBusy(false);
     }
@@ -94,8 +94,9 @@ export default function FactorChooser({ auth, email, onEmailChange, onAuthentica
     try {
       res = await auth.respond(state, { code });
     } catch (e) {
-      // Wrong/expired code — stay on the code screen so the user can retry.
-      setCodeError('That code didn’t match. Re-enter it, or request a new one.');
+      // Distinguish wrong / expired / rate-limited (Cognito collapses these otherwise).
+      // Stay on the code screen so the user can retry or resend.
+      setCodeError(codeErrorMessage(e));
       setCode('');
       setBusy(false);
       return;
@@ -197,4 +198,42 @@ function otpErrorMessage(e, factor) {
     return 'Could not use a passkey — set one up first (in your account settings), or choose Email instead.';
   }
   return 'Could not send a code. Check your email address and try again.';
+}
+
+/**
+ * Map a code-VERIFY failure (Cognito RespondToAuthChallenge, managed EMAIL_OTP) to a
+ * specific, actionable message. Cognito surfaces distinct exceptions we were collapsing
+ * into one misleading "didn't match": an expired code, a dead session, and a rate limit
+ * each need a different next step. Keyed off the AWS SDK v3 error `name`.
+ */
+export function codeErrorMessage(e) {
+  const name = e?.name || '';
+  const msg = (e?.message || '').toLowerCase();
+  switch (name) {
+    case 'CodeMismatchException':
+      return 'That code doesn’t match. Double-check the digits and try again.';
+    case 'ExpiredCodeException':
+      return 'That code has expired. Tap “Resend code” to get a fresh one.';
+    case 'TooManyFailedAttemptsException':
+      return 'Too many incorrect codes. Tap “Resend code” to start over.';
+    case 'LimitExceededException':
+    case 'TooManyRequestsException':
+      return 'Too many attempts. Wait about a minute, then tap “Resend code”.';
+    case 'NotAuthorizedException':
+      // An expired/used code or a dead session both land here; a resend restarts cleanly.
+      return msg.includes('expired')
+        ? 'That code has expired. Tap “Resend code” to get a fresh one.'
+        : 'This code has expired or was already used. Tap “Resend code” for a new one.';
+    default:
+      return 'We couldn’t verify that code. Tap “Resend code” and enter the newest one.';
+  }
+}
+
+/** Map a code-SEND failure (resend / start) — call out rate limits explicitly. */
+export function sendCodeErrorMessage(e) {
+  const name = e?.name || '';
+  if (name === 'LimitExceededException' || name === 'TooManyRequestsException') {
+    return 'You’ve requested too many codes. Wait about a minute, then try again.';
+  }
+  return 'Couldn’t send a new code. Try again in a moment.';
 }

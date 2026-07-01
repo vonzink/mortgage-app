@@ -4,7 +4,7 @@
  * Covers the envelope-unwrap + field-mapping for the two borrower read screens:
  *   - getApplications()  → suite GET /api/me/loans   (paged list)
  *   - getApplication(id) → suite GET /api/loans/{id} (loan detail)
- *   - getStatusHistory(id) → synthesized from /status/transitions
+ *   - getStatusHistory(id) → suite GET /api/loans/{id}/status/history (real timeline)
  *
  * The HTTP layer (apiClient) is mocked; we feed sample suite responses and assert
  * the adapted output matches the shapes the existing React components consume.
@@ -13,11 +13,12 @@ import mortgageService, {
   adaptSuiteLoanList,
   adaptSuiteLoanDetail,
 } from './mortgageService';
-import apiClient from './apiClient';
+import { suiteClient } from './apiClient';
 
 jest.mock('./apiClient', () => ({
   __esModule: true,
-  default: { get: jest.fn() },
+  default: { get: jest.fn(), post: jest.fn() },
+  suiteClient: { get: jest.fn(), post: jest.fn() },
 }));
 
 afterEach(() => jest.clearAllMocks());
@@ -85,11 +86,11 @@ const sampleLoanByIdEnvelope = {
 
 describe('mortgageService.getApplications (suite /api/me/loans)', () => {
   test('hits the suite me/loans endpoint and adapts the paged envelope', async () => {
-    apiClient.get.mockResolvedValue({ data: sampleMeLoansEnvelope });
+    suiteClient.get.mockResolvedValue({ data: sampleMeLoansEnvelope });
 
     const result = await mortgageService.getApplications();
 
-    expect(apiClient.get).toHaveBeenCalledWith('/me/loans');
+    expect(suiteClient.get).toHaveBeenCalledWith('/me/loans');
     expect(result).toEqual({
       content: [
         {
@@ -119,13 +120,13 @@ describe('mortgageService.getApplications (suite /api/me/loans)', () => {
   });
 
   test('forwards the legacy filter query string to me/loans', async () => {
-    apiClient.get.mockResolvedValue({ data: sampleMeLoansEnvelope });
+    suiteClient.get.mockResolvedValue({ data: sampleMeLoansEnvelope });
     await mortgageService.getApplications('page=1&size=25');
-    expect(apiClient.get).toHaveBeenCalledWith('/me/loans?page=1&size=25');
+    expect(suiteClient.get).toHaveBeenCalledWith('/me/loans?page=1&size=25');
   });
 
   test('does NOT invent staff-only row fields (omitted → undefined)', async () => {
-    apiClient.get.mockResolvedValue({ data: sampleMeLoansEnvelope });
+    suiteClient.get.mockResolvedValue({ data: sampleMeLoansEnvelope });
     const { content } = await mortgageService.getApplications();
     const row = content[0];
     expect(row.loanAmount).toBeUndefined();
@@ -168,13 +169,13 @@ describe('adaptSuiteLoanList (pure)', () => {
 
 describe('mortgageService.getApplication (suite /api/loans/{id})', () => {
   test('hits the suite loans/{id} endpoint and reshapes the flat payload', async () => {
-    apiClient.get.mockResolvedValue({ data: sampleLoanByIdEnvelope });
+    suiteClient.get.mockResolvedValue({ data: sampleLoanByIdEnvelope });
 
     const app = await mortgageService.getApplication(
       '11111111-1111-1111-1111-111111111111',
     );
 
-    expect(apiClient.get).toHaveBeenCalledWith(
+    expect(suiteClient.get).toHaveBeenCalledWith(
       '/loans/11111111-1111-1111-1111-111111111111',
     );
     expect(app.id).toBe('11111111-1111-1111-1111-111111111111');
@@ -202,7 +203,7 @@ describe('mortgageService.getApplication (suite /api/loans/{id})', () => {
   });
 
   test('borrowers[0] chaining is safe (no parties data)', async () => {
-    apiClient.get.mockResolvedValue({ data: sampleLoanByIdEnvelope });
+    suiteClient.get.mockResolvedValue({ data: sampleLoanByIdEnvelope });
     const app = await mortgageService.getApplication('id');
     expect(app.borrowers?.[0]).toBeUndefined();
   });
@@ -247,35 +248,29 @@ describe('adaptSuiteLoanDetail (pure)', () => {
   });
 });
 
-// ── getStatusHistory (synthesized) ────────────────────────────────────────────
+// ── getStatusHistory (real timeline) ──────────────────────────────────────────
 
-describe('mortgageService.getStatusHistory (suite /status/transitions)', () => {
-  test('synthesizes a single timeline entry from currentStatus', async () => {
-    apiClient.get.mockResolvedValue({
-      data: {
-        success: true,
-        data: {
-          currentStatus: 'IN_UNDERWRITING',
-          allowedTransitions: ['APPROVED_WITH_CONDITIONS', 'SUSPENDED'],
-        },
-      },
-    });
+describe('mortgageService.getStatusHistory (suite /loans/{id}/status/history)', () => {
+  test('returns the milestone timeline from status/history (oldest-first)', async () => {
+    const timeline = [
+      { id: 'h1', status: 'STARTED', transitionedAt: '2026-06-18T09:00:00Z' },
+      { id: 'h2', status: 'IN_UNDERWRITING', transitionedAt: '2026-06-20T12:00:00Z' },
+    ];
+    suiteClient.get.mockResolvedValue({ data: { success: true, data: timeline } });
 
     const history = await mortgageService.getStatusHistory('loan-1');
 
-    expect(apiClient.get).toHaveBeenCalledWith('/loans/loan-1/status/transitions');
-    expect(history).toEqual([
-      { id: 'loan-1', status: 'IN_UNDERWRITING', transitionedAt: null },
-    ]);
+    expect(suiteClient.get).toHaveBeenCalledWith('/loans/loan-1/status/history');
+    expect(history).toEqual(timeline);
   });
 
-  test('returns [] when currentStatus missing', async () => {
-    apiClient.get.mockResolvedValue({ data: { success: true, data: {} } });
+  test('returns [] when the timeline is not an array', async () => {
+    suiteClient.get.mockResolvedValue({ data: { success: true, data: {} } });
     expect(await mortgageService.getStatusHistory('loan-1')).toEqual([]);
   });
 
   test('returns [] on request failure (never throws)', async () => {
-    apiClient.get.mockRejectedValue(new Error('boom'));
+    suiteClient.get.mockRejectedValue(new Error('boom'));
     expect(await mortgageService.getStatusHistory('loan-1')).toEqual([]);
   });
 });

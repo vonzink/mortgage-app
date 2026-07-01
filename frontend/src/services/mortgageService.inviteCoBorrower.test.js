@@ -8,13 +8,13 @@
 import mortgageService from './mortgageService';
 import { suiteClient } from './apiClient';
 
-jest.mock('./apiClient', () => ({
+vi.mock('./apiClient', () => ({
   __esModule: true,
-  default: { get: jest.fn(), post: jest.fn(), put: jest.fn() },
-  suiteClient: { get: jest.fn(), post: jest.fn(), put: jest.fn() },
+  default: { get: vi.fn(), post: vi.fn(), put: vi.fn() },
+  suiteClient: { get: vi.fn(), post: vi.fn(), put: vi.fn() },
 }));
 
-afterEach(() => jest.clearAllMocks());
+afterEach(() => vi.clearAllMocks());
 
 describe('mortgageService.inviteCoBorrower (suite /co-borrowers/invite)', () => {
   test('POSTs the suite invite path + body and unwraps the envelope', async () => {

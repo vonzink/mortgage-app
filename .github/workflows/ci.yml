@@ -43,9 +43,9 @@ jobs:
         run: mvn -B -ntp verify
 
   frontend:
-    name: Frontend (Create React App, Node 20)
+    name: Frontend (Vite, Node 20)
     runs-on: ubuntu-latest
-    # Every run step in this job executes inside frontend/ (CRA app root).
+    # Every run step in this job executes inside frontend/ (Vite app root).
     defaults:
       run:
         working-directory: frontend
@@ -63,17 +63,17 @@ jobs:
           cache-dependency-path: frontend/package-lock.json
 
       # Clean, reproducible install from the committed lockfile.
-      # --legacy-peer-deps: react-scripts 5 (CRA) peers TypeScript 3/4 but the
-      # project uses TS 5; strict `npm ci` rejects the conflict (CRA's known fix).
+      # --legacy-peer-deps: some deps (e.g. @types/react 19 vs React 18) still
+      # declare mismatched peers; strict `npm ci` would reject the conflict.
       - name: Install dependencies
         run: npm ci --legacy-peer-deps
 
-      # CI=true forces a single, non-watching test run (CRA otherwise watches).
+      # `npm test` → `vitest run`: a single, non-watching run that exits non-zero
+      # on any test failure (fails the job).
       - name: Test
-        run: CI=true npm test -- --watchAll=false
+        run: npm test
 
-      # CI=false: GitHub sets CI=true globally, which makes CRA treat lint
-      # warnings as build errors. Disable it for the build step only so warnings
-      # don't fail the build (the Test step above still runs under CI=true).
+      # `npm run build` → `vite build`. Vite doesn't treat lint warnings as
+      # errors, so no CI=false dance is needed.
       - name: Build
-        run: CI=false npm run build
+        run: npm run build

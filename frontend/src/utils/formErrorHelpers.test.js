@@ -75,30 +75,30 @@ describe('focusFirstInvalidField', () => {
       <input name="property.addressLine" />
     `;
     const second = document.querySelector('[name="property.addressLine"]');
-    second.scrollIntoView = jest.fn();
-    const focusSpy = jest.spyOn(second, 'focus');
-    jest.useFakeTimers();
+    second.scrollIntoView = vi.fn();
+    const focusSpy = vi.spyOn(second, 'focus');
+    vi.useFakeTimers();
 
     focusFirstInvalidField({ 'property.addressLine': { type: 'required' } });
 
     expect(second.scrollIntoView).toHaveBeenCalledWith({ behavior: 'smooth', block: 'center' });
-    jest.runAllTimers();
+    vi.runAllTimers();
     expect(focusSpy).toHaveBeenCalledWith({ preventScroll: true });
-    jest.useRealTimers();
+    vi.useRealTimers();
   });
 
   test('falls back to id selector when no [name] match', () => {
     document.body.innerHTML = `<input id="dateOfBirth" />`;
     const el = document.getElementById('dateOfBirth');
-    el.scrollIntoView = jest.fn();
-    const focusSpy = jest.spyOn(el, 'focus');
-    jest.useFakeTimers();
+    el.scrollIntoView = vi.fn();
+    const focusSpy = vi.spyOn(el, 'focus');
+    vi.useFakeTimers();
 
     focusFirstInvalidField({ dateOfBirth: { type: 'required' } });
-    jest.runAllTimers();
+    vi.runAllTimers();
 
     expect(focusSpy).toHaveBeenCalled();
-    jest.useRealTimers();
+    vi.useRealTimers();
   });
 
   test('no-ops when errors is empty or DOM has no match', () => {

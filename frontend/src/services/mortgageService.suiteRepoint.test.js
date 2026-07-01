@@ -15,13 +15,13 @@ import mortgageService, {
 } from './mortgageService';
 import { suiteClient } from './apiClient';
 
-jest.mock('./apiClient', () => ({
+vi.mock('./apiClient', () => ({
   __esModule: true,
-  default: { get: jest.fn(), post: jest.fn() },
-  suiteClient: { get: jest.fn(), post: jest.fn() },
+  default: { get: vi.fn(), post: vi.fn() },
+  suiteClient: { get: vi.fn(), post: vi.fn() },
 }));
 
-afterEach(() => jest.clearAllMocks());
+afterEach(() => vi.clearAllMocks());
 
 // ── Sample suite responses (shaped per the suite contract) ────────────────────
 

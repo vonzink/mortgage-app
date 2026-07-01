@@ -4,15 +4,17 @@ import { MemoryRouter } from 'react-router-dom';
 import AppSettingsAdmin from './AppSettingsAdmin';
 import adminService from '../../services/adminService';
 
-jest.mock('../../services/adminService', () => ({
+vi.mock('../../services/adminService', () => ({
   __esModule: true,
   default: {
-    getAppSettings: jest.fn(),
-    updateAppSettings: jest.fn(),
+    getAppSettings: vi.fn(),
+    updateAppSettings: vi.fn(),
   },
 }));
 
-jest.mock('../../hooks/useRoles', () => () => ({ isAdmin: true }));
+// ESM default export: the factory must return an object with a `default` key
+// (Jest tolerated a bare function via CJS interop; Vitest/ESM does not).
+vi.mock('../../hooks/useRoles', () => ({ default: () => ({ isAdmin: true }) }));
 
 beforeEach(() => {
   adminService.getAppSettings.mockReset();

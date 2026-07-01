@@ -14,7 +14,7 @@ const STEPS = [
 
 describe('ProgressIndicator a11y states', () => {
   test('active step carries aria-current="step" and is not clickable as a no-op target', () => {
-    const onClick = jest.fn();
+    const onClick = vi.fn();
     render(
       <ProgressIndicator
         steps={STEPS}
@@ -31,7 +31,7 @@ describe('ProgressIndicator a11y states', () => {
   });
 
   test('previously-visited completed steps navigate', () => {
-    const onClick = jest.fn();
+    const onClick = vi.fn();
     render(
       <ProgressIndicator
         steps={STEPS}

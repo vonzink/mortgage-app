@@ -2,9 +2,9 @@ import React from 'react';
 import { render, screen } from '@testing-library/react';
 import RequireAuth from './RequireAuth';
 
-const mockSigninRedirect = jest.fn();
+const mockSigninRedirect = vi.fn();
 let mockAuth;
-jest.mock('react-oidc-context', () => ({ useAuth: () => mockAuth }));
+vi.mock('react-oidc-context', () => ({ useAuth: () => mockAuth }));
 
 beforeEach(() => {
   mockSigninRedirect.mockClear();

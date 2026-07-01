@@ -5,14 +5,14 @@ import LoanSearch from './LoanSearch';
 import mortgageService from '../../services/mortgageService';
 import { pushRecentLoan, clearRecentLoans } from '../../utils/recentLoans';
 
-jest.mock('../../services/mortgageService', () => ({
+vi.mock('../../services/mortgageService', () => ({
   __esModule: true,
-  default: { searchLoans: jest.fn() },
+  default: { searchLoans: vi.fn() },
 }));
 
-const mockNavigate = jest.fn();
-jest.mock('react-router-dom', () => ({
-  ...jest.requireActual('react-router-dom'),
+const mockNavigate = vi.fn();
+vi.mock('react-router-dom', async () => ({
+  ...(await vi.importActual('react-router-dom')),
   useNavigate: () => mockNavigate,
 }));
 
@@ -36,14 +36,14 @@ function textIncluding(needle) {
 }
 
 beforeEach(() => {
-  jest.useFakeTimers();
+  vi.useFakeTimers();
   mortgageService.searchLoans.mockReset();
   mockNavigate.mockReset();
   clearRecentLoans();
 });
 
 afterEach(() => {
-  jest.useRealTimers();
+  vi.useRealTimers();
 });
 
 describe('LoanSearch', () => {
@@ -56,7 +56,7 @@ describe('LoanSearch', () => {
     renderSearch();
     const input = screen.getByPlaceholderText(/find a loan/i);
     fireEvent.change(input, { target: { value: 'a' } });
-    await act(async () => { jest.advanceTimersByTime(300); });
+    await act(async () => { vi.advanceTimersByTime(300); });
     expect(mortgageService.searchLoans).not.toHaveBeenCalled();
   });
 
@@ -69,7 +69,7 @@ describe('LoanSearch', () => {
     const input = screen.getByPlaceholderText(/find a loan/i);
     fireEvent.change(input, { target: { value: 'for' } });
 
-    await act(async () => { jest.advanceTimersByTime(250); });
+    await act(async () => { vi.advanceTimersByTime(250); });
     await waitFor(() => expect(mortgageService.searchLoans).toHaveBeenCalledWith('for', expect.any(Object)));
     await waitFor(() => expect(screen.getByText(textIncluding('Fortney, Matthew'))).toBeInTheDocument());
   });
@@ -84,9 +84,9 @@ describe('LoanSearch', () => {
     const input = screen.getByPlaceholderText(/find a loan/i);
 
     fireEvent.change(input, { target: { value: 'for' } });
-    await act(async () => { jest.advanceTimersByTime(250); });
+    await act(async () => { vi.advanceTimersByTime(250); });
     fireEvent.change(input, { target: { value: 'fortney' } });
-    await act(async () => { jest.advanceTimersByTime(250); });
+    await act(async () => { vi.advanceTimersByTime(250); });
 
     expect(calls[0].signal?.aborted).toBe(true);
   });
@@ -99,7 +99,7 @@ describe('LoanSearch', () => {
     renderSearch();
     const input = screen.getByPlaceholderText(/find a loan/i);
     fireEvent.change(input, { target: { value: 'saw' } });
-    await act(async () => { jest.advanceTimersByTime(250); });
+    await act(async () => { vi.advanceTimersByTime(250); });
     await waitFor(() => screen.getByText(textIncluding('Sawaged, Veronica')));
 
     fireEvent.keyDown(input, { key: 'ArrowDown' });
@@ -116,7 +116,7 @@ describe('LoanSearch', () => {
     renderSearch();
     const input = screen.getByPlaceholderText(/find a loan/i);
     fireEvent.change(input, { target: { value: 'any' } });
-    await act(async () => { jest.advanceTimersByTime(250); });
+    await act(async () => { vi.advanceTimersByTime(250); });
     await waitFor(() => screen.getByText(textIncluding('Anyone')));
 
     fireEvent.keyDown(input, { key: 'Escape' });
@@ -141,7 +141,7 @@ describe('LoanSearch', () => {
     renderSearch();
     const input = screen.getByPlaceholderText(/find a loan/i);
     fireEvent.change(input, { target: { value: 'zzznomatch' } });
-    await act(async () => { jest.advanceTimersByTime(250); });
+    await act(async () => { vi.advanceTimersByTime(250); });
 
     await waitFor(() => expect(screen.getByText(/no loans match/i)).toBeInTheDocument());
     expect(screen.getByRole('link', { name: /browse all/i })).toHaveAttribute(

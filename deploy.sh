@@ -6,9 +6,10 @@
 # the React bundle with prod env vars baked in, and rebuilds the Spring Boot
 # backend container.
 #
-# Frontend layout: nginx on the EC2 box already points at
-# /home/ubuntu/apps/mortgage-app/frontend/build, so a fresh `npm run build`
-# replaces the live bundle in place. No separate copy/sync step.
+# Frontend layout: `npm run build` (Vite) emits to frontend/dist/. nginx on the
+# EC2 box serves frontend/build/, so we rsync dist/ → the box's frontend/build/
+# (no nginx change needed). The box never builds (see below) — it only serves the
+# rsynced bundle.
 #
 # Backend: Spring Boot inside Docker. Flyway runs migrations on container
 # start. The V15 migration was edited mid-development (partial-index → composite
@@ -121,10 +122,11 @@ if [ "$DEPLOY_FRONTEND" = "true" ]; then
   echo -e "${YELLOW}▸ Building frontend LOCALLY (prod env)…${NC}"
   ( cd "$(dirname "$0")/frontend"
     npm install --legacy-peer-deps --no-audit --no-fund
-    # CRA bakes these at build time. REACT_APP_DEV_SUB MUST be empty: the repo
-    # .env sets it for local dev, which would otherwise bake the DEV passwordless
-    # adapter into the prod bundle. CI=false so pre-existing lint warnings (in
-    # unrelated feature files) don't fail the build.
+    # Vite bakes these into the bundle at build time (via the process.env shim in
+    # vite.config.js). REACT_APP_DEV_SUB MUST be empty: the repo .env sets it for
+    # local dev, which would otherwise bake the DEV passwordless adapter into the
+    # prod bundle. (CI=false is inert under Vite — Vite doesn't treat warnings as
+    # errors — but it's kept as a harmless no-op.)
     env \
       REACT_APP_API_URL=https://app.msfgco.com/api \
       REACT_APP_SUITE_API_URL=https://los.msfgco.com/api \
@@ -139,13 +141,14 @@ if [ "$DEPLOY_FRONTEND" = "true" ]; then
       REACT_APP_DEV_SUB= \
       CI=false \
       npm run build
-    # Safety gate: the dev-sub UUID must NOT be in a prod bundle.
-    if grep -rq '0000000000b0' build/static/js/ 2>/dev/null; then
+    # Safety gate: the dev-sub UUID must NOT be in a prod bundle. Vite emits JS
+    # under dist/assets/ (CRA used build/static/js/).
+    if grep -rq '0000000000b0' dist/assets/ 2>/dev/null; then
       echo -e "${RED}✗ ABORT: REACT_APP_DEV_SUB leaked into the bundle${NC}"; exit 1
     fi
-    echo -e "${YELLOW}▸ rsync build/ → box…${NC}"
+    echo -e "${YELLOW}▸ rsync dist/ → box (nginx root stays frontend/build/)…${NC}"
     rsync -az --delete -e "ssh -i $EC2_KEY -o StrictHostKeyChecking=accept-new" \
-      build/ "$EC2_HOST:$EC2_PROJECT_DIR/frontend/build/"
+      dist/ "$EC2_HOST:$EC2_PROJECT_DIR/frontend/build/"
   ) || { echo -e "${RED}✗ Frontend build/deploy failed${NC}"; exit 1; }
   echo -e "${GREEN}✓ Frontend deployed (built locally, rsynced — box never builds)${NC}"
   echo ""

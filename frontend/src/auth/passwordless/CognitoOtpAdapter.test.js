@@ -7,13 +7,13 @@ import { Factor } from './factors';
 
 // ── Mocks ────────────────────────────────────────────────────────────────────
 // Command constructors that just capture their input so we can assert the wire shape.
-jest.mock('@aws-sdk/client-cognito-identity-provider', () => {
+vi.mock('@aws-sdk/client-cognito-identity-provider', () => {
   const mk = (name) =>
     function Cmd(input) {
       return { __cmd: name, input };
     };
   return {
-    CognitoIdentityProviderClient: jest.fn().mockImplementation(() => ({ send: jest.fn() })),
+    CognitoIdentityProviderClient: vi.fn().mockImplementation(() => ({ send: vi.fn() })),
     SignUpCommand: mk('SignUp'),
     InitiateAuthCommand: mk('InitiateAuth'),
     RespondToAuthChallengeCommand: mk('RespondToAuthChallenge'),
@@ -24,17 +24,20 @@ jest.mock('@aws-sdk/client-cognito-identity-provider', () => {
   };
 });
 
-jest.mock('./cognitoSession', () => ({ mintSession: jest.fn() }));
+vi.mock('./cognitoSession', () => ({ mintSession: vi.fn() }));
 
-jest.mock('../webauthn', () => ({
-  isWebAuthnSupported: jest.fn(),
-  createPasskey: jest.fn(),
-  getPasskeyAssertion: jest.fn(),
+vi.mock('../webauthn', () => ({
+  isWebAuthnSupported: vi.fn(),
+  createPasskey: vi.fn(),
+  getPasskeyAssertion: vi.fn(),
 }));
 
-const { mintSession } = require('./cognitoSession');
-const webauthn = require('../webauthn');
-const { CognitoOtpAdapter } = require('./CognitoOtpAdapter');
+// ESM imports (not require): Vitest hoists the vi.mock() calls above these, so
+// each binding resolves to the mocked module. require() would bypass the mock
+// registry and load the real cognitoSession graph.
+import { mintSession } from './cognitoSession';
+import * as webauthn from '../webauthn';
+import { CognitoOtpAdapter } from './CognitoOtpAdapter';
 
 beforeEach(() => {
   // mintSession returns the oidc User directly; the adapter wraps it as { user }.
@@ -49,7 +52,7 @@ beforeEach(() => {
 });
 
 function fakeClient(sendImpl) {
-  return { send: jest.fn(sendImpl) };
+  return { send: vi.fn(sendImpl) };
 }
 
 describe('CognitoOtpAdapter.availableFactors (spec §3.3 — SMS hidden)', () => {

@@ -31,11 +31,11 @@ function makeFormStub(initial = {}) {
 
 beforeEach(() => {
   sessionStorage.clear();
-  jest.useFakeTimers();
+  vi.useFakeTimers();
 });
 
 afterEach(() => {
-  jest.useRealTimers();
+  vi.useRealTimers();
 });
 
 describe('useDraftAutosave', () => {
@@ -79,7 +79,7 @@ describe('useDraftAutosave', () => {
     // Before debounce fires — nothing persisted
     expect(sessionStorage.getItem('draft:save')).toBeNull();
 
-    act(() => { jest.advanceTimersByTime(100); });
+    act(() => { vi.advanceTimersByTime(100); });
 
     // Latest value wins
     expect(JSON.parse(sessionStorage.getItem('draft:save'))).toEqual({ name: 'c' });

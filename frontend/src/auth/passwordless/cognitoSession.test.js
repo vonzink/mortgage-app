@@ -63,7 +63,7 @@ describe('cognitoSession.mintSession storage contract (spec §5.3)', () => {
   test('mintSession calls storeUser AND the stored JSON is what apiClient reads', async () => {
     const stored = {};
     const fakeMgr = {
-      storeUser: jest.fn(async (user) => {
+      storeUser: vi.fn(async (user) => {
         // Emulate oidc-client-ts persistence under the exact apiClient key.
         stored.key = sessionStorageKey();
         stored.value = user.toStorageString();

@@ -3,13 +3,11 @@
   "version": "1.0.0",
   "description": "Mortgage Application Frontend",
   "private": true,
+  "type": "module",
   "dependencies": {
     "@aws-sdk/client-cognito-identity-provider": "^3.1075.0",
     "@fontsource/hanken-grotesk": "^5.2.8",
     "@simplewebauthn/browser": "^13.3.0",
-    "@testing-library/jest-dom": "^5.16.4",
-    "@testing-library/react": "^13.3.0",
-    "@testing-library/user-event": "^13.5.0",
     "axios": "^1.18.1",
     "oidc-client-ts": "^3.5.0",
     "react": "^18.2.0",
@@ -20,21 +18,16 @@
     "react-markdown": "^10.1.0",
     "react-oidc-context": "^3.3.1",
     "react-router-dom": "^6.30.4",
-    "react-scripts": "5.0.1",
     "react-toastify": "^9.1.1",
     "web-vitals": "^2.1.4"
   },
   "scripts": {
-    "start": "react-scripts start",
-    "build": "react-scripts build",
-    "test": "react-scripts test",
-    "eject": "react-scripts eject"
-  },
-  "eslintConfig": {
-    "extends": [
-      "react-app",
-      "react-app/jest"
-    ]
+    "start": "vite",
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "browserslist": {
     "production": [
@@ -48,10 +41,16 @@
       "last 1 safari version"
     ]
   },
-  "proxy": "http://localhost:8080",
   "devDependencies": {
+    "@testing-library/jest-dom": "^5.16.4",
+    "@testing-library/react": "^13.3.0",
+    "@testing-library/user-event": "^13.5.0",
     "@types/react": "^19.2.2",
     "@types/react-dom": "^19.2.2",
-    "typescript": "^5.9.3"
+    "@vitejs/plugin-react": "^4.3.4",
+    "jsdom": "^25.0.1",
+    "typescript": "^5.9.3",
+    "vite": "^5.4.11",
+    "vitest": "^2.1.9"
   }
 }

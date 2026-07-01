@@ -309,7 +309,10 @@ const BorrowerInformationStep = ({
           <h5 style={{ marginBottom: '1rem' }}>Residence History</h5>
           {(() => {
             const { fields: resFields, append: appendRes, remove: removeRes } = getFieldArray(i, 'residences');
-            const warning = checkResidenceHistoryWarning(resFields);
+            // Compute the 2-year warning from LIVE values (watch) so it reflects typed
+            // durations / prior-address dates and clears the instant 24 months is reached —
+            // the react-hook-form `fields` snapshot does not update as the user types.
+            const warning = checkResidenceHistoryWarning(watch(`borrowers.${i}.residences`) || []);
             const activeResidenceTab = getActiveResidenceTab(i);
 
             return (
@@ -358,13 +361,6 @@ const BorrowerInformationStep = ({
                     </div>
                   </div>
                 )}
-                {warning.hasWarning && (
-                  <div className="alert alert-warning">
-                    <strong>Warning:</strong> Your residence history covers {Math.round(warning.totalDuration)} months.
-                    Most lenders require at least 24 months (2 years) of residence history.
-                  </div>
-                )}
-
                 {/* Residence Tabs - Only show tabs if there are multiple residences */}
                 {resFields.length > 1 && (
                   <div style={{
@@ -381,7 +377,7 @@ const BorrowerInformationStep = ({
                         onClick={() => setActiveResidenceTab(i, resIndex)}
                         style={bubbleTabStyle(activeResidenceTab === resIndex)}
                       >
-                        {resIndex === 0 ? 'Primary Address' : `Address ${resIndex + 1}`}
+                        {resIndex === 0 ? 'Present Address' : `Previous Address ${resIndex}`}
                         {resIndex === 0 && (
                           <span style={{
                             background: 'var(--primary-color)',
@@ -407,7 +403,7 @@ const BorrowerInformationStep = ({
                   return (
                     <div key={resField.id} className="residence-entry">
                     <div className="residence-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-                      <h6 style={{ margin: 0 }}>{resIndex === 0 ? 'Primary Address' : `Address ${resIndex + 1}`}</h6>
+                      <h6 style={{ margin: 0 }}>{resIndex === 0 ? 'Present Address' : `Previous Address ${resIndex}`}</h6>
                       {resFields.length > 1 && resIndex > 0 && (
                         <button
                           type="button"
@@ -427,7 +423,7 @@ const BorrowerInformationStep = ({
                       errors={errors}
                       prefix={`borrowers.${i}.residences.${resIndex}`}
                       required={false}
-                      label="Residence Address"
+                      label={resIndex === 0 ? 'Present Address' : 'Previous Address'}
                       enableAutocomplete={true}
                       setValue={setValue}
                     />
@@ -551,6 +547,16 @@ const BorrowerInformationStep = ({
                   );
                 })}
 
+                {/* Subtle nudge to add a prior address when present-address history is
+                    under 2 years. Shown BEFORE the add button and clears once total
+                    residence history (current + prior dates) reaches 24 months. */}
+                {warning.hasWarning && (
+                  <p className="history-hint" role="note">
+                    Lenders typically need <strong>2 years</strong> of address history — you have about{' '}
+                    {Math.round(warning.totalDuration)} month{Math.round(warning.totalDuration) === 1 ? '' : 's'}.
+                    Add your previous address to cover the gap.
+                  </p>
+                )}
                 {resFields.length < 6 && (
                   <div style={{ display: 'flex', gap: '1rem', marginTop: '1.5rem' }}>
                     <button
@@ -575,7 +581,7 @@ const BorrowerInformationStep = ({
                       {...register(`borrowers.${i}.mailingSameAsPresent`)}
                       style={{ width: 'auto', margin: 0 }}
                     />
-                    <span>Mailing address same as present address</span>
+                    <span>This address is also my mailing address</span>
                   </label>
 
                   {!watch(`borrowers.${i}.mailingSameAsPresent`) && (

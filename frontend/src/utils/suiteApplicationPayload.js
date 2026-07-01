@@ -287,6 +287,8 @@ function buildLoan(formData) {
     proposedHazardInsuranceMonthly: num(formData.property?.proposedHazardInsuranceMonthly),
     proposedHoaDuesMonthly: num(formData.property?.proposedHoaDuesMonthly),
     proposedMortgageInsuranceMonthly: num(formData.property?.proposedMortgageInsuranceMonthly),
+    // Free-text application note (page-4 Notes box) → suite loan.notes.
+    notes: str(formData.notes),
   };
 }
 
@@ -399,6 +401,7 @@ function buildLiabilities(liabilities) {
  */
 function reoUseOverrides(use) {
   switch (use) {
+    case 'Primary':      return { intendedOccupancy: 'PRIMARY_RESIDENCE', propertyStatus: 'RETAINED' };
     case 'Investment':   return { intendedOccupancy: 'INVESTMENT',  propertyStatus: 'RETAINED' };
     case 'SecondHome':   return { intendedOccupancy: 'SECOND_HOME', propertyStatus: 'RETAINED' };
     case 'Timeshare':    return { propertyType: 'TIMESHARE',        propertyStatus: 'RETAINED' };
@@ -628,6 +631,46 @@ export function formToSuiteApplication(formData) {
     // Joint applicants. Omitted entirely (spread of {}) when there are none, so the
     // single-borrower body is byte-for-byte unchanged; sent as CoBorrowerSection[] otherwise.
     ...(coBorrowers.length ? { coBorrowers } : {}),
+  };
+}
+
+/**
+ * Form → suite POST /api/loans/intake body (origination IntakeRequest), used to
+ * MATERIALIZE a SoR loan for a borrower who reached /apply WITHOUT coming through the
+ * funnel (no stashed suiteLoanId). Mirrors continuePrefill.toIntakeRequest, but sourced
+ * from the in-progress 1003 instead of the funnel handoff token. The borrower then writes
+ * the full application onto the returned loan via PUT /loans/{id}/application.
+ *
+ * Pure: the caller supplies `sourceLeadId` (the suite is idempotent on it) so this stays
+ * deterministic / unit-testable.
+ *
+ * @param {object} formData      Raw react-hook-form values.
+ * @param {string} sourceLeadId  Idempotency key minted by the caller.
+ * @returns {object}             Body for POST /api/loans/intake.
+ */
+export function formToSuiteIntake(formData, sourceLeadId) {
+  const data = formData || {};
+  const primary = (data.borrowers || [])[0] || {};
+  const p = data.property || {};
+  const purpose = data.loanPurpose === 'Purchase' ? 'PURCHASE'
+    : (data.loanPurpose === 'Refinance' || data.loanPurpose === 'CashOut') ? 'REFINANCE'
+    : 'OTHER';
+  return {
+    sourceLeadId: str(sourceLeadId),
+    loanPurpose: purpose,
+    borrower: {
+      firstName: str(primary.firstName),
+      lastName: str(primary.lastName),
+      email: str(primary.email),
+      phone: normalizePhone(primary.phone) || null,
+    },
+    property: {
+      addressLine1: str(p.addressLine),
+      city: str(p.city),
+      state: usState(p.state),
+      postalCode: str(p.zipCode),
+      estimatedValue: num(data.propertyValue),
+    },
   };
 }
 

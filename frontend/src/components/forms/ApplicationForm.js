@@ -46,7 +46,8 @@ import { createDefaultBorrower } from '../../utils/fieldArrayHelpers';
 import { focusFirstInvalidField } from '../../utils/formErrorHelpers';
 import { useDraftAutosave, clearDraft } from '../../hooks/useDraftAutosave';
 import { formToApplicationPayload } from '../../utils/applicationPayload';
-import { formToSuiteApplication } from '../../utils/suiteApplicationPayload';
+import { formToSuiteApplication, formToSuiteIntake } from '../../utils/suiteApplicationPayload';
+import useRoles from '../../hooks/useRoles';
 
 // Borrower self-submit → suite (system of record). RE-ENABLED 2026-06-29: the
 // enum/type mismatches that forced the 2026-06-28 rollback (ownershipShare,
@@ -65,6 +66,10 @@ const ApplicationForm = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [lastSavedAt, setLastSavedAt] = useState(null);
+
+  // Role drives the submit target: staff (LO/Processor/Admin/Manager) use the legacy
+  // mortgage-app create; a Borrower always writes to the suite (system of record).
+  const { isBorrower } = useRoles();
 
   // Form setup
   const { register, handleSubmit, control, formState: { errors }, trigger, getValues, watch, setValue, reset } = useForm({
@@ -370,8 +375,23 @@ const ApplicationForm = () => {
       // SAVE the full application into the SoR via the borrower-self endpoint
       // (PUT /api/loans/{id}/application) instead of the legacy mortgage-app create.
       // The suite mapper is pure + unit-tested (utils/suiteApplicationPayload.js).
-      const suiteLoanId = sessionStorage.getItem('suiteLoanId');
-      if (SUITE_SELF_SUBMIT_ENABLED && suiteLoanId && !(isEditing && editId)) {
+      // Borrower self-submit fires when EITHER the funnel stashed a suite loan id OR the
+      // caller is a Borrower (so a borrower who reached /apply directly — no funnel — still
+      // writes to the SoR instead of 403ing on the staff-only POST /loan-applications).
+      let suiteLoanId = sessionStorage.getItem('suiteLoanId');
+      if (SUITE_SELF_SUBMIT_ENABLED && !(isEditing && editId) && (suiteLoanId || isBorrower)) {
+        // No stashed loan (didn't come through the funnel) → materialize one in the suite
+        // first. createLoanFromIntake hits the borrower-allowed suite POST /loans/intake
+        // (the same call ContinuePage makes) and returns the new loan's id.
+        if (!suiteLoanId) {
+          debug('BORROWER SELF-SUBMIT: no stashed loan — creating one from the form');
+          const leadId = `selfapply-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+          const intakeResult = await mortgageService.createLoanFromIntake(formToSuiteIntake(data, leadId));
+          suiteLoanId = intakeResult?.loanId ?? intakeResult?.id ?? null;
+          if (!suiteLoanId) {
+            throw new Error('Could not start your application. Please try again.');
+          }
+        }
         debug('BORROWER SELF-SUBMIT: saving to suite loan', suiteLoanId);
         const suiteBody = formToSuiteApplication(data);
         debug('Suite application body:', JSON.stringify(suiteBody, null, 2));
@@ -551,6 +571,17 @@ const ApplicationForm = () => {
     navigate('/applications');
   };
 
+  // Continue / Submit nav — relocated from the green hero CTA to the progress strip
+  // (opposite the Back pill). Step 7 submits; earlier steps advance.
+  const continueLabel =
+    isLastStep ? (isEditing ? 'Save changes' : 'Submit application')
+    : currentStep === totalSteps - 1 ? 'Continue to review'
+    : 'Continue';
+  const handleContinue =
+    isViewing ? null
+    : !isLastStep ? handleNextStep
+    : handleSubmit(onSubmit);
+
   return (
       <div className="page apply-page">
         <ApplyHero
@@ -560,16 +591,6 @@ const ApplicationForm = () => {
           currentStep={currentStep}
           lastSavedAt={lastSavedAt}
           onSaveAndExit={isViewing ? null : handleSaveAndExit}
-          onContinue={
-            isViewing ? null
-            : !isLastStep ? handleNextStep
-            : handleSubmit(onSubmit)   // step 7: header CTA submits the application
-          }
-          continueLabel={
-            isLastStep ? (isEditing ? 'Save changes' : 'Submit application')
-            : currentStep === totalSteps - 1 ? 'Continue to review'
-            : 'Continue'
-          }
         />
 
         <ApplyProgressStrip
@@ -577,6 +598,8 @@ const ApplicationForm = () => {
           visitedSteps={visitedSteps}
           onStepClick={handleStepClick}
           onBack={() => navigate(-1)}
+          onContinue={handleContinue}
+          continueLabel={continueLabel}
           estTimeRemaining={null}
         />
 

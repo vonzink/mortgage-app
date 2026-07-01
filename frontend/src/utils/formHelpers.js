@@ -23,10 +23,30 @@ export {
  */
 export const calculateResidenceHistoryDuration = (residences) => {
   if (!residences || !Array.isArray(residences)) return 0;
-  
+
   return residences.reduce((total, residence) => {
-    const duration = parseInt(residence.durationMonths) || 0;
-    return total + duration;
+    if (!residence) return total;
+
+    // Prior residences carry start/end dates (Current ones carry years+months).
+    // These dates were previously ignored, so adding a prior address never counted
+    // toward the 2-year history check. Compute their span the same way employment does.
+    if (residence.residencyType === 'Prior' && residence.startDate) {
+      const start = new Date(residence.startDate);
+      const end = residence.endDate ? new Date(residence.endDate) : new Date();
+      const diffTime = Math.abs(end - start);
+      const diffMonths = Math.ceil(diffTime / (1000 * 60 * 60 * 24 * 30));
+      return total + (Number.isFinite(diffMonths) ? diffMonths : 0);
+    }
+
+    // Current / unspecified: prefer an explicit durationMonths, else derive it from
+    // the years + months inputs (the onChange handler may not have written
+    // durationMonths yet, e.g. on a reset()-driven prefill).
+    const explicit = parseInt(residence.durationMonths, 10);
+    if (Number.isFinite(explicit) && explicit > 0) return total + explicit;
+
+    const years = parseInt(residence.durationYears, 10) || 0;
+    const monthsOnly = parseInt(residence.durationMonthsOnly, 10) || 0;
+    return total + (years * 12 + monthsOnly);
   }, 0);
 };
 
@@ -59,11 +79,15 @@ export const calculateEmploymentHistoryDuration = (employmentHistory) => {
  */
 export const checkResidenceHistoryWarning = (residences, minimumMonths = 24) => {
   const totalDuration = calculateResidenceHistoryDuration(residences);
-  const hasData = residences.some(res => 
-    (res.durationYears && res.durationYears > 0) || 
-    (res.durationMonthsOnly && res.durationMonthsOnly > 0)
+  const hasData = Array.isArray(residences) && residences.some(res =>
+    res && (
+      (res.durationYears && res.durationYears > 0) ||
+      (res.durationMonthsOnly && res.durationMonthsOnly > 0) ||
+      (res.durationMonths && res.durationMonths > 0) ||
+      !!res.startDate
+    )
   );
-  
+
   return {
     hasWarning: hasData && totalDuration < minimumMonths,
     totalDuration

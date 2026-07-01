@@ -89,6 +89,8 @@ export function ApplyProgressStrip({
   visitedSteps,          // Set<number>
   onStepClick,
   onBack,                // optional Back nav, rendered beside the 1–7 steps
+  onContinue,            // optional Continue/Submit nav, rendered after step 7 (opposite Back)
+  continueLabel = 'Continue',
   estTimeRemaining,      // string e.g. "18 min" — pass null to hide
 }) {
   const idx = currentStep - 1;
@@ -170,6 +172,18 @@ export function ApplyProgressStrip({
           <div className="eyebrow">Est. time left</div>
           <div className="mono apply-progress-time-value">{estTimeRemaining}</div>
         </div>
+      )}
+
+      {/* Continue / Submit — sits at the far end of the strip, opposite the Back pill,
+          styled to match it (relocated here from the green hero CTA per owner request). */}
+      {onContinue && (
+        <button type="button" className="apply-progress-back apply-progress-next" onClick={onContinue} aria-label={continueLabel}>
+          {continueLabel}
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
+               strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <path d="m9 18 6-6-6-6" />
+          </svg>
+        </button>
       )}
     </div>
   );

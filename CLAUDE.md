@@ -7,7 +7,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 A three-app monorepo for MSFG's mortgage origination platform:
 
 - `backend/` — Spring Boot 3.2 / Java 17, Maven, Postgres (RDS) in prod, H2 in PostgreSQL-mode in dev. Flyway-driven schema. Cognito JWT auth. AWS SDK v2 for S3.
-- `frontend/` — Create React App (React 18). `react-oidc-context` for Cognito Hosted UI, axios for API calls, react-hook-form for the multi-step 1003.
+- `frontend/` — React 18 built with Vite 5 (migrated off Create React App). `react-oidc-context` for Cognito Hosted UI, axios for API calls, react-hook-form for the multi-step 1003.
 - `infra/` — AWS CDK v2 (TypeScript). Two stacks per env (prod + dev): `Documents` (S3 + lifecycle + Object Lock + access logging) and `Iam` (EC2 instance role with denied governance bypass).
 
 Living docs live in `docs/` (currently just `UI_DESIGN_REFERENCES.md`). The top-level `README.md`, `LATEST_UPDATES.md`, `CURRENCY_FORMATTING_UPDATE.md`, and `DOCUMENT_RULES_ENGINE_SUMMARY.md` predate the current architecture and describe removed features (AI/docRules, in-memory DB, application versioning). Trust the code, not those files.
@@ -48,11 +48,19 @@ The backend serves on `http://localhost:8081` with context-path `/api` (so healt
 ### Frontend (run from `frontend/`)
 
 ```bash
-npm install --legacy-peer-deps                               # CRA 5 vs newer TS peer
-npm start                                                    # dev server on :3000
-npm test                                                     # CRA Jest runner (watch mode by default)
-CI=false npm run build                                       # prod build (CI=true treats warnings as errors)
+npm install --legacy-peer-deps                               # @types/react 19 vs React 18 peer
+npm start                                                    # Vite dev server on :3000 (alias: npm run dev)
+npm test                                                     # Vitest run (one-shot); npm run test:watch to watch
+npm run build                                                # Vite prod build → dist/
+npm run preview                                              # serve the built dist/ locally
 ```
+
+Build tool is **Vite 5 + Vitest 2** (migrated off Create React App / `react-scripts`).
+Env vars still use the `REACT_APP_*` names — `vite.config.js` bakes a `process.env`
+shim (like CRA's DefinePlugin) so `process.env.REACT_APP_*` reads work at runtime,
+and `envPrefix` also exposes them on `import.meta.env`. JSX in `.js` files keeps
+compiling via a scoped esbuild `jsx` loader. Tests run under Vitest (jsdom) with a
+`jest`→`vi` codemod already applied.
 
 Copy `.env.example` to `.env`. The Cognito client ID + domain are real values for the shared user pool `us-west-1_S6iE2uego`.
 

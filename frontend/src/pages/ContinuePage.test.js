@@ -95,7 +95,7 @@ test('createLoanFromIntake failure resets to the chooser so user can retry', asy
 
   // Start the email-OTP factor → code entry appears.
   fireEvent.click(screen.getByRole('button', { name: /email me a code/i }));
-  const codeInput = await screen.findByLabelText(/enter the 6-digit code/i);
+  const codeInput = await screen.findByLabelText(/enter the code/i);
 
   fireEvent.change(codeInput, { target: { value: '000000' } });
   fireEvent.click(screen.getByRole('button', { name: /verify/i }));
@@ -118,7 +118,7 @@ test('email -> start -> respond -> creates loan, seeds carryOverData, HARD-navig
   );
 
   // Code input appears; enter it and verify.
-  const codeInput = await screen.findByLabelText(/enter the 6-digit code/i);
+  const codeInput = await screen.findByLabelText(/enter the code/i);
   fireEvent.change(codeInput, { target: { value: '000000' } });
   fireEvent.click(screen.getByRole('button', { name: /verify/i }));
 
@@ -134,7 +134,7 @@ test('dev bypass (REACT_APP_DEV_SUB) uses SPA navigate, not a hard reload', asyn
   process.env.REACT_APP_DEV_SUB = 'dev-sub';
   renderPage();
   fireEvent.click(screen.getByRole('button', { name: /email me a code/i }));
-  const codeInput = await screen.findByLabelText(/enter the 6-digit code/i);
+  const codeInput = await screen.findByLabelText(/enter the code/i);
   fireEvent.change(codeInput, { target: { value: '000000' } });
   fireEvent.click(screen.getByRole('button', { name: /verify/i }));
   await waitFor(() => expect(mockNavigate).toHaveBeenCalledWith('/apply'));

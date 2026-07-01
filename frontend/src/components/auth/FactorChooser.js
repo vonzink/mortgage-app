@@ -90,14 +90,24 @@ export default function FactorChooser({ auth, email, onEmailChange, onAuthentica
 
   const submitCode = async () => {
     setBusy(true); setCodeError(''); setNote('');
+    let res;
     try {
-      const res = await auth.respond(state, { code });
-      setPhase('working');
-      await onAuthenticated(res);
+      res = await auth.respond(state, { code });
     } catch (e) {
-      // Stay on the code screen so the user can retry — do NOT bounce to the chooser.
+      // Wrong/expired code — stay on the code screen so the user can retry.
       setCodeError('That code didn’t match. Re-enter it, or request a new one.');
       setCode('');
+      setBusy(false);
+      return;
+    }
+    // Code verified. Hand off to the caller; if the intake tail fails it rethrows —
+    // fall back to the chooser so the user can retry instead of being stranded on
+    // "Finishing sign-in…".
+    setPhase('working');
+    try {
+      await onAuthenticated(res);
+    } catch (e) {
+      setPhase('choose');
       setBusy(false);
     }
   };

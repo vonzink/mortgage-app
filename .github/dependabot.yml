@@ -11,9 +11,16 @@ updates:
     open-pull-requests-limit: 10
     groups:
       backend-minor-and-patch:
+        applies-to: version-updates
         update-types:
           - minor
           - patch
+      # Batch ALL security fixes for this ecosystem into a single PR (default is
+      # one PR per advisory — this is the main source of Dependabot PR noise).
+      backend-security:
+        applies-to: security-updates
+        patterns:
+          - "*"
     ignore:
       # Auto minor/patch only; major bumps (e.g. Spring Boot 4.x, jasypt 4.x)
       # need a deliberate migration, not an auto-PR.
@@ -31,9 +38,14 @@ updates:
     open-pull-requests-limit: 10
     groups:
       frontend-minor-and-patch:
+        applies-to: version-updates
         update-types:
           - minor
           - patch
+      frontend-security:
+        applies-to: security-updates
+        patterns:
+          - "*"
     ignore:
       # Auto minor/patch only; major bumps (React Router 7, React 19,
       # testing-library 16, TypeScript 6, etc.) need a deliberate upgrade.
@@ -52,9 +64,14 @@ updates:
     open-pull-requests-limit: 10
     groups:
       infra-minor-and-patch:
+        applies-to: version-updates
         update-types:
           - minor
           - patch
+      infra-security:
+        applies-to: security-updates
+        patterns:
+          - "*"
     ignore:
       - dependency-name: "*"
         update-types: ["version-update:semver-major"]
@@ -70,6 +87,11 @@ updates:
     open-pull-requests-limit: 5
     groups:
       github-actions-minor-and-patch:
+        applies-to: version-updates
         update-types:
           - minor
           - patch
+      github-actions-security:
+        applies-to: security-updates
+        patterns:
+          - "*"

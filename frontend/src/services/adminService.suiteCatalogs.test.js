@@ -33,14 +33,13 @@ afterEach(() => jest.clearAllMocks());
 // ── Document Types ────────────────────────────────────────────────────────────
 
 describe('adminService document-type catalog (suite)', () => {
-  test('listDocumentTypes hits suiteClient and unwraps the envelope', async () => {
+  test('listDocumentTypes hits suiteClient and unwraps the BARE-ARRAY envelope (real admin wire shape)', async () => {
+    // AdminDocumentTypeController.list() returns ApiResponse<List<DocumentTypeResponse>>:
+    // the envelope data IS the array — NOT the {count, documentTypes} non-admin view.
     suiteClient.get.mockResolvedValue({
       data: {
         success: true,
-        data: {
-          count: 1,
-          documentTypes: [{ id: 'dt-1', name: 'W-2', slug: 'w-2' }],
-        },
+        data: [{ id: 'dt-1', name: 'W-2', slug: 'w-2' }],
       },
     });
 
@@ -50,7 +49,19 @@ describe('adminService document-type catalog (suite)', () => {
     expect(result).toEqual([{ id: 'dt-1', name: 'W-2', slug: 'w-2' }]);
   });
 
-  test('listDocumentTypes returns [] when documentTypes is absent', async () => {
+  test('listDocumentTypes tolerates the {count, documentTypes} object view (future-proofing)', async () => {
+    suiteClient.get.mockResolvedValue({
+      data: {
+        success: true,
+        data: { count: 1, documentTypes: [{ id: 'dt-1', name: 'W-2', slug: 'w-2' }] },
+      },
+    });
+    expect(await adminService.listDocumentTypes()).toEqual([
+      { id: 'dt-1', name: 'W-2', slug: 'w-2' },
+    ]);
+  });
+
+  test('listDocumentTypes returns [] when the payload is neither array nor object view', async () => {
     suiteClient.get.mockResolvedValue({ data: { success: true, data: { count: 0 } } });
     expect(await adminService.listDocumentTypes()).toEqual([]);
   });
@@ -120,8 +131,8 @@ describe('adminService document-type catalog (suite)', () => {
     expect(result).toEqual(updated);
   });
 
-  test('deactivateDocumentType DELETEs via suiteClient', async () => {
-    suiteClient.delete.mockResolvedValue({ data: { success: true, data: null } });
+  test('deactivateDocumentType DELETEs via suiteClient (204 No Content — empty body)', async () => {
+    suiteClient.delete.mockResolvedValue({ status: 204, data: '' });
 
     await adminService.deactivateDocumentType('dt-1');
 
@@ -132,14 +143,13 @@ describe('adminService document-type catalog (suite)', () => {
 // ── Folder Templates ──────────────────────────────────────────────────────────
 
 describe('adminService folder-template catalog (suite)', () => {
-  test('listFolderTemplates hits suiteClient and unwraps the envelope', async () => {
+  test('listFolderTemplates hits suiteClient and unwraps the BARE-ARRAY envelope (real admin wire shape)', async () => {
+    // AdminFolderTemplateController.list() returns ApiResponse<List<FolderTemplateResponse>>:
+    // the envelope data IS the array — NOT the {count, folderTemplates} non-admin view.
     suiteClient.get.mockResolvedValue({
       data: {
         success: true,
-        data: {
-          count: 1,
-          folderTemplates: [{ id: 'ft-1', displayName: '01 Application' }],
-        },
+        data: [{ id: 'ft-1', displayName: '01 Application' }],
       },
     });
 
@@ -149,7 +159,19 @@ describe('adminService folder-template catalog (suite)', () => {
     expect(result).toEqual([{ id: 'ft-1', displayName: '01 Application' }]);
   });
 
-  test('listFolderTemplates returns [] when folderTemplates is absent', async () => {
+  test('listFolderTemplates tolerates the {count, folderTemplates} object view (future-proofing)', async () => {
+    suiteClient.get.mockResolvedValue({
+      data: {
+        success: true,
+        data: { count: 1, folderTemplates: [{ id: 'ft-1', displayName: '01 Application' }] },
+      },
+    });
+    expect(await adminService.listFolderTemplates()).toEqual([
+      { id: 'ft-1', displayName: '01 Application' },
+    ]);
+  });
+
+  test('listFolderTemplates returns [] when the payload is neither array nor object view', async () => {
     suiteClient.get.mockResolvedValue({ data: { success: true, data: { count: 0 } } });
     expect(await adminService.listFolderTemplates()).toEqual([]);
   });
@@ -220,8 +242,8 @@ describe('adminService folder-template catalog (suite)', () => {
     expect(result).toEqual(updated);
   });
 
-  test('deactivateFolderTemplate DELETEs via suiteClient', async () => {
-    suiteClient.delete.mockResolvedValue({ data: { success: true, data: null } });
+  test('deactivateFolderTemplate DELETEs via suiteClient (204 No Content — empty body)', async () => {
+    suiteClient.delete.mockResolvedValue({ status: 204, data: '' });
 
     await adminService.deactivateFolderTemplate('ft-1');
 

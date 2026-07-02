@@ -60,7 +60,11 @@ const adminService = {
   // ── Document Types — managed on the msfg-suite (system of record) ──────────
   listDocumentTypes: async () => {
     const { data } = await suiteClient.get('/admin/document-types');
-    return unwrapEnvelope(data)?.documentTypes || [];
+    // Admin list returns ApiResponse<List<...>> — envelope data IS the array (verified against
+    // AdminDocumentTypeController). The {count, documentTypes} object view is the NON-admin
+    // /api/document-types shape; tolerated here as future-proofing.
+    const payload = unwrapEnvelope(data);
+    return Array.isArray(payload) ? payload : (payload?.documentTypes || []);
   },
   getDocumentType: async (id) => {
     const { data } = await suiteClient.get(`/admin/document-types/${id}`);
@@ -82,7 +86,10 @@ const adminService = {
   // ── Folder Templates — managed on the msfg-suite (system of record) ────────
   listFolderTemplates: async () => {
     const { data } = await suiteClient.get('/admin/folder-templates');
-    return unwrapEnvelope(data)?.folderTemplates || [];
+    // Admin list returns ApiResponse<List<...>> — envelope data IS the array (verified against
+    // AdminFolderTemplateController). {count, folderTemplates} object view tolerated as future-proofing.
+    const payload = unwrapEnvelope(data);
+    return Array.isArray(payload) ? payload : (payload?.folderTemplates || []);
   },
   getFolderTemplate: async (id) => {
     const { data } = await suiteClient.get(`/admin/folder-templates/${id}`);

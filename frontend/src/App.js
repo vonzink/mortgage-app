@@ -7,6 +7,7 @@ import 'react-toastify/dist/ReactToastify.css';
 // Components
 import TopBar from './components/design/TopBar';
 import RequireAuth from './auth/RequireAuth';
+import SharedSessionCookieSync from './auth/SharedSessionCookieSync';
 
 // Pages
 import LandingPage from './pages/LandingPage';
@@ -76,6 +77,7 @@ function App() {
   return (
     <Router future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
       <AuthExpiredListener />
+      <SharedSessionCookieSync />
       <div className="App msfg">
         <TopBar />
         <main className="main-content">

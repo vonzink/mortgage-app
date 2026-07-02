@@ -570,6 +570,22 @@ const mortgageService = {
     return adaptSuiteDocument(confEnv?.data ?? confEnv);
   },
 
+  // ────────────────── Documents — STAFF read-only view of the suite (system of record) ──────────────────
+  // Staff document management now lives in the suite console; mortgage-app's staff view is read-only,
+  // for visibility + quick download without leaving the loan detail page. Keyed by the suite loanId.
+
+  /** Confirmed documents for a loan, newest first. Returns the unwrapped { count, documents }. */
+  getStaffDocuments: async (suiteLoanId) => {
+    const { data } = await suiteClient.get(`/loans/${suiteLoanId}/documents`);
+    return unwrapEnvelope(data);
+  },
+
+  /** Returns a presigned GET URL for a staff-visible document. { downloadUrl, expiresInSeconds } */
+  getStaffDocumentDownloadUrl: async (suiteLoanId, documentId) => {
+    const { data } = await suiteClient.get(`/loans/${suiteLoanId}/documents/${documentId}/download-url`);
+    return unwrapEnvelope(data);
+  },
+
   // ────────────────── Folder AI evaluation ──────────────────
 
   /** Public flag — every signed-in user can read. Returns { aiEvalEnabled: boolean }. */

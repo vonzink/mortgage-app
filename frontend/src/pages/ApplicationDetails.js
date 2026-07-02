@@ -2,8 +2,8 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
 
-import WorkspaceTab from '../workspace/WorkspaceTab';
 import BorrowerDocuments from '../components/documents/BorrowerDocuments';
+import StaffDocumentsPanel from '../components/documents/StaffDocumentsPanel';
 import mortgageService from '../services/mortgageService';
 import useRoles from '../hooks/useRoles';
 import { suiteLoanUrl } from '../services/suiteWeb';
@@ -128,7 +128,7 @@ const ApplicationDetails = () => {
         <div className="docs-main">
           {useSuiteDocs
             ? <BorrowerDocuments suiteLoanId={id} onChanged={fetchDocuments} />
-            : <WorkspaceTab loanId={Number(id)} />}
+            : <StaffDocumentsPanel loanId={id} />}
         </div>
       </div>
 

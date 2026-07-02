@@ -8,6 +8,7 @@ import * as suiteWeb from '../services/suiteWeb';
 // ── heavy feature panels — irrelevant to the header link under test ─────────
 jest.mock('../workspace/WorkspaceTab', () => () => <div data-testid="workspace-tab-stub" />);
 jest.mock('../components/documents/BorrowerDocuments', () => () => <div data-testid="borrower-documents-stub" />);
+jest.mock('../components/documents/StaffDocumentsPanel', () => () => <div data-testid="staff-documents-panel-stub" />);
 
 // ── mortgageService ───────────────────────────────────────────────────────
 jest.mock('../services/mortgageService', () => ({
@@ -90,4 +91,26 @@ test('staff user does not see the Open in Suite link when the suite URL is uncon
   await waitFor(() => expect(mortgageService.getStatusHistory).toHaveBeenCalled());
 
   expect(screen.queryByTestId('open-in-suite-details')).not.toBeInTheDocument();
+});
+
+test('staff branch renders the read-only StaffDocumentsPanel, not WorkspaceTab', async () => {
+  mockRoles = { isBorrower: false, isStaff: true };
+  suiteWeb.suiteLoanUrl.mockReturnValue('https://suite.msfgco.com/loans/loan-123');
+
+  renderPage('loan-123');
+  await waitFor(() => expect(mortgageService.getStatusHistory).toHaveBeenCalled());
+
+  expect(await screen.findByTestId('staff-documents-panel-stub')).toBeInTheDocument();
+  expect(screen.queryByTestId('workspace-tab-stub')).not.toBeInTheDocument();
+});
+
+test('borrower branch is untouched: still renders BorrowerDocuments keyed by loanId', async () => {
+  mockRoles = { isBorrower: true, isStaff: false };
+
+  renderPage('loan-123');
+  await waitFor(() => expect(mortgageService.getStatusHistory).toHaveBeenCalled());
+
+  expect(await screen.findByTestId('borrower-documents-stub')).toBeInTheDocument();
+  expect(screen.queryByTestId('workspace-tab-stub')).not.toBeInTheDocument();
+  expect(screen.queryByTestId('staff-documents-panel-stub')).not.toBeInTheDocument();
 });

@@ -64,9 +64,38 @@ describe('writeSharedSessionCookie', () => {
     expect(writeSharedSessionCookie(null)).toBe(false);
   });
 
+  test('missing REACT_APP_COGNITO_CLIENT_ID → refused', () => {
+    const saved = process.env.REACT_APP_COGNITO_CLIENT_ID;
+    delete process.env.REACT_APP_COGNITO_CLIENT_ID;
+    try {
+      expect(writeSharedSessionCookie(staffUser())).toBe(false);
+      expect(document.cookie).not.toContain(SSO_COOKIE + '=');
+    } finally {
+      process.env.REACT_APP_COGNITO_CLIENT_ID = saved;
+    }
+  });
+
+  // jsdom cannot read attributes back from document.cookie, so assert the raw
+  // string handed to the setter — this is the security-critical surface.
+  test('emitted cookie string carries Path/SameSite/Max-Age (no Domain/Secure on localhost)', () => {
+    const spy = jest.spyOn(document, 'cookie', 'set');
+    try {
+      expect(writeSharedSessionCookie(staffUser())).toBe(true);
+      const set = spy.mock.calls[0][0];
+      expect(set).toContain('Path=/');
+      expect(set).toContain('SameSite=Lax');
+      expect(set).toContain('Max-Age=432000');
+      // Tests run on http://localhost: host-only cookie, no Secure — intentional.
+      expect(set).not.toContain('Domain=');
+      expect(set).not.toContain('Secure');
+    } finally {
+      spy.mockRestore();
+    }
+  });
+
   test('clearSharedSessionCookie removes it', () => {
     writeSharedSessionCookie(staffUser());
     clearSharedSessionCookie();
-    expect(document.cookie).not.toContain(`${SSO_COOKIE}=ey`);
+    expect(document.cookie).not.toContain(SSO_COOKIE + '=');
   });
 });

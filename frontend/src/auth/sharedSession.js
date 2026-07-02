@@ -33,12 +33,16 @@ function cookieAttrs() {
 
 /**
  * Mirror the oidc user's refresh token into the shared cookie.
- * Returns true when written; false when refused (non-staff / no token / expired).
+ * Returns true when written; false when refused (non-staff / no token / expired /
+ * missing client id).
  */
 export function writeSharedSessionCookie(user) {
   if (!user || user.expired || !user.refresh_token) return false;
   if (!isStaffProfile(user.profile)) return false;
-  const payload = { v: 1, cid: process.env.REACT_APP_COGNITO_CLIENT_ID, rt: user.refresh_token };
+  // Fail here at the writer, not cross-repo at the suite-console reader.
+  const cid = process.env.REACT_APP_COGNITO_CLIENT_ID;
+  if (!cid) return false;
+  const payload = { v: 1, cid, rt: user.refresh_token };
   document.cookie = `${SSO_COOKIE}=${btoa(JSON.stringify(payload))}${cookieAttrs()}; Max-Age=${COOKIE_MAX_AGE_SECONDS}`;
   return true;
 }

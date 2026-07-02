@@ -8,6 +8,7 @@ const COLUMNS = [
   { id: 'amount',       label: 'Amount / LTV',          sortable: true, field: 'loanAmount' },
   { id: 'close',        label: 'Close',                 sortable: false },
   { id: 'lo',           label: 'LO',                    sortable: false },
+  { id: 'suite',        label: '',                      sortable: false },
 ];
 
 function SortHeader({ col, sort, onSort }) {
@@ -27,7 +28,7 @@ function SortHeader({ col, sort, onSort }) {
   );
 }
 
-export default function PipelineTable({ rows, sort, onSort }) {
+export default function PipelineTable({ rows, sort, onSort, showSuiteLink = false }) {
   if (!rows || rows.length === 0) {
     return (
       <div className="pipe-empty">
@@ -45,7 +46,7 @@ export default function PipelineTable({ rows, sort, onSort }) {
         </tr>
       </thead>
       <tbody>
-        {rows.map((r) => <PipelineRow key={r.id} row={r} />)}
+        {rows.map((r) => <PipelineRow key={r.id} row={r} showSuiteLink={showSuiteLink} />)}
       </tbody>
     </table>
   );

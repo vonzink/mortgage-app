@@ -44,6 +44,7 @@ export function DashboardHero({
   onViewApplication,
   onOpenDocuments,
   onAdvanceStatus,        // replaces the old in-grid status dropdown (deliberate action)
+  suiteHref,              // external link → open this loan in the msfg-suite console
 }) {
   const tone = dashboardStatusTone(status);
   const idParts = [];
@@ -99,6 +100,12 @@ export function DashboardHero({
         {onOpenDocuments && (
           <Button onClick={onOpenDocuments} title="Open the document workspace">
             <Icon name="folder" size={14} /> Files
+          </Button>
+        )}
+        {suiteHref && (
+          <Button href={suiteHref} target="_blank" rel="noopener noreferrer"
+                  title="Open this loan in the msfg-suite console">
+            Open in Suite ↗
           </Button>
         )}
         {onAdvanceStatus && (

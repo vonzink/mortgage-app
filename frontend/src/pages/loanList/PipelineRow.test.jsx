@@ -55,4 +55,26 @@ describe('PipelineRow', () => {
     fireEvent.click(screen.getByRole('row'));
     expect(mockNavigate).toHaveBeenCalledWith('/loan/42');
   });
+
+  test('suite link renders when showSuiteLink + URL configured, and does not trigger row nav', () => {
+    process.env.REACT_APP_SUITE_WEB_URL = 'https://suite.msfgco.com';
+    render(
+      <MemoryRouter><table><tbody>
+        <PipelineRow row={row} showSuiteLink />
+      </tbody></table></MemoryRouter>,
+    );
+    const link = screen.getByTestId('open-in-suite');
+    expect(link).toHaveAttribute('href', `https://suite.msfgco.com/loans/${row.id}`);
+    expect(link).toHaveAttribute('target', '_blank');
+    fireEvent.click(link);
+    expect(mockNavigate).not.toHaveBeenCalled();
+    delete process.env.REACT_APP_SUITE_WEB_URL;
+  });
+
+  test('no suite link without showSuiteLink', () => {
+    process.env.REACT_APP_SUITE_WEB_URL = 'https://suite.msfgco.com';
+    render(<MemoryRouter><table><tbody><PipelineRow row={row} /></tbody></table></MemoryRouter>);
+    expect(screen.queryByTestId('open-in-suite')).not.toBeInTheDocument();
+    delete process.env.REACT_APP_SUITE_WEB_URL;
+  });
 });

@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import Pill from '../../components/design/Pill';
 import { formatMoneyShort } from '../../utils/format';
 import { stageTone } from './stageSlas';
+import { suiteLoanUrl } from '../../services/suiteWeb';
 
 function statusTone(status) {
   if (!status) return 'muted';
@@ -24,7 +25,7 @@ function formatMonthDay(iso) {
   return d.toLocaleDateString('en-US', { month: 'short', day: '2-digit' });
 }
 
-export default function PipelineRow({ row }) {
+export default function PipelineRow({ row, showSuiteLink = false }) {
   const navigate = useNavigate();
   const age = daysBetween(row.statusChangedAt);
   const tone = stageTone(row.status, age ?? 0);
@@ -77,6 +78,22 @@ export default function PipelineRow({ row }) {
       </td>
       <td className="pipe-cell">{formatMonthDay(row.estClosingDate)}</td>
       <td className="pipe-cell">{row.assignedLoName || '—'}</td>
+      <td className="pipe-cell pipe-cell--suite">
+        {showSuiteLink && suiteLoanUrl(row.id) && (
+          <a
+            data-testid="open-in-suite"
+            className="btn btn-sm"
+            href={suiteLoanUrl(row.id)}
+            target="_blank"
+            rel="noopener noreferrer"
+            title="Open this loan in the msfg-suite console"
+            onClick={(e) => e.stopPropagation()}
+            onKeyDown={(e) => e.stopPropagation()}
+          >
+            Suite ↗
+          </a>
+        )}
+      </td>
     </tr>
   );
 }

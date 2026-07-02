@@ -21,7 +21,9 @@ import {
 
 import dashboardService from '../services/dashboardService';
 import mortgageService from '../services/mortgageService';
+import { suiteLoanUrl } from '../services/suiteWeb';
 import { pushRecentLoan } from '../utils/recentLoans';
+import useRoles from '../hooks/useRoles';
 import './loanDashboard.css';
 import './LoanDashboardPage.design.css';
 
@@ -50,6 +52,7 @@ import {
 export default function LoanDashboardPage() {
   const { loanId } = useParams();
   const navigate = useNavigate();
+  const { isStaff } = useRoles();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -231,6 +234,7 @@ export default function LoanDashboardPage() {
         onViewApplication={() => navigate(`/apply?edit=${loanId}&view=1`)}
         onOpenDocuments={() => navigate(`/applications/${loanId}`)}
         onAdvanceStatus={openAdvanceStatus}
+        suiteHref={isStaff ? suiteLoanUrl(loanId) : null}
       />
 
       <div className="dash-stat-row">

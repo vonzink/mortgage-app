@@ -128,6 +128,7 @@ if [ "$DEPLOY_FRONTEND" = "true" ]; then
     env \
       REACT_APP_API_URL=https://app.msfgco.com/api \
       REACT_APP_SUITE_API_URL=https://los.msfgco.com/api \
+      REACT_APP_SUITE_WEB_URL=https://suite.msfgco.com \
       REACT_APP_COGNITO_AUTHORITY=https://cognito-idp.us-west-1.amazonaws.com/us-west-1_S6iE2uego \
       REACT_APP_COGNITO_REDIRECT_URI=https://app.msfgco.com/auth/callback \
       REACT_APP_COGNITO_POST_LOGOUT_REDIRECT_URI=https://app.msfgco.com/ \

@@ -106,6 +106,7 @@ export default function TopBar() {
   const handleSignOut = async () => {
     clearSharedSessionCookie(); // kill the cross-app SSO cookie before the local session
     await auth.removeUser();
+    clearSharedSessionCookie(); // again post-removeUser: closes the silent-renew race window
     window.location.href = buildCognitoLogoutUrl();
   };
 

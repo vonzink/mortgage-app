@@ -99,3 +99,8 @@ describe('writeSharedSessionCookie', () => {
     expect(document.cookie).not.toContain(SSO_COOKIE + '=');
   });
 });
+
+test('canonical cross-repo cookie fixture decodes (suite-web pins the same literal)', () => {
+  const FIXTURE = 'eyJ2IjoxLCJjaWQiOiIzNHJnMHZxb29iZnY4aGh2ZzhrdW5rZDczOCIsInJ0IjoiZml4dHVyZS1ydCJ9';
+  expect(JSON.parse(atob(FIXTURE))).toEqual({ v: 1, cid: '34rg0vqoobfv8hhvg8kunkd738', rt: 'fixture-rt' });
+});

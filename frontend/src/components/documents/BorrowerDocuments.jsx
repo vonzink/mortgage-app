@@ -28,6 +28,36 @@ function fmtSize(bytes) {
   return `${(n / 1024 / 1024).toFixed(1)} MB`;
 }
 
+/** One document row — shared between the "Your uploads" and "From your loan team" sections. */
+function DocRow({ doc, onDownload }) {
+  const s = STATUS[doc.status] || { label: doc.status || '—', tone: 'muted' };
+  return (
+    <div
+      key={doc.docUuid}
+      data-testid="borrower-doc-row"
+      className="borrower-docs__row"
+      style={{
+        display: 'flex', alignItems: 'center', gap: 12, padding: '10px 0',
+        borderTop: '1px solid var(--border-subtle, #eef2f7)',
+      }}
+    >
+      <Icon name="doc" size={16} stroke={1.6} />
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          {doc.fileName || 'Document'}
+        </div>
+        <div className="muted" style={{ fontSize: 12 }}>
+          {fmtSize(doc.fileSize)}{doc.uploadedAt ? ` · ${new Date(doc.uploadedAt).toLocaleDateString()}` : ''}
+        </div>
+      </div>
+      <Pill tone={s.tone}>{s.label}</Pill>
+      <Button variant="ghost" size="sm" onClick={() => onDownload(doc)} title="Download">
+        <Icon name="download" size={12} />
+      </Button>
+    </div>
+  );
+}
+
 export default function BorrowerDocuments({ suiteLoanId, onChanged }) {
   const [docs, setDocs] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -83,6 +113,11 @@ export default function BorrowerDocuments({ suiteLoanId, onChanged }) {
     }
   };
 
+  // Staff-shared documents (read-only for the borrower) are shown separately from the
+  // borrower's own uploads so the two can never be confused with each other.
+  const teamDocs = docs.filter((d) => d.fromLoanTeam);
+  const ownDocs = docs.filter((d) => !d.fromLoanTeam);
+
   return (
     <Card pad className="borrower-docs">
       <div className="card-header">
@@ -118,40 +153,36 @@ export default function BorrowerDocuments({ suiteLoanId, onChanged }) {
 
       {loading ? (
         <div className="muted">Loading…</div>
-      ) : docs.length === 0 ? (
-        <div className="muted" style={{ padding: '8px 0' }}>
-          No documents yet. Upload the items your loan officer requested.
-        </div>
       ) : (
-        <div className="borrower-docs__list">
-          {docs.map((d) => {
-            const s = STATUS[d.status] || { label: d.status || '—', tone: 'muted' };
-            return (
-              <div
-                key={d.docUuid}
-                className="borrower-docs__row"
-                style={{
-                  display: 'flex', alignItems: 'center', gap: 12, padding: '10px 0',
-                  borderTop: '1px solid var(--border-subtle, #eef2f7)',
-                }}
-              >
-                <Icon name="doc" size={16} stroke={1.6} />
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                    {d.fileName || 'Document'}
-                  </div>
-                  <div className="muted" style={{ fontSize: 12 }}>
-                    {fmtSize(d.fileSize)}{d.uploadedAt ? ` · ${new Date(d.uploadedAt).toLocaleDateString()}` : ''}
-                  </div>
-                </div>
-                <Pill tone={s.tone}>{s.label}</Pill>
-                <Button variant="ghost" size="sm" onClick={() => download(d)} title="Download">
-                  <Icon name="download" size={12} />
-                </Button>
+        <>
+          <div className="borrower-docs__section-title muted" style={{ fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.02em', marginTop: 4 }}>
+            Your uploads
+          </div>
+          {ownDocs.length === 0 ? (
+            <div className="muted" style={{ padding: '8px 0' }}>
+              No documents yet. Upload the items your loan officer requested.
+            </div>
+          ) : (
+            <div className="borrower-docs__list">
+              {ownDocs.map((d) => (
+                <DocRow key={d.docUuid} doc={d} onDownload={download} />
+              ))}
+            </div>
+          )}
+
+          {teamDocs.length > 0 && (
+            <div data-testid="borrower-docs__team-section" style={{ marginTop: 20 }}>
+              <div className="borrower-docs__section-title muted" style={{ fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.02em' }}>
+                From your loan team
               </div>
-            );
-          })}
-        </div>
+              <div className="borrower-docs__list">
+                {teamDocs.map((d) => (
+                  <DocRow key={d.docUuid} doc={d} onDownload={download} />
+                ))}
+              </div>
+            </div>
+          )}
+        </>
       )}
     </Card>
   );

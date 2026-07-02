@@ -10,7 +10,7 @@
  * The HTTP layer (apiClient/suiteClient) is mocked; we assert the request shape and the
  * envelope-unwrap of the response.
  */
-import mortgageService from './mortgageService';
+import mortgageService, { adaptSuiteDocument } from './mortgageService';
 import { suiteClient } from './apiClient';
 
 jest.mock('./apiClient', () => ({
@@ -59,6 +59,23 @@ describe('getStaffDocuments', () => {
     const result = await mortgageService.getStaffDocuments('u-2');
 
     expect(result).toEqual({ count: 0, documents: [] });
+  });
+});
+
+describe('adaptSuiteDocument (pure) — fromLoanTeam flag', () => {
+  test('carries fromLoanTeam: true through for a staff-shared document', () => {
+    const out = adaptSuiteDocument({ id: 'd-1', fileName: 'w2.pdf', documentStatus: 'ACCEPTED', fromLoanTeam: true });
+    expect(out.fromLoanTeam).toBe(true);
+  });
+
+  test('normalizes to fromLoanTeam: false when the field is absent (borrower\'s own upload)', () => {
+    const out = adaptSuiteDocument({ id: 'd-2', fileName: 'paystub.pdf', documentStatus: 'UPLOADED' });
+    expect(out.fromLoanTeam).toBe(false);
+  });
+
+  test('normalizes to fromLoanTeam: false when the field is explicitly false', () => {
+    const out = adaptSuiteDocument({ id: 'd-3', fileName: 'id.pdf', documentStatus: 'UPLOADED', fromLoanTeam: false });
+    expect(out.fromLoanTeam).toBe(false);
   });
 });
 

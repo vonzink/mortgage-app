@@ -1,6 +1,10 @@
 import apiClient, { suiteClient } from './apiClient';
 
-/** Map a suite DocumentResponse to the shape the documents UI consumes (docUuid/status/uploadedAt). */
+/**
+ * Map a suite DocumentResponse to the shape the documents UI consumes (docUuid/status/uploadedAt).
+ * `fromLoanTeam` is normalized to a strict boolean: true only when the suite explicitly marks a
+ * document as staff-shared; absent/false both mean "the borrower's own upload".
+ */
 function adaptSuiteDocument(d) {
   if (!d) return d;
   return {
@@ -8,6 +12,7 @@ function adaptSuiteDocument(d) {
     docUuid: d.id,
     status: d.documentStatus,
     uploadedAt: d.createdAt,
+    fromLoanTeam: d.fromLoanTeam === true,
   };
 }
 
@@ -621,6 +626,7 @@ export {
   adaptSuiteLoanDetail,
   adaptSuiteDashboard,
   adaptSuiteSearchHit,
+  adaptSuiteDocument,
   unwrapEnvelope,
 };
 

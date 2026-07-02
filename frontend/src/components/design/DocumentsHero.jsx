@@ -7,7 +7,7 @@ import { formatBytes, formatRelative as relativeTime } from '../../utils/format'
 /**
  * Hero for the document workspace page (ApplicationDetails). Breadcrumb,
  * borrower name as H1, stats subtitle (file count / total size / last activity),
- * and the three primary actions on the right.
+ * and the primary actions on the right (plus a staff-only suite console link).
  */
 export default function DocumentsHero({
   applicationId,
@@ -18,6 +18,7 @@ export default function DocumentsHero({
   onNewFolder,
   onExportAll,
   onUpload,
+  suiteHref,              // external link → open this loan in the msfg-suite console
 }) {
   const sizeStr = formatBytes(totalSizeBytes);
   const lastStr = relativeTime(lastActivity);
@@ -48,6 +49,13 @@ export default function DocumentsHero({
         {onExportAll && (
           <Button onClick={onExportAll}>
             <Icon name="download" size={14} /> Export all
+          </Button>
+        )}
+        {suiteHref && (
+          <Button href={suiteHref} target="_blank" rel="noopener noreferrer"
+                  title="Open this loan in the msfg-suite console"
+                  data-testid="open-in-suite-details">
+            Open in Suite ↗
           </Button>
         )}
         {onUpload && (

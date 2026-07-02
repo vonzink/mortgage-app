@@ -6,6 +6,7 @@ import WorkspaceTab from '../workspace/WorkspaceTab';
 import BorrowerDocuments from '../components/documents/BorrowerDocuments';
 import mortgageService from '../services/mortgageService';
 import useRoles from '../hooks/useRoles';
+import { suiteLoanUrl } from '../services/suiteWeb';
 import { pushRecentLoan } from '../utils/recentLoans';
 import { formatCurrency } from '../utils/formHelpers';
 import DocumentsHero from '../components/design/DocumentsHero';
@@ -21,6 +22,7 @@ const ApplicationDetails = () => {
   const { isBorrower, isStaff } = useRoles();
   // A borrower's documents live in the suite (system of record). Staff keep the folder workspace.
   const useSuiteDocs = isBorrower && !isStaff;
+  const suiteHref = isStaff ? suiteLoanUrl(id) : null;
   const [application, setApplication] = useState(null);
   const [loading, setLoading] = useState(true);
   const [documents, setDocuments] = useState([]);
@@ -119,6 +121,7 @@ const ApplicationDetails = () => {
         totalSizeBytes={totalSize}
         lastActivity={lastActivity}
         onExportAll={() => toast.info('Bulk export is coming soon — for now, use the file table to download individual files.')}
+        suiteHref={suiteHref}
       />
 
       <div className="docs-layout docs-layout--full">

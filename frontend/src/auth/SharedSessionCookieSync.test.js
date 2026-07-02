@@ -42,3 +42,14 @@ test('expired session → cookie left alone', () => {
   render(<SharedSessionCookieSync />);
   expect(document.cookie).toContain(`${SSO_COOKIE}=`);
 });
+
+test('silent renew (new user object) → cookie rewritten with the new refresh token', () => {
+  mockAuth = { user: { ...staffUser, refresh_token: 'rt-1' } };
+  const { rerender } = render(<SharedSessionCookieSync />);
+  const first = document.cookie.match(new RegExp(`${SSO_COOKIE}=([^;]*)`))[1];
+  mockAuth = { user: { ...staffUser, refresh_token: 'rt-2' } };
+  rerender(<SharedSessionCookieSync />);
+  const second = document.cookie.match(new RegExp(`${SSO_COOKIE}=([^;]*)`))[1];
+  expect(second).not.toBe(first);
+  expect(JSON.parse(atob(second)).rt).toBe('rt-2');
+});

@@ -10,7 +10,8 @@ import { isStaffProfile, writeSharedSessionCookie, clearSharedSessionCookie } fr
  *  - staff session      → (re)write the cookie
  *  - non-staff session  → clear it (stale-persona cleanup: borrower after staff)
  *  - no/expired session → leave it alone — a fresh pre-login tab must not kill
- *    an SSO cookie the suite console may still be relying on
+ *    an SSO cookie the suite console may still be relying on (explicit sign-out
+ *    clearing lives in TopBar.handleSignOut — the ONLY logout-time clear)
  */
 export default function SharedSessionCookieSync() {
   const auth = useAuth();

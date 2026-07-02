@@ -7,6 +7,7 @@ import LoanSearch from './LoanSearch';
 import useRoles from '../../hooks/useRoles';
 import mortgageService from '../../services/mortgageService';
 import { buildCognitoLogoutUrl } from '../../auth/cognitoConfig';
+import { clearSharedSessionCookie } from '../../auth/sharedSession';
 
 /**
  * Design-system TopBar — replaces the legacy Header. Preserves all auth +
@@ -103,6 +104,7 @@ export default function TopBar() {
 
   const handleSignIn = () => auth.signinRedirect();
   const handleSignOut = async () => {
+    clearSharedSessionCookie(); // kill the cross-app SSO cookie before the local session
     await auth.removeUser();
     window.location.href = buildCognitoLogoutUrl();
   };

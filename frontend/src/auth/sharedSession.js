@@ -12,7 +12,9 @@ export const SSO_COOKIE = 'msfg_sso';
 // Underwriter/Closer included ahead of provisioning those groups.
 const STAFF_GROUPS = ['Admin', 'LO', 'Processor', 'Manager', 'Underwriter', 'Closer'];
 
-// mortgage-app-web client refresh tokens live 5 days — cookie must not outlive them.
+// mortgage-app-web client refresh tokens live 5 days from ISSUANCE; renew-driven
+// rewrites reset Max-Age from now, so the cookie may outlive the token — benign:
+// the cookie is a pointer, and a dead token just fails the suite's exchange.
 const COOKIE_MAX_AGE_SECONDS = 5 * 24 * 3600;
 
 export function isStaffProfile(profile) {

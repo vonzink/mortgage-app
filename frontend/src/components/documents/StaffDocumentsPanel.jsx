@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
+import { toast } from 'react-toastify';
 
 import mortgageService from '../../services/mortgageService';
 import { suiteLoanUrl } from '../../services/suiteWeb';
@@ -28,32 +29,41 @@ export default function StaffDocumentsPanel({ loanId }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
 
-  const load = useCallback(async () => {
-    if (!loanId) { setLoading(false); return; }
-    setLoading(true);
-    setError(false);
-    try {
-      const { documents } = await mortgageService.getStaffDocuments(loanId);
-      const sorted = [...(documents || [])].sort(
-        (a, b) => new Date(b.createdAt) - new Date(a.createdAt)
-      );
-      setDocs(sorted);
-    } catch (e) {
-      console.error('load staff documents', e);
-      setError(true);
-    } finally {
-      setLoading(false);
-    }
+  useEffect(() => {
+    // Stale-response guard: if loanId changes while a fetch is in flight, the
+    // late response must not clobber the newer loan's documents.
+    let stale = false;
+    (async () => {
+      if (!loanId) { setLoading(false); return; }
+      setLoading(true);
+      setError(false);
+      try {
+        const { documents } = await mortgageService.getStaffDocuments(loanId);
+        if (stale) return;
+        const sorted = [...(documents || [])].sort(
+          (a, b) => new Date(b.createdAt) - new Date(a.createdAt)
+        );
+        setDocs(sorted);
+      } catch (e) {
+        if (!stale) {
+          console.error('load staff documents', e);
+          setError(true);
+        }
+      } finally {
+        if (!stale) setLoading(false);
+      }
+    })();
+    return () => { stale = true; };
   }, [loanId]);
-
-  useEffect(() => { load(); }, [load]);
 
   const download = async (doc) => {
     try {
       const res = await mortgageService.getStaffDocumentDownloadUrl(loanId, doc.id);
-      if (res?.downloadUrl) window.open(res.downloadUrl, '_blank', 'noopener,noreferrer');
+      // Same-tab navigation (sibling BorrowerDocuments pattern): survives popup
+      // blockers, which window.open from an async continuation does not.
+      if (res?.downloadUrl) window.location.href = res.downloadUrl;
     } catch (e) {
-      console.error('download staff document', e);
+      toast.error('Could not open that document');
     }
   };
 

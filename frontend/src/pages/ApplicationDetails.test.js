@@ -6,7 +6,6 @@ import mortgageService from '../services/mortgageService';
 import * as suiteWeb from '../services/suiteWeb';
 
 // ── heavy feature panels — irrelevant to the header link under test ─────────
-jest.mock('../workspace/WorkspaceTab', () => () => <div data-testid="workspace-tab-stub" />);
 jest.mock('../components/documents/BorrowerDocuments', () => () => <div data-testid="borrower-documents-stub" />);
 jest.mock('../components/documents/StaffDocumentsPanel', () => () => <div data-testid="staff-documents-panel-stub" />);
 
@@ -17,6 +16,7 @@ jest.mock('../services/mortgageService', () => ({
     getApplication: jest.fn(),
     getApplicationDocuments: jest.fn(),
     getBorrowerDocuments: jest.fn(),
+    getStaffDocuments: jest.fn(),
     getStatusHistory: jest.fn(),
   },
 }));
@@ -53,6 +53,7 @@ beforeEach(() => {
   mortgageService.getApplication.mockResolvedValue(APPLICATION);
   mortgageService.getApplicationDocuments.mockResolvedValue([]);
   mortgageService.getBorrowerDocuments.mockResolvedValue([]);
+  mortgageService.getStaffDocuments.mockResolvedValue({ count: 0, documents: [] });
   mortgageService.getStatusHistory.mockResolvedValue([]);
 });
 
@@ -102,6 +103,23 @@ test('staff branch renders the read-only StaffDocumentsPanel, not WorkspaceTab',
 
   expect(await screen.findByTestId('staff-documents-panel-stub')).toBeInTheDocument();
   expect(screen.queryByTestId('workspace-tab-stub')).not.toBeInTheDocument();
+});
+
+test('staff hero stats come from the suite documents, not the legacy documents endpoint', async () => {
+  mockRoles = { isBorrower: false, isStaff: true };
+  mortgageService.getStaffDocuments.mockResolvedValue({
+    count: 2,
+    documents: [
+      { id: 'd-1', fileSize: 1000, updatedAt: '2026-06-20T12:00:00Z' },
+      { id: 'd-2', fileSize: 2000, updatedAt: '2026-06-21T12:00:00Z' },
+    ],
+  });
+
+  renderPage('loan-123');
+
+  expect(await screen.findByText(/2 files/)).toBeInTheDocument();
+  expect(mortgageService.getStaffDocuments).toHaveBeenCalledWith('loan-123');
+  expect(mortgageService.getApplicationDocuments).not.toHaveBeenCalled();
 });
 
 test('borrower branch is untouched: still renders BorrowerDocuments keyed by loanId', async () => {

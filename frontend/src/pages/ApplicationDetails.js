@@ -20,7 +20,8 @@ const ApplicationDetails = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const { isBorrower, isStaff } = useRoles();
-  // A borrower's documents live in the suite (system of record). Staff keep the folder workspace.
+  // Borrower docs live in the suite (SoR); staff get a read-only suite view —
+  // management happens in the Suite console.
   const useSuiteDocs = isBorrower && !isStaff;
   const suiteHref = isStaff ? suiteLoanUrl(id) : null;
   const [application, setApplication] = useState(null);
@@ -56,7 +57,7 @@ const ApplicationDetails = () => {
     try {
       const docs = useSuiteDocs
         ? await mortgageService.getBorrowerDocuments(id)   // suite (system of record)
-        : await mortgageService.getApplicationDocuments(id);
+        : ((await mortgageService.getStaffDocuments(id)).documents || []);
       setDocuments(docs);
     } catch (error) {
       console.error('Error fetching documents:', error);

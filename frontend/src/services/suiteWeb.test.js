@@ -1,11 +1,20 @@
 import { suiteWebUrl, suiteLoanUrl } from './suiteWeb';
 
 const ORIG = process.env.REACT_APP_SUITE_WEB_URL;
-afterEach(() => { process.env.REACT_APP_SUITE_WEB_URL = ORIG; });
+afterEach(() => {
+  // Restore exactly: assigning undefined would coerce to the string "undefined".
+  if (ORIG === undefined) delete process.env.REACT_APP_SUITE_WEB_URL;
+  else process.env.REACT_APP_SUITE_WEB_URL = ORIG;
+});
 
 test('suiteLoanUrl builds the console loan URL', () => {
   process.env.REACT_APP_SUITE_WEB_URL = 'https://suite.msfgco.com';
   expect(suiteLoanUrl('abc-123')).toBe('https://suite.msfgco.com/loans/abc-123');
+});
+
+test('loanId is URL-encoded (dashboard route params arrive decoded)', () => {
+  process.env.REACT_APP_SUITE_WEB_URL = 'https://suite.msfgco.com';
+  expect(suiteLoanUrl('a/b')).toBe('https://suite.msfgco.com/loans/a%2Fb');
 });
 
 test('trailing slash tolerated', () => {

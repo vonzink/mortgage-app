@@ -103,3 +103,10 @@
 }
 .pipe-pager-info { font-variant-numeric: tabular-nums; }
 .pipe-pager-size { padding: 4px 8px; border: 1px solid var(--ink-line); border-radius: 6px; background: var(--paper); font-size: 12px; }
+
+/* ─── A11y utilities ──────────────────────────────────────────────────── */
+/* Visually hidden but still announced by screen readers (standard sr-only). */
+.sr-only {
+  position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+  overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0;
+}

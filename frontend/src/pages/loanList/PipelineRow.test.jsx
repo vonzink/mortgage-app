@@ -25,6 +25,14 @@ const row = {
 
 beforeEach(() => { mockNavigate.mockReset(); });
 
+const ORIG_SUITE_URL = process.env.REACT_APP_SUITE_WEB_URL;
+afterEach(() => {
+  // Restore exactly (even if an assertion failed mid-test) — assigning
+  // undefined would coerce to the string "undefined".
+  if (ORIG_SUITE_URL === undefined) delete process.env.REACT_APP_SUITE_WEB_URL;
+  else process.env.REACT_APP_SUITE_WEB_URL = ORIG_SUITE_URL;
+});
+
 describe('PipelineRow', () => {
   test('renders borrower name + city + app number', () => {
     render(<MemoryRouter><table><tbody><PipelineRow row={row} /></tbody></table></MemoryRouter>);
@@ -68,13 +76,13 @@ describe('PipelineRow', () => {
     expect(link).toHaveAttribute('target', '_blank');
     fireEvent.click(link);
     expect(mockNavigate).not.toHaveBeenCalled();
-    delete process.env.REACT_APP_SUITE_WEB_URL;
+    fireEvent.keyDown(link, { key: 'Enter' });
+    expect(mockNavigate).not.toHaveBeenCalled();
   });
 
   test('no suite link without showSuiteLink', () => {
     process.env.REACT_APP_SUITE_WEB_URL = 'https://suite.msfgco.com';
     render(<MemoryRouter><table><tbody><PipelineRow row={row} /></tbody></table></MemoryRouter>);
     expect(screen.queryByTestId('open-in-suite')).not.toBeInTheDocument();
-    delete process.env.REACT_APP_SUITE_WEB_URL;
   });
 });

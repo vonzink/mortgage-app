@@ -9,5 +9,5 @@ export function suiteWebUrl() {
 /** Deep link to a loan's workspace in the console, or null when unconfigured. */
 export function suiteLoanUrl(loanId) {
   const base = suiteWebUrl();
-  return base && loanId ? `${base}/loans/${loanId}` : null;
+  return base && loanId ? `${base}/loans/${encodeURIComponent(loanId)}` : null;
 }

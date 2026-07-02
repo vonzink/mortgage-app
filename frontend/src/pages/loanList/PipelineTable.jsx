@@ -40,9 +40,12 @@ export default function PipelineTable({ rows, sort, onSort, showSuiteLink = fals
     <table className="pipe-table">
       <thead>
         <tr>
-          {COLUMNS.map((c) => c.sortable
-            ? <SortHeader key={c.id} col={c} sort={sort} onSort={onSort} />
-            : <th key={c.id}>{c.label}</th>)}
+          {COLUMNS.map((c) => {
+            if (c.sortable) return <SortHeader key={c.id} col={c} sort={sort} onSort={onSort} />;
+            // Suite-link column: visually empty header, but named for screen readers.
+            if (c.id === 'suite') return <th key={c.id}><span className="sr-only">Open in Suite</span></th>;
+            return <th key={c.id}>{c.label}</th>;
+          })}
         </tr>
       </thead>
       <tbody>

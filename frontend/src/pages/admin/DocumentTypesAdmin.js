@@ -15,7 +15,6 @@ const EMPTY_FORM = {
   requiredForMilestones: '',
   allowedMimeTypes: '',
   maxFileSizeBytes: '',
-  borrowerVisibleDefault: true,
   isActive: true,
   sortOrder: 0,
 };
@@ -55,7 +54,6 @@ export default function DocumentTypesAdmin() {
       requiredForMilestones: row.requiredForMilestones || '',
       allowedMimeTypes: row.allowedMimeTypes || '',
       maxFileSizeBytes: row.maxFileSizeBytes ?? '',
-      borrowerVisibleDefault: row.borrowerVisibleDefault !== false,
       isActive: row.isActive !== false,
       sortOrder: row.sortOrder ?? 0,
     });
@@ -122,7 +120,6 @@ export default function DocumentTypesAdmin() {
               <th style={th}>Slug</th>
               <th style={th}>Default folder</th>
               <th style={th}>Max size</th>
-              <th style={th}>Borrower visible</th>
               <th style={th}>Active</th>
               <th style={th}></th>
             </tr>
@@ -135,7 +132,6 @@ export default function DocumentTypesAdmin() {
                 <td style={monoCell}>{row.slug}</td>
                 <td style={td}>{row.defaultFolderName || '—'}</td>
                 <td style={td}>{row.maxFileSizeBytes ? `${(row.maxFileSizeBytes / 1024 / 1024).toFixed(1)} MB` : '—'}</td>
-                <td style={td}>{row.borrowerVisibleDefault ? 'Yes' : 'No'}</td>
                 <td style={td}>{row.isActive ? 'Active' : 'Inactive'}</td>
                 <td style={{ ...td, textAlign: 'right' }}>
                   <button onClick={() => openEdit(row)} style={linkBtn}>Edit</button>
@@ -143,7 +139,7 @@ export default function DocumentTypesAdmin() {
                 </td>
               </tr>
             ))}
-            {!items.length && <tr><td colSpan={8} style={{ ...td, textAlign: 'center', ...mutedText }}>No document types yet.</td></tr>}
+            {!items.length && <tr><td colSpan={7} style={{ ...td, textAlign: 'center', ...mutedText }}>No document types yet.</td></tr>}
           </tbody>
         </table>
       )}
@@ -172,7 +168,6 @@ export default function DocumentTypesAdmin() {
             <input type="number" value={form.sortOrder} onChange={e => setForm({ ...form, sortOrder: e.target.value })} style={input} />
           </Field>
           <div style={{ display: 'flex', gap: '1rem', marginTop: '0.5rem' }}>
-            <label><input type="checkbox" checked={form.borrowerVisibleDefault} onChange={e => setForm({ ...form, borrowerVisibleDefault: e.target.checked })} /> Borrower-visible by default</label>
             <label><input type="checkbox" checked={form.isActive} onChange={e => setForm({ ...form, isActive: e.target.checked })} /> Active</label>
           </div>
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem', marginTop: '1.5rem' }}>

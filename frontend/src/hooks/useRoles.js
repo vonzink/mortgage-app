@@ -10,16 +10,22 @@ export default function useRoles() {
   const auth = useAuth();
   const groups = auth.user?.profile?.['cognito:groups'] || [];
   const has = (role) => Array.isArray(groups) && groups.includes(role);
+  // Any back-office role. Used to gate staff-only chrome (e.g. the global loan
+  // search) out of the client/borrower view.
+  const isStaff = has('Admin') || has('LO') || has('Processor') || has('Manager');
   return {
     groups,
     isAdmin: has('Admin'),
     isLO: has('LO'),
     isProcessor: has('Processor'),
     isManager: has('Manager'),
-    isBorrower: has('Borrower'),
-    // Any back-office role. Used to gate staff-only chrome (e.g. the global loan
-    // search) out of the client/borrower view.
-    isStaff: has('Admin') || has('LO') || has('Processor') || has('Manager'),
+    // DEFAULT-BORROWER (2026-07-03): funnel signups carry NO Cognito groups, and treating
+    // them as "neither borrower nor staff" routed real clients into the staff-ish default
+    // views (pipeline chrome, read-only staff documents panel — the walkthrough findings).
+    // Least privilege: anyone who isn't staff or an agent IS a borrower. The backend
+    // re-checks real authorization on every call regardless.
+    isBorrower: has('Borrower') || (!isStaff && !has('RealEstateAgent')),
+    isStaff,
     hasRole: has,
   };
 }

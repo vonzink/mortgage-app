@@ -397,6 +397,20 @@ const mortgageService = {
   },
 
   /**
+   * Client dashboard — the borrower-safe loan aggregate (status + history facts, property,
+   * terms, proposed housing, actionable conditions, closing date). Null on failure so the
+   * page can degrade to documents+calendar rather than block.
+   */
+  getBorrowerDashboard: async (suiteLoanId) => {
+    try {
+      const { data } = await suiteClient.get(`/loans/${suiteLoanId}/borrower/dashboard`);
+      return unwrapEnvelope(data) || null;
+    } catch {
+      return null;
+    }
+  },
+
+  /**
    * Borrower loan calendar — borrower-safe subset of the suite's Data Tracking dates
    * (GET /api/loans/{id}/borrower/tracking; STAFF_AND_BORROWER + borrower-on-loan guarded).
    * Returns the entries array; [] on any failure (the calendar degrades, never blocks).

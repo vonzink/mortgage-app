@@ -9,6 +9,7 @@ import * as suiteWeb from '../services/suiteWeb';
 jest.mock('../components/documents/BorrowerDocuments', () => () => <div data-testid="borrower-documents-stub" />);
 jest.mock('../components/documents/StaffDocumentsPanel', () => () => <div data-testid="staff-documents-panel-stub" />);
 jest.mock('../components/calendar/LoanCalendar', () => () => <div data-testid="loan-calendar-stub" />);
+jest.mock('../components/dashboard/ClientDashboard', () => () => <div data-testid="client-dashboard-stub" />);
 
 // ── mortgageService ───────────────────────────────────────────────────────
 jest.mock('../services/mortgageService', () => ({

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, Navigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
 
 import BorrowerDocuments from '../components/documents/BorrowerDocuments';
@@ -112,6 +112,13 @@ const ApplicationDetails = () => {
         <Button variant="primary" to="/applications">Back to applications</Button>
       </div>
     );
+  }
+
+  // Borrowers with a suite-linked loan now live in the Loan Status Center (/dashboard).
+  // Only fall through to the legacy inline composition for a borrower loan that has NO
+  // suite counterpart (nothing to key the status center off of).
+  if (useSuiteDocs && suiteLoanId) {
+    return <Navigate to={`/dashboard?loan=${suiteLoanId}`} replace />;
   }
 
   const borrower = application.borrowers?.[0];

@@ -16,6 +16,7 @@ import ApplicationForm from './pages/ApplicationForm';
 import ApplicationSubmitted from './pages/ApplicationSubmitted';
 import ApplicationList from './pages/ApplicationList';
 import ApplicationDetails from './pages/ApplicationDetails';
+import LoanStatusCenter from './pages/statusCenter/LoanStatusCenter';
 import LoanDashboardPage from './pages/LoanDashboardPage';
 import AdminHome from './pages/admin/AdminHome';
 import DocumentTypesAdmin from './pages/admin/DocumentTypesAdmin';
@@ -101,6 +102,10 @@ function App() {
             <Route
               path="/application-submitted"
               element={<RequireAuth><ApplicationSubmitted /></RequireAuth>}
+            />
+            <Route
+              path="/dashboard"
+              element={<RequireAuth><LoanStatusCenter /></RequireAuth>}
             />
             <Route
               path="/applications"

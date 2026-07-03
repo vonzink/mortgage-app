@@ -32,10 +32,10 @@ export default function PipelineRow({ row, showSuiteLink = false }) {
   const age = daysBetween(row.statusChangedAt);
   const tone = stageTone(row.status, age ?? 0);
   const ltvHigh = row.ltvPct != null && row.ltvPct >= 80;
-  // Staff work the LO Loan Dashboard; clients open THEIR application page (documents,
-  // status, loan calendar). Sending a borrower to /loan/{id} lands them in staff
-  // tooling that also 403s for them (walkthrough finding, 2026-07-03).
-  const detailsPath = isStaff ? `/loan/${row.id}` : `/applications/${row.id}`;
+  // Staff work the LO Loan Dashboard; clients open THEIR Loan Status Center (status,
+  // conditions, documents, key dates). Sending a borrower to /loan/{id} lands them in
+  // staff tooling that also 403s for them (walkthrough finding, 2026-07-03).
+  const detailsPath = isStaff ? `/loan/${row.id}` : `/dashboard?loan=${row.id}`;
 
   return (
     <tr

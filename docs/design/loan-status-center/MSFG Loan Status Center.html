@@ -1,0 +1,461 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MSFG Loan Status Center</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --forest:#0E3B2C; --forest-deep:#0A2C20; --forest-line:rgba(255,255,255,.10);
+    --green:#29C24E; --green-hover:#22A843; --mint:#82E2A6; --sage:#9FBCAC;
+    --cream:#F5F4ED; --ink:#10271E; --ink-soft:#516A5C; --card:#fff;
+    --line:#E5E8E2; --field-line:#D9DDD5;
+    --amber:#E8A13C; --amber-bg:#FBF3E4; --red:#C0392B;
+    --shadow:0 24px 60px -20px rgba(8,40,28,.45);
+    --shadow-sm:0 1px 2px rgba(16,39,30,.06),0 4px 16px -8px rgba(16,39,30,.10);
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{font-family:'Plus Jakarta Sans',system-ui,sans-serif;background:var(--cream);color:var(--ink);-webkit-font-smoothing:antialiased;}
+  button{font-family:inherit;cursor:pointer;}
+
+  /* ---------- top bar ---------- */
+  .topbar{background:var(--forest-deep);min-height:56px;display:flex;align-items:center;gap:16px;padding:8px 24px;border-bottom:1px solid var(--forest-line);}
+  .logo-chip{background:#fff;border-radius:9px;padding:6px 11px;display:flex;align-items:center;}
+  .logo-chip img{height:22px;display:block;}
+  .top-title{color:rgba(255,255,255,.45);font-size:11px;font-weight:600;letter-spacing:1.5px;text-transform:uppercase;}
+  .top-right{margin-left:auto;display:flex;align-items:center;gap:12px;}
+  .avatar{width:32px;height:32px;border-radius:50%;background:var(--green);display:grid;place-items:center;color:#06281A;font-weight:800;font-size:11px;}
+  .uname{color:rgba(255,255,255,.85);font-size:13px;font-weight:600;}
+
+  /* ---------- hero ---------- */
+  .hero{background:var(--forest);position:relative;padding:26px 36px;display:flex;align-items:center;gap:24px;flex-wrap:wrap;}
+  .hero::before{content:"";position:absolute;inset:0;pointer-events:none;
+    background:radial-gradient(120% 150% at 50% -20%, rgba(130,226,166,.10), transparent 55%),
+    repeating-radial-gradient(circle at 50% -10%, transparent 0 78px, rgba(255,255,255,.022) 78px 79px);}
+  .hero > *{position:relative;}
+  .eyebrow{color:var(--green);font-weight:700;font-size:12px;letter-spacing:2.5px;text-transform:uppercase;}
+  .hero h1{font-size:26px;font-weight:800;letter-spacing:-.5px;color:var(--mint);margin-top:6px;}
+  .hero .sub{color:var(--sage);font-size:13.5px;font-weight:500;margin-top:4px;}
+  .pill-green{display:inline-flex;align-items:center;gap:8px;border-radius:999px;font-weight:700;
+    background:var(--green);color:#06281A;padding:13px 22px;font-size:14px;border:none;box-shadow:0 8px 20px -6px rgba(41,194,78,.5);}
+  .pill-green:hover{background:var(--green-hover);}
+
+  /* ---------- layout ---------- */
+  .cols{display:grid;grid-template-columns:290px minmax(0,1fr) 330px;gap:22px;max-width:1400px;margin:0 auto;padding:26px 36px 60px;}
+  .stack{display:flex;flex-direction:column;gap:22px;min-width:0;}
+
+  .card{background:var(--card);border:1px solid var(--line);border-radius:20px;box-shadow:var(--shadow-sm);}
+  .card-h{display:flex;align-items:center;gap:10px;padding:18px 22px 0;}
+  .card-h h3{font-size:15.5px;font-weight:800;letter-spacing:-.2px;}
+  .card-h .cnt{margin-left:auto;font-size:12px;font-weight:700;color:var(--ink-soft);background:#F1F4F0;padding:4px 10px;border-radius:999px;white-space:nowrap;}
+  .cic{flex:0 0 auto;width:26px;height:26px;border-radius:8px;display:grid;place-items:center;font-size:13px;font-weight:800;}
+
+  /* ---------- status rail ---------- */
+  .railcard{background:var(--forest);border-radius:20px;padding:24px 22px;box-shadow:var(--shadow-sm);}
+  .rail{margin-top:16px;}
+  .rl{position:relative;display:flex;gap:14px;padding-bottom:24px;}
+  .rl::before{content:"";position:absolute;left:13px;top:28px;bottom:0;width:3px;background:rgba(255,255,255,.12);}
+  .rl:last-child{padding-bottom:0;}
+  .rl:last-child::before{display:none;}
+  .rl.done::before{background:var(--green);}
+  .rl .nd{flex:0 0 auto;width:28px;height:28px;border-radius:50%;display:grid;place-items:center;font-size:13px;font-weight:800;position:relative;z-index:2;}
+  .rl.done .nd{background:var(--green);color:#06281A;}
+  .rl.cur .nd{background:var(--mint);color:#06281A;box-shadow:0 0 0 5px rgba(130,226,166,.2);}
+  .rl.todo .nd{background:rgba(255,255,255,.14);color:rgba(255,255,255,.5);}
+  .rl b{display:block;font-size:13.5px;font-weight:700;color:#fff;padding-top:2px;}
+  .rl.todo b{color:rgba(255,255,255,.45);}
+  .rl span{display:block;font-size:11.5px;color:var(--sage);margin-top:2px;}
+
+  /* ---------- conditions ---------- */
+  .cond{display:flex;align-items:center;gap:12px;padding:14px 22px;border-top:1px solid var(--line);min-height:44px;}
+  .cond:first-of-type{margin-top:14px;}
+  .cond .st{flex:0 0 auto;width:34px;height:34px;border-radius:10px;display:grid;place-items:center;font-size:15px;font-weight:800;}
+  .st-out{background:var(--amber-bg);color:var(--amber);}
+  .st-ok{background:#EAF7EE;color:var(--green);}
+  .st-rev{background:#EDF2FA;color:#4A78C2;}
+  .cond .tx{min-width:0;flex:1;}
+  .cond .tx b{display:block;font-size:13.5px;font-weight:700;}
+  .cond .tx span{display:block;font-size:11.5px;color:var(--ink-soft);margin-top:1px;}
+  .tag{font-size:11px;font-weight:700;padding:4px 10px;border-radius:999px;white-space:nowrap;}
+  .tag-out{background:var(--amber-bg);color:#B07A1E;}
+  .tag-ok{background:#EAF7EE;color:#1E8E3E;}
+  .tag-rev{background:#EDF2FA;color:#3D69B0;}
+  .up-btn{border:1.5px solid var(--field-line);background:#fff;color:var(--ink);
+    font-size:12.5px;font-weight:700;padding:10px 14px;border-radius:999px;white-space:nowrap;min-height:38px;}
+  .up-btn:hover{border-color:var(--green);color:var(--green);}
+
+  /* ---------- dark dropzone (#3) ---------- */
+  .dz3{position:relative;overflow:hidden;border-radius:16px;background:var(--forest);padding:30px;text-align:center;margin:16px 22px 22px;}
+  .dz3::before{content:"";position:absolute;inset:0;background:radial-gradient(100% 140% at 50% -10%, rgba(130,226,166,.12), transparent 60%);}
+  .dz3::after{content:"";position:absolute;inset:10px;border:2px dashed rgba(130,226,166,.4);border-radius:12px;pointer-events:none;}
+  .dz3 > *{position:relative;}
+  .dz3 .ic{width:52px;height:52px;margin:0 auto 12px;border-radius:50%;background:var(--green);
+    display:grid;place-items:center;color:#06281A;font-size:22px;box-shadow:0 10px 30px -6px rgba(41,194,78,.55);}
+  .dz3 b{display:block;color:#fff;font-size:15.5px;font-weight:800;}
+  .dz3 span{display:block;color:var(--sage);font-size:12px;margin-top:5px;}
+  .dz3 .browse{margin-top:14px;background:rgba(255,255,255,.1);border:1px solid var(--forest-line);
+    color:var(--mint);font-weight:700;font-size:13px;padding:11px 20px;border-radius:999px;min-height:44px;}
+  .dz3.drag{outline:3px solid var(--green);}
+
+  /* ---------- history log ---------- */
+  .hrow{display:flex;align-items:center;gap:12px;padding:12px 22px;border-top:1px solid var(--line);}
+  .hrow:first-of-type{margin-top:12px;}
+  .fic{flex:0 0 auto;width:34px;height:34px;border-radius:9px;background:#F7F9F6;border:1px solid var(--line);
+    display:grid;place-items:center;font-size:9.5px;font-weight:800;color:var(--red);}
+  .fic.jpg{color:#3D69B0;}
+  .hrow .tx{flex:1;min-width:0;}
+  .hrow .tx b{display:block;font-size:13px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .hrow .tx span{display:block;font-size:11.5px;color:var(--ink-soft);}
+
+  /* ---------- key/value ---------- */
+  .kv{display:flex;justify-content:space-between;gap:12px;padding:10px 22px;border-top:1px solid var(--line);font-size:13px;}
+  .kv .k{color:var(--ink-soft);font-weight:500;}
+  .kv .v{font-weight:700;text-align:right;}
+  .kv.tot{background:#F4F7F3;}
+  .kv.tot .k,.kv.tot .v{color:var(--forest);font-weight:800;}
+  .kv-pad{height:8px;}
+
+  /* ---------- rate lock ---------- */
+  .lockcard{background:var(--forest);border-radius:20px;padding:22px;box-shadow:var(--shadow-sm);display:flex;align-items:center;gap:18px;}
+  .lockring{flex:0 0 auto;position:relative;width:74px;height:74px;display:grid;place-items:center;}
+  .lockring svg{position:absolute;inset:0;transform:rotate(-90deg);}
+  .lockring .num{text-align:center;}
+  .lockring .num b{display:block;font-size:22px;font-weight:800;color:#fff;line-height:1;}
+  .lockring .num span{display:block;font-size:8.5px;font-weight:700;letter-spacing:1px;color:var(--sage);margin-top:2px;}
+  .locktx b{display:block;color:var(--mint);font-size:15px;font-weight:800;}
+  .locktx .rate{color:#fff;font-size:13px;font-weight:700;margin-top:3px;}
+  .locktx span{display:block;color:var(--sage);font-size:11.5px;margin-top:3px;}
+
+  /* ---------- key dates ---------- */
+  .drow{display:flex;align-items:center;gap:13px;padding:10px 22px;}
+  .drow:first-of-type{margin-top:12px;}
+  .dchip{flex:0 0 auto;width:44px;text-align:center;background:#F4F7F3;border:1px solid var(--line);border-radius:10px;padding:5px 0;}
+  .dchip b{display:block;font-size:15px;font-weight:800;color:var(--forest);line-height:1;}
+  .dchip span{display:block;font-size:9px;font-weight:700;letter-spacing:1px;color:var(--ink-soft);margin-top:3px;}
+  .drow .tx b{display:block;font-size:13px;font-weight:700;}
+  .drow .tx span{display:block;font-size:11px;color:var(--ink-soft);}
+  .drow.hot .dchip{background:var(--forest);border-color:var(--forest);}
+  .drow.hot .dchip b{color:var(--mint);}
+  .drow.hot .dchip span{color:var(--sage);}
+  .cal-open{margin:14px 22px 20px;width:calc(100% - 44px);border:1.5px solid var(--field-line);background:#fff;
+    color:var(--forest);font-weight:800;font-size:13px;padding:12px;border-radius:12px;min-height:44px;}
+  .cal-open:hover{border-color:var(--green);color:var(--green);}
+
+  /* ---------- appraisal ---------- */
+  .appr-steps{display:flex;gap:6px;padding:14px 22px 4px;}
+  .appr-steps i{flex:1;height:6px;border-radius:99px;background:#E4E9E3;font-style:normal;}
+  .appr-steps i.on{background:var(--green);}
+  .appr-cap{display:flex;justify-content:space-between;padding:0 22px 6px;font-size:10.5px;font-weight:700;color:var(--ink-soft);}
+
+  /* ---------- LO contact ---------- */
+  .lo{display:flex;align-items:center;gap:14px;padding:16px 22px 6px;}
+  .lo .ph{flex:0 0 auto;width:52px;height:52px;border-radius:50%;background:var(--forest);color:var(--mint);
+    display:grid;place-items:center;font-size:17px;font-weight:800;}
+  .lo b{display:block;font-size:14.5px;font-weight:800;}
+  .lo span{display:block;font-size:11.5px;color:var(--ink-soft);margin-top:1px;}
+  .lo-row{display:flex;align-items:center;gap:10px;padding:8px 22px;font-size:13px;font-weight:600;color:var(--forest);}
+  .lo-row .lic{width:26px;height:26px;border-radius:8px;background:#EAF7EE;color:var(--green);display:grid;place-items:center;font-size:12px;}
+  .lo-msg{margin:12px 22px 20px;width:calc(100% - 44px);border:none;background:var(--green);color:#06281A;
+    font-weight:800;font-size:13.5px;padding:13px;border-radius:999px;min-height:44px;box-shadow:0 8px 20px -8px rgba(41,194,78,.5);}
+  .lo-msg:hover{background:var(--green-hover);}
+
+  /* ---------- notification prefs ---------- */
+  .np{display:flex;align-items:center;gap:12px;padding:11px 22px;border-top:1px solid var(--line);min-height:44px;}
+  .np:first-of-type{margin-top:12px;border-top:none;}
+  .np .tx{flex:1;min-width:0;}
+  .np .tx b{display:block;font-size:13px;font-weight:700;}
+  .np .tx span{display:block;font-size:11px;color:var(--ink-soft);}
+  .sw{flex:0 0 auto;position:relative;width:44px;height:26px;border-radius:99px;background:#DDE3DC;border:none;transition:background .15s;}
+  .sw::after{content:"";position:absolute;top:3px;left:3px;width:20px;height:20px;border-radius:50%;background:#fff;
+    box-shadow:0 1px 3px rgba(0,0,0,.25);transition:left .15s;}
+  .sw.on{background:var(--green);}
+  .sw.on::after{left:21px;}
+  .np-ch{display:flex;gap:6px;}
+  .chip{border:1.5px solid var(--field-line);background:#fff;color:var(--ink-soft);font-size:11px;font-weight:700;
+    padding:5px 10px;border-radius:999px;}
+  .chip.on{background:var(--forest);border-color:var(--forest);color:var(--mint);}
+
+  /* ---------- calendar modal ---------- */
+  .modal-bg{position:fixed;inset:0;background:rgba(10,44,32,.55);backdrop-filter:blur(3px);
+    display:none;align-items:center;justify-content:center;z-index:50;padding:20px;}
+  .modal-bg.open{display:flex;}
+  .modal{background:#fff;border-radius:22px;box-shadow:var(--shadow);width:min(460px,100%);overflow:hidden;}
+  .mhead{background:var(--forest);padding:20px 24px;display:flex;align-items:center;gap:12px;}
+  .mhead h3{color:var(--mint);font-size:17px;font-weight:800;flex:1;}
+  .mnav{display:flex;gap:6px;}
+  .mnav button,.mclose{width:34px;height:34px;border-radius:10px;border:1px solid var(--forest-line);
+    background:rgba(255,255,255,.08);color:#fff;font-size:15px;font-weight:700;}
+  .mgrid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;padding:18px 20px 8px;}
+  .dow{text-align:center;font-size:10px;font-weight:800;letter-spacing:1px;color:var(--ink-soft);padding:4px 0;}
+  .day{position:relative;aspect-ratio:1;display:grid;place-items:center;border-radius:12px;font-size:13.5px;font-weight:600;}
+  .day.out{color:#C3CCC4;}
+  .day.ev{background:#EAF7EE;color:var(--forest);font-weight:800;cursor:pointer;}
+  .day.ev.hot{background:var(--forest);color:var(--mint);}
+  .day.ev::after{content:"";position:absolute;bottom:5px;width:5px;height:5px;border-radius:50%;background:var(--green);}
+  .day.ev.hot::after{background:var(--mint);}
+  .mlist{padding:8px 20px 22px;display:flex;flex-direction:column;gap:8px;}
+  .mev{display:flex;align-items:center;gap:11px;background:#F7F9F6;border:1px solid var(--line);border-radius:12px;padding:10px 14px;}
+  .mev .dot{flex:0 0 auto;width:9px;height:9px;border-radius:50%;background:var(--green);}
+  .mev.hot .dot{background:var(--amber);}
+  .mev b{font-size:12.5px;font-weight:700;flex:1;}
+  .mev span{font-size:11.5px;color:var(--ink-soft);font-weight:700;white-space:nowrap;}
+
+  /* ---------- responsive ---------- */
+  @media (max-width:1180px){
+    .cols{grid-template-columns:minmax(0,1fr) 330px;}
+    .railwrap{grid-column:1 / -1;}
+    .railcard{padding:20px;}
+    .rail{display:flex;gap:0;margin-top:14px;}
+    .rl{flex:1;flex-direction:column;align-items:center;text-align:center;gap:8px;padding-bottom:0;}
+    .rl::before{left:50%;top:13px;bottom:auto;width:100%;height:3px;}
+    .rl b{font-size:11.5px;padding-top:0;}
+    .rl span{display:none;}
+  }
+  @media (max-width:860px){
+    .cols{grid-template-columns:1fr;padding:18px 16px 50px;gap:16px;}
+    .hero{padding:22px 16px;}
+    .hero h1{font-size:22px;}
+    .hero .pill-green{width:100%;justify-content:center;}
+    .topbar{padding:8px 14px;}
+    .uname{display:none;}
+    .cond{flex-wrap:wrap;}
+    .cond .tx{flex:1 1 60%;}
+    .rl b{display:none;}
+    .modal-bg{padding:0;align-items:stretch;}
+    .modal{width:100%;border-radius:0;display:flex;flex-direction:column;}
+    .mlist{margin-top:auto;}
+  }
+</style>
+</head>
+<body>
+
+  <div class="topbar">
+    <div class="logo-chip"><img src="https://msfg-media.s3.us-west-2.amazonaws.com/Assets/LOGOS/MSFG+Home+Loans/MSFG-Color-Transparent.png" alt="MSFG Home Loans"></div>
+    <span class="top-title">Borrower Portal</span>
+    <div class="top-right"><div class="avatar">ZZ</div><span class="uname">Zachary Zink</span></div>
+  </div>
+
+  <div class="hero" data-screen-label="Loan Status Center">
+    <div style="flex:1;min-width:220px;">
+      <div class="eyebrow">Loan #4482-1067 · FHA 30-Year Fixed · 5.990%</div>
+      <h1>Loan status center</h1>
+      <p class="sub">TBD · Aurora, CO 80016 &nbsp;·&nbsp; Est. closing July 28</p>
+    </div>
+    <button class="pill-green">Upload documents ›</button>
+  </div>
+
+  <div class="cols">
+    <!-- ============ LEFT RAIL ============ -->
+    <div class="stack railwrap">
+      <div class="railcard">
+        <div class="eyebrow">Where you are</div>
+        <div class="rail">
+          <div class="rl done"><div class="nd">✓</div><div><b>Application</b><span>Submitted Jun 2</span></div></div>
+          <div class="rl done"><div class="nd">✓</div><div><b>Processing</b><span>Completed Jun 9</span></div></div>
+          <div class="rl cur"><div class="nd">3</div><div><b>Underwriting</b><span>In progress — 4 conditions open</span></div></div>
+          <div class="rl todo"><div class="nd">4</div><div><b>Conditional approval</b><span>Up next</span></div></div>
+          <div class="rl todo"><div class="nd">5</div><div><b>Clear to close</b><span>—</span></div></div>
+          <div class="rl todo"><div class="nd">6</div><div><b>Closing</b><span>Est. Jul 28</span></div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============ MAIN ============ -->
+    <div class="stack">
+      <div class="card">
+        <div class="card-h"><span class="cic" style="background:var(--amber-bg);color:var(--amber);">!</span><h3>Your to-do list</h3><span class="cnt">4 open</span></div>
+        <div class="cond"><span class="st st-out">▤</span><div class="tx"><b>2025 W-2 — all employers</b><span>Requested by underwriting · due Jul 8</span></div><span class="tag tag-out">Needed</span><button class="up-btn">Upload</button></div>
+        <div class="cond"><span class="st st-out">▤</span><div class="tx"><b>Bank statements — most recent 60 days</b><span>All pages, all accounts used for cash to close</span></div><span class="tag tag-out">Needed</span><button class="up-btn">Upload</button></div>
+        <div class="cond"><span class="st st-out">✎</span><div class="tx"><b>Letter of explanation — credit inquiry</b><span>Auto-loan inquiry on May 12</span></div><span class="tag tag-out">Needed</span><button class="up-btn">Upload</button></div>
+        <div class="cond"><span class="st st-rev">◷</span><div class="tx"><b>Homeowner's insurance binder</b><span>With your underwriter since Jun 30</span></div><span class="tag tag-rev">In review</span></div>
+
+        <div class="dz3" id="dz">
+          <div class="ic">⇪</div>
+          <b>Drop your documents here</b>
+          <span>We'll route each file to the right condition · secure &amp; encrypted · PDF, JPG, PNG, HEIC · 25 MB</span>
+          <button class="browse">or browse your files</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-h"><span class="cic" style="background:#EAF7EE;color:var(--green);">✓</span><h3>Cleared items</h3><span class="cnt">5 done</span></div>
+        <div class="cond"><span class="st st-ok">✓</span><div class="tx"><b>Purchase contract — fully executed</b><span>Cleared Jun 5</span></div><span class="tag tag-ok">Cleared</span></div>
+        <div class="cond"><span class="st st-ok">✓</span><div class="tx"><b>Driver's license — both borrowers</b><span>Cleared Jun 5</span></div><span class="tag tag-ok">Cleared</span></div>
+        <div class="cond"><span class="st st-ok">✓</span><div class="tx"><b>2023 &amp; 2024 federal tax returns</b><span>Cleared Jun 12</span></div><span class="tag tag-ok">Cleared</span></div>
+        <div class="cond"><span class="st st-ok">✓</span><div class="tx"><b>Pay stubs — most recent 30 days</b><span>Cleared Jun 12</span></div><span class="tag tag-ok">Cleared</span></div>
+        <div class="cond" style="padding-bottom:20px;"><span class="st st-ok">✓</span><div class="tx"><b>Earnest money deposit — proof of clearance</b><span>Cleared Jun 18</span></div><span class="tag tag-ok">Cleared</span></div>
+      </div>
+
+      <div class="card">
+        <div class="card-h"><span class="cic" style="background:#F1F4F0;color:var(--forest);">≡</span><h3>Document history</h3><span class="cnt">6 files</span></div>
+        <div class="hrow"><div class="fic jpg">JPG</div><div class="tx"><b>chase_statement_may.jpg</b><span>Bank statements · uploaded Jul 2</span></div><span class="tag tag-rev">In review</span></div>
+        <div class="hrow"><div class="fic">PDF</div><div class="tx"><b>insurance_binder_statefarm.pdf</b><span>HOI binder · uploaded Jun 30</span></div><span class="tag tag-rev">In review</span></div>
+        <div class="hrow"><div class="fic">PDF</div><div class="tx"><b>earnest_money_wire.pdf</b><span>EMD proof · uploaded Jun 17</span></div><span class="tag tag-ok">Cleared</span></div>
+        <div class="hrow"><div class="fic">PDF</div><div class="tx"><b>paystubs_june.pdf</b><span>Pay stubs · uploaded Jun 10</span></div><span class="tag tag-ok">Cleared</span></div>
+        <div class="hrow"><div class="fic">PDF</div><div class="tx"><b>tax_returns_2023_2024.pdf</b><span>Tax returns · uploaded Jun 10</span></div><span class="tag tag-ok">Cleared</span></div>
+        <div class="hrow" style="padding-bottom:20px;"><div class="fic">PDF</div><div class="tx"><b>purchase_contract_signed.pdf</b><span>Contract · uploaded Jun 3</span></div><span class="tag tag-ok">Cleared</span></div>
+      </div>
+    </div>
+
+    <!-- ============ RIGHT COLUMN ============ -->
+    <div class="stack">
+      <!-- rate lock countdown -->
+      <div class="lockcard">
+        <div class="lockring">
+          <svg width="74" height="74" viewBox="0 0 74 74">
+            <circle cx="37" cy="37" r="31" fill="none" stroke="rgba(255,255,255,.14)" stroke-width="6"></circle>
+            <circle cx="37" cy="37" r="31" fill="none" stroke="#29C24E" stroke-width="6" stroke-linecap="round"
+              stroke-dasharray="194.8" stroke-dashoffset="84.5"></circle>
+          </svg>
+          <div class="num"><b>17</b><span>DAYS LEFT</span></div>
+        </div>
+        <div class="locktx">
+          <b>Rate lock active</b>
+          <div class="rate">5.990% · locked Jun 19</div>
+          <span>Expires Jul 19 · 30-day lock</span>
+        </div>
+      </div>
+
+      <!-- key dates -->
+      <div class="card">
+        <div class="card-h"><span class="cic" style="background:#F1F4F0;color:var(--forest);">▦</span><h3>Key dates</h3></div>
+        <div class="drow"><div class="dchip"><b>8</b><span>JUL</span></div><div class="tx"><b>Conditions due</b><span>W-2 &amp; statements</span></div></div>
+        <div class="drow"><div class="dchip"><b>14</b><span>JUL</span></div><div class="tx"><b>Appraisal inspection</b><span>Aurora, CO</span></div></div>
+        <div class="drow hot"><div class="dchip"><b>19</b><span>JUL</span></div><div class="tx"><b>Rate lock expires</b><span>5.990% · 30-day lock</span></div></div>
+        <div class="drow"><div class="dchip"><b>28</b><span>JUL</span></div><div class="tx"><b>Estimated closing</b><span>Target date</span></div></div>
+        <button class="cal-open" id="calOpen">Open calendar</button>
+      </div>
+
+      <!-- appraisal status -->
+      <div class="card">
+        <div class="card-h"><span class="cic" style="background:#F1F4F0;color:var(--forest);">⌖</span><h3>Appraisal</h3><span class="cnt">Scheduled</span></div>
+        <div class="appr-steps"><i class="on"></i><i class="on"></i><i></i><i></i></div>
+        <div class="appr-cap"><span>Ordered</span><span>Scheduled</span><span>Inspected</span><span>Report</span></div>
+        <div class="kv"><span class="k">Ordered</span><span class="v">Jul 3</span></div>
+        <div class="kv"><span class="k">Inspection</span><span class="v">Jul 14 · 10:00 AM</span></div>
+        <div class="kv"><span class="k">Purchase price</span><span class="v">$675,000.00</span></div>
+        <div class="kv"><span class="k">Appraised value</span><span class="v" style="color:var(--ink-soft);">Pending</span></div>
+        <div class="kv-pad"></div>
+      </div>
+
+      <!-- loan at a glance -->
+      <div class="card">
+        <div class="card-h" style="padding-bottom:12px;"><span class="cic" style="background:#F1F4F0;color:var(--forest);">⌂</span><h3>Your loan at a glance</h3></div>
+        <div class="kv" style="border-top:none;"><span class="k">Program</span><span class="v">FHA 30 Year Fixed</span></div>
+        <div class="kv"><span class="k">Note rate</span><span class="v">5.990%</span></div>
+        <div class="kv"><span class="k">Purchase price</span><span class="v">$675,000.00</span></div>
+        <div class="kv"><span class="k">Base loan amount</span><span class="v">$575,000.00</span></div>
+        <div class="kv"><span class="k">Up-front MIP financed</span><span class="v">$10,062.00</span></div>
+        <div class="kv tot"><span class="k">Total loan amount</span><span class="v">$585,062.00</span></div>
+        <div class="kv"><span class="k">Est. cash to close</span><span class="v">$108,997.50</span></div>
+        <div class="kv-pad"></div>
+      </div>
+
+      <!-- monthly payment -->
+      <div class="card">
+        <div class="card-h" style="padding-bottom:12px;"><span class="cic" style="background:#EAF7EE;color:var(--green);">$</span><h3>Estimated monthly payment</h3></div>
+        <div class="kv" style="border-top:none;"><span class="k">Principal &amp; interest</span><span class="v">$3,503.98</span></div>
+        <div class="kv"><span class="k">Property taxes</span><span class="v">$520.00</span></div>
+        <div class="kv"><span class="k">Hazard insurance</span><span class="v">$300.00</span></div>
+        <div class="kv"><span class="k">Mortgage insurance</span><span class="v">$238.25</span></div>
+        <div class="kv"><span class="k">HOA</span><span class="v">$85.00</span></div>
+        <div class="kv tot"><span class="k">Total</span><span class="v">$4,647.23 / mo</span></div>
+        <div class="kv-pad"></div>
+      </div>
+
+      <!-- loan officer -->
+      <div class="card">
+        <div class="card-h"><span class="cic" style="background:#EAF7EE;color:var(--green);">☎</span><h3>Your loan officer</h3></div>
+        <div class="lo">
+          <div class="ph">MT</div>
+          <div><b>Michael Torres</b><span>Senior Loan Officer · NMLS #1284467</span></div>
+        </div>
+        <div class="lo-row"><span class="lic">✆</span>(720) 555-0184</div>
+        <div class="lo-row"><span class="lic">✉</span>michael.torres@msfg.us</div>
+        <button class="lo-msg">Message Michael</button>
+      </div>
+
+      <!-- notification preferences -->
+      <div class="card">
+        <div class="card-h"><span class="cic" style="background:#F1F4F0;color:var(--forest);">◉</span><h3>Notifications</h3></div>
+        <div class="np"><div class="tx"><b>Condition updates</b><span>New requests &amp; cleared items</span></div><div class="np-ch"><span class="chip on">Email</span><span class="chip on">SMS</span></div><button class="sw on" aria-label="Toggle condition updates"></button></div>
+        <div class="np"><div class="tx"><b>Status changes</b><span>Milestone progress</span></div><div class="np-ch"><span class="chip on">Email</span><span class="chip">SMS</span></div><button class="sw on" aria-label="Toggle status changes"></button></div>
+        <div class="np" style="padding-bottom:18px;"><div class="tx"><b>Key-date reminders</b><span>Rate lock, appraisal, closing</span></div><div class="np-ch"><span class="chip on">Email</span><span class="chip on">SMS</span></div><button class="sw on" aria-label="Toggle key-date reminders"></button></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ CALENDAR MODAL ============ -->
+  <div class="modal-bg" id="calModal">
+    <div class="modal">
+      <div class="mhead">
+        <h3 id="calTitle">July 2026</h3>
+        <div class="mnav">
+          <button id="calPrev" aria-label="Previous month">‹</button>
+          <button id="calNext" aria-label="Next month">›</button>
+        </div>
+        <button class="mclose" id="calClose" aria-label="Close">✕</button>
+      </div>
+      <div class="mgrid" id="calGrid"></div>
+      <div class="mlist" id="calList"></div>
+    </div>
+  </div>
+
+<script>
+(function(){
+  var events = {
+    '2026-06-02':{t:'Application submitted',hot:false},
+    '2026-06-09':{t:'Processing complete',hot:false},
+    '2026-06-19':{t:'Rate locked · 5.990%',hot:false},
+    '2026-07-03':{t:'Appraisal ordered',hot:false},
+    '2026-07-08':{t:'Conditions due — W-2 & statements',hot:true},
+    '2026-07-14':{t:'Appraisal inspection · 10:00 AM',hot:false},
+    '2026-07-19':{t:'Rate lock expires',hot:true},
+    '2026-07-28':{t:'Estimated closing',hot:false}
+  };
+  var cur = new Date(2026,6,1);
+  var grid=document.getElementById('calGrid'), list=document.getElementById('calList'),
+      title=document.getElementById('calTitle'), modal=document.getElementById('calModal');
+  var MO=['January','February','March','April','May','June','July','August','September','October','November','December'];
+  function key(y,m,d){return y+'-'+String(m+1).padStart(2,'0')+'-'+String(d).padStart(2,'0');}
+  function render(){
+    var y=cur.getFullYear(), m=cur.getMonth();
+    title.textContent=MO[m]+' '+y;
+    var html='';
+    ['S','M','T','W','T','F','S'].forEach(function(d){html+='<div class="dow">'+d+'</div>';});
+    var first=new Date(y,m,1).getDay(), days=new Date(y,m+1,0).getDate(), prevDays=new Date(y,m,0).getDate();
+    for(var i=first-1;i>=0;i--) html+='<div class="day out">'+(prevDays-i)+'</div>';
+    for(var d=1;d<=days;d++){
+      var ev=events[key(y,m,d)];
+      html+='<div class="day'+(ev?' ev'+(ev.hot?' hot':''):'')+'"'+(ev?' title="'+ev.t+'"':'')+'>'+d+'</div>';
+    }
+    grid.innerHTML=html;
+    var lh='';
+    for(var d2=1;d2<=days;d2++){
+      var k2=key(y,m,d2), e2=events[k2];
+      if(e2) lh+='<div class="mev'+(e2.hot?' hot':'')+'"><span class="dot"></span><b>'+e2.t+'</b><span>'+MO[m].slice(0,3)+' '+d2+'</span></div>';
+    }
+    list.innerHTML=lh||'<div class="mev"><b style="color:var(--ink-soft);font-weight:600;">No loan dates this month</b></div>';
+  }
+  document.getElementById('calOpen').addEventListener('click',function(){modal.classList.add('open');render();});
+  document.getElementById('calClose').addEventListener('click',function(){modal.classList.remove('open');});
+  modal.addEventListener('click',function(e){if(e.target===modal)modal.classList.remove('open');});
+  document.getElementById('calPrev').addEventListener('click',function(){cur=new Date(cur.getFullYear(),cur.getMonth()-1,1);render();});
+  document.getElementById('calNext').addEventListener('click',function(){cur=new Date(cur.getFullYear(),cur.getMonth()+1,1);render();});
+  document.addEventListener('keydown',function(e){if(e.key==='Escape')modal.classList.remove('open');});
+
+  /* notification toggles */
+  document.querySelectorAll('.sw').forEach(function(s){s.addEventListener('click',function(){s.classList.toggle('on');});});
+  document.querySelectorAll('.chip').forEach(function(c){c.addEventListener('click',function(){c.classList.toggle('on');});});
+
+  /* dropzone drag state */
+  var dz=document.getElementById('dz');
+  ['dragenter','dragover'].forEach(function(ev){dz.addEventListener(ev,function(e){e.preventDefault();dz.classList.add('drag');});});
+  ['dragleave','drop'].forEach(function(ev){dz.addEventListener(ev,function(e){e.preventDefault();dz.classList.remove('drag');});});
+})();
+</script>
+</body>
+</html>

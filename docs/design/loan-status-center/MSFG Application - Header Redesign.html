@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MSFG Application — Header Redesign</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --forest:#0E3B2C;
+    --forest-deep:#0A2C20;
+    --forest-line:rgba(255,255,255,.10);
+    --green:#29C24E;
+    --green-hover:#22A843;
+    --mint:#82E2A6;
+    --sage:#9FBCAC;
+    --cream:#F5F4ED;
+    --ink:#10271E;
+    --ink-soft:#516A5C;
+    --card:#FFFFFF;
+    --line:#E5E8E2;
+    --field-line:#D9DDD5;
+    --shadow:0 24px 60px -20px rgba(8,40,28,.45);
+    --shadow-sm:0 1px 2px rgba(16,39,30,.06),0 4px 16px -8px rgba(16,39,30,.10);
+    font-family:'Plus Jakarta Sans',system-ui,-apple-system,sans-serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{background:var(--cream);color:var(--ink);-webkit-font-smoothing:antialiased;}
+
+  /* ============ SUITE TOP BAR ============ */
+  .suitebar{
+    background:var(--forest-deep);
+    height:58px;display:flex;align-items:center;gap:22px;
+    padding:0 24px;border-bottom:1px solid var(--forest-line);
+  }
+  .suite-brand{display:flex;align-items:center;gap:14px;}
+  .suite-logo{height:26px;width:auto;display:block;background:#fff;
+    padding:7px 12px;border-radius:10px;box-shadow:0 1px 2px rgba(0,0,0,.18);}
+  .suite-divider{width:1px;height:24px;background:rgba(255,255,255,.18);}
+  .suite-mark{width:30px;height:30px;border-radius:9px;background:var(--green);
+    display:grid;place-items:center;color:#06281A;font-weight:800;font-size:15px;}
+  .suite-name{color:#fff;font-weight:700;font-size:15px;letter-spacing:.2px;}
+  .suite-sub{color:rgba(255,255,255,.45);font-weight:600;font-size:11px;letter-spacing:1.5px;text-transform:uppercase;}
+  .suite-nav{display:flex;align-items:center;gap:6px;margin-left:8px;}
+  .suite-link{display:flex;align-items:center;gap:7px;color:rgba(255,255,255,.62);
+    font-size:13.5px;font-weight:600;padding:8px 13px;border-radius:9px;text-decoration:none;}
+  .suite-link.active{background:rgba(41,194,78,.16);color:#fff;}
+  .suite-link.active .dot{width:6px;height:6px;border-radius:50%;background:var(--green);box-shadow:0 0 0 3px rgba(41,194,78,.25);}
+  .suite-search{margin-left:auto;flex:0 1 360px;display:flex;align-items:center;gap:9px;
+    background:rgba(255,255,255,.07);border:1px solid var(--forest-line);border-radius:11px;
+    padding:9px 14px;color:rgba(255,255,255,.5);font-size:13px;}
+  .suite-user{display:flex;align-items:center;gap:10px;}
+  .suite-avatar{width:32px;height:32px;border-radius:50%;background:var(--green);
+    display:grid;place-items:center;color:#06281A;font-weight:800;font-size:12px;}
+  .suite-uname{color:rgba(255,255,255,.85);font-size:13.5px;font-weight:600;}
+  .suite-gear{color:rgba(255,255,255,.4);}
+
+  /* ============ DARK HERO BAND ============ */
+  .hero{
+    position:relative;overflow:hidden;background:var(--forest);
+    padding:46px 0 96px;
+  }
+  /* concentric ring texture, echoing the website */
+  .hero::before{
+    content:"";position:absolute;inset:0;pointer-events:none;
+    background:
+      radial-gradient(120% 150% at 50% -20%, rgba(130,226,166,.10), transparent 55%),
+      repeating-radial-gradient(circle at 50% -10%, transparent 0 78px, rgba(255,255,255,.022) 78px 79px);
+  }
+  .hero-inner{position:relative;max-width:1120px;margin:0 auto;padding:0 32px;
+    display:flex;align-items:flex-start;justify-content:space-between;gap:40px;}
+
+  .hero-back{display:inline-flex;align-items:center;gap:8px;color:var(--mint);
+    font-weight:700;font-size:14px;text-decoration:none;margin-bottom:26px;
+    background:rgba(255,255,255,.06);border:1px solid var(--forest-line);
+    padding:9px 15px 9px 12px;border-radius:999px;}
+  .eyebrow{color:var(--green);font-weight:700;font-size:12.5px;letter-spacing:2.5px;
+    text-transform:uppercase;margin-bottom:14px;}
+  .hero h1{font-size:46px;line-height:1.04;font-weight:800;letter-spacing:-1px;
+    color:var(--mint);max-width:14ch;}
+  .hero p.lede{color:var(--sage);font-size:16.5px;line-height:1.5;margin-top:16px;max-width:46ch;font-weight:500;}
+
+  .hero-actions{display:flex;flex-direction:column;align-items:flex-end;gap:14px;flex:0 0 auto;}
+  .saved-pill{display:inline-flex;align-items:center;gap:8px;color:var(--mint);
+    background:rgba(41,194,78,.14);border:1px solid rgba(41,194,78,.32);
+    padding:8px 14px;border-radius:999px;font-size:13px;font-weight:600;}
+  .saved-pill .pulse{width:7px;height:7px;border-radius:50%;background:var(--green);
+    box-shadow:0 0 0 4px rgba(41,194,78,.22);}
+  .action-row{display:flex;gap:12px;}
+  .btn{font-family:inherit;cursor:pointer;border:none;font-weight:700;font-size:14.5px;
+    border-radius:999px;padding:13px 22px;display:inline-flex;align-items:center;gap:9px;}
+  .btn-ghost{background:rgba(255,255,255,.07);border:1px solid var(--forest-line);color:#fff;}
+  .btn-primary{background:var(--green);color:#06281A;box-shadow:0 8px 20px -6px rgba(41,194,78,.5);}
+  .btn-primary:hover{background:var(--green-hover);}
+
+  /* ============ STEPPER (overlaps hero) ============ */
+  .stepper-wrap{max-width:1120px;margin:-64px auto 0;padding:0 32px;position:relative;z-index:3;}
+  .stepper{background:var(--card);border-radius:22px;box-shadow:var(--shadow);
+    border:1px solid var(--line);padding:18px;display:flex;align-items:center;gap:14px;}
+  .ring{flex:0 0 auto;width:62px;height:62px;display:grid;place-items:center;position:relative;}
+  .ring svg{transform:rotate(-90deg);}
+  .ring .frac{position:absolute;font-size:13px;font-weight:800;color:var(--ink);}
+  .steps{display:flex;gap:8px;flex:1;min-width:0;align-items:stretch;}
+  /* inactive/done steps collapse to an icon chip — guaranteed to fit at any width */
+  .step{flex:0 0 auto;display:flex;align-items:center;gap:10px;
+    padding:11px;border-radius:13px;background:#F4F7F3;border:1px solid transparent;}
+  .step.done{background:#fff;border-color:var(--line);}
+  /* active step takes all remaining room and shows full text */
+  .step.active{flex:1 1 auto;padding:11px 15px;background:#EAF7EE;border-color:rgba(41,194,78,.4);}
+  .step-ic{flex:0 0 auto;width:32px;height:32px;border-radius:9px;display:grid;place-items:center;
+    font-size:13.5px;font-weight:800;}
+  .step.active .step-ic{background:var(--forest);color:var(--mint);}
+  .step.done .step-ic{background:var(--green);color:#06281A;}
+  .step:not(.active):not(.done) .step-ic{background:#E4E9E3;color:#8A998E;}
+  /* text only renders for the active step */
+  .step-tx{display:none;min-width:0;}
+  .step.active .step-tx{display:block;}
+  .step-tx b{display:block;font-size:14px;font-weight:700;color:var(--ink);white-space:nowrap;}
+  .step-tx span{display:block;font-size:11.5px;color:var(--ink-soft);white-space:nowrap;}
+
+  /* ============ LIGHT CONTENT / FORM CARD ============ */
+  .content{max-width:1120px;margin:30px auto 70px;padding:0 32px;}
+  .formcard{background:var(--card);border:1px solid var(--line);border-radius:22px;
+    box-shadow:var(--shadow-sm);padding:44px 48px 48px;}
+  .section-head{text-align:center;margin-bottom:34px;}
+  .section-head .badge{display:inline-flex;align-items:center;gap:10px;
+    background:#EAF7EE;color:var(--forest);border:1px solid rgba(41,194,78,.3);
+    padding:9px 18px;border-radius:999px;font-weight:700;font-size:18px;}
+  .section-head .badge .hic{width:24px;height:24px;border-radius:7px;background:var(--green);
+    display:grid;place-items:center;color:#06281A;font-size:13px;}
+  .section-head p{color:var(--ink-soft);font-size:15px;margin-top:12px;}
+
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:22px 26px;}
+  .field label{display:block;font-size:13.5px;font-weight:600;color:var(--ink);margin-bottom:8px;}
+  .field label .req{color:#D14343;}
+  .field .hint{color:var(--ink-soft);font-weight:500;}
+  .input{width:100%;height:50px;border:1.5px solid var(--field-line);border-radius:12px;
+    padding:0 16px;font-family:inherit;font-size:15px;color:var(--ink);background:#fff;
+    display:flex;align-items:center;gap:8px;}
+  .input.ph{color:#9AA89E;}
+  .input .pre{color:#9AA89E;font-weight:600;}
+  .input.err{border-color:#E2A0A0;background:#FDF4F4;}
+  .errmsg{color:#C0392B;font-size:12.5px;margin-top:6px;font-weight:500;}
+  .full{grid-column:1 / -1;}
+  .toggle{display:inline-flex;border:1px solid var(--field-line);border-radius:8px;overflow:hidden;margin-left:10px;vertical-align:middle;}
+  .toggle span{padding:4px 11px;font-size:13px;font-weight:700;color:var(--ink-soft);}
+  .toggle span.on{background:var(--green);color:#06281A;}
+
+  .note{max-width:1120px;margin:0 auto 60px;padding:0 32px;}
+  .note-inner{background:#fff;border:1px dashed var(--field-line);border-radius:16px;padding:20px 24px;
+    color:var(--ink-soft);font-size:13.5px;line-height:1.6;}
+  .note-inner b{color:var(--ink);}
+</style>
+</head>
+<body>
+
+  <!-- SUITE TOP BAR -->
+  <div class="suitebar">
+    <div class="suite-brand">
+      <img class="suite-logo" src="https://msfg-media.s3.us-west-2.amazonaws.com/Assets/LOGOS/MSFG+Home+Loans/MSFG-Color-Transparent.png" alt="MSFG Home Loans">
+      <span class="suite-divider"></span>
+      <span class="suite-sub">Mortgage Suite</span>
+    </div>
+    <nav class="suite-nav">
+      <a class="suite-link active" href="#"><span class="dot"></span>Apply</a>
+      <a class="suite-link" href="#">Applications</a>
+      <a class="suite-link" href="#">Admin</a>
+    </nav>
+    <div class="suite-search">⌕&nbsp; Find a loan… <span style="margin-left:auto;opacity:.6">⌘K</span></div>
+    <div class="suite-user">
+      <div class="suite-avatar">ZZ</div>
+      <span class="suite-uname">zachary.zink</span>
+      <span class="suite-gear">⚙</span>
+    </div>
+  </div>
+
+  <!-- DARK HERO -->
+  <header class="hero">
+    <div class="hero-inner">
+      <div>
+        <a class="hero-back" href="#">‹ &nbsp;Back</a>
+        <div class="eyebrow">New Application</div>
+        <h1>Let's build your mortgage application</h1>
+        <p class="lede">Seven short sections. Your progress saves automatically — pick up anywhere, any time.</p>
+      </div>
+      <div class="hero-actions">
+        <span class="saved-pill"><span class="pulse"></span>Saved locally just now</span>
+        <div class="action-row">
+          <button class="btn btn-ghost">↓ Save &amp; exit</button>
+          <button class="btn btn-primary">Continue&nbsp; ›</button>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- STEPPER -->
+  <div class="stepper-wrap">
+    <div class="stepper">
+      <div class="ring">
+        <svg width="62" height="62" viewBox="0 0 62 62">
+          <circle cx="31" cy="31" r="26" fill="none" stroke="#E4E9E3" stroke-width="6"></circle>
+          <circle cx="31" cy="31" r="26" fill="none" stroke="#29C24E" stroke-width="6" stroke-linecap="round"
+            stroke-dasharray="163.4" stroke-dashoffset="140"></circle>
+        </svg>
+        <span class="frac">1/7</span>
+      </div>
+      <div class="steps">
+        <div class="step active" title="Loan Info — Purpose & amount"><div class="step-ic">⌂</div><div class="step-tx"><b>Loan Info</b><span>Purpose &amp; amount</span></div></div>
+        <div class="step" title="Borrower — Personal details"><div class="step-ic">2</div><div class="step-tx"><b>Borrower</b><span>Personal details</span></div></div>
+        <div class="step" title="Property — Subject property"><div class="step-ic">3</div><div class="step-tx"><b>Property</b><span>Subject property</span></div></div>
+        <div class="step" title="Employment — Income sources"><div class="step-ic">4</div><div class="step-tx"><b>Employment</b><span>Income sources</span></div></div>
+        <div class="step" title="Finances — Assets & liabilities"><div class="step-ic">5</div><div class="step-tx"><b>Finances</b><span>Assets &amp; liabilities</span></div></div>
+        <div class="step" title="Declarations — Legal questions"><div class="step-ic">6</div><div class="step-tx"><b>Declarations</b><span>Legal questions</span></div></div>
+        <div class="step" title="Submit — Review & sign"><div class="step-ic">7</div><div class="step-tx"><b>Submit</b><span>Review &amp; sign</span></div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- FORM CARD (fields unchanged in spirit) -->
+  <main class="content">
+    <div class="formcard">
+      <div class="section-head">
+        <span class="badge"><span class="hic">⌂</span>Loan Information</span>
+        <p>Let's start with the basic details about your loan.</p>
+      </div>
+
+      <div class="grid">
+        <div class="field">
+          <label>Loan Purpose <span class="req">*</span></label>
+          <div class="input">Purchase</div>
+        </div>
+        <div class="field">
+          <label>Loan Type</label>
+          <div class="input ph">Select Loan Type</div>
+        </div>
+
+        <div class="field">
+          <label>Purchase Price</label>
+          <div class="input"><span class="pre">$</span>500,000.00</div>
+        </div>
+        <div class="field">
+          <label>Down Payment
+            <span class="toggle"><span class="on">$</span><span>%</span></span>
+          </label>
+          <div class="input"><span class="pre">$</span>100,000.00</div>
+        </div>
+
+        <div class="field">
+          <label>Loan Amount <span class="hint">(auto-calculated; you can override)</span></label>
+          <div class="input"><span class="pre">$</span>400,000.00</div>
+        </div>
+        <div class="field">
+          <label>Down Payment Source</label>
+          <div class="input ph">Select Source</div>
+        </div>
+
+        <div class="field">
+          <label>Property Use</label>
+          <div class="input ph">Select Use</div>
+        </div>
+        <div class="field">
+          <label>Property Type</label>
+          <div class="input ph">Select Type</div>
+        </div>
+
+        <div class="field full">
+          <label>Occupancy</label>
+          <div class="input ph">Select Occupancy</div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <div class="note">
+    <div class="note-inner">
+      <b>What changed vs. your current page —</b> the cream title block is replaced by a brand-matched
+      dark-green hero (mint display heading, muted sub-line, ring texture) carrying the
+      <b>Saved / Save&nbsp;&amp;&nbsp;exit / Continue</b> actions as site-style pills. The stepper now floats as a white
+      card overlapping the hero (like the payment card on msfg.us), with an MSFG-green progress ring and active state.
+      The form card and every field below are <b>untouched</b> — only restyled headings to share the brand. This same
+      header applies to all seven steps.
+    </div>
+  </div>
+
+</body>
+</html>

@@ -49,7 +49,7 @@ const ApplicationSubmitted = () => {
     return () => { stale = true; };
   }, [suiteLoanId]);
 
-  const statusHref = suiteLoanId ? `/applications/${suiteLoanId}` : '/applications';
+  const statusHref = suiteLoanId ? `/dashboard?loan=${suiteLoanId}` : '/applications';
 
   return (
     <div className="page" data-testid="application-submitted">

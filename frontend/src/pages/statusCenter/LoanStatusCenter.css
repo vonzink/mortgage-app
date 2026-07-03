@@ -497,6 +497,237 @@
 }
 .lsc-dl-btn:hover { border-color: var(--green); color: var(--green); }
 
+/* ---------- right-column cards (Task 16) ---------- */
+/* Ported from the .lockcard / .drow / .appr-steps / .kv / .lo / .np blocks of
+ * the hifi design. Rate-lock ring, key-date chips + calendar button, appraisal
+ * segment tracker, loan-at-a-glance + monthly-payment key/value tables, LO
+ * contact card, notification prefs (toggles + channel chips). lsc-prefixed +
+ * scoped under .lsc-page. */
+
+/* key/value table shared by appraisal / snapshot / payment cards */
+.lsc-kv {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 22px;
+  border-top: 1px solid var(--line);
+  font-size: 13px;
+}
+.lsc-kv-k { color: var(--ink-soft); font-weight: 500; }
+.lsc-kv-v { font-weight: 700; text-align: right; }
+.lsc-kv-v--muted { color: var(--ink-soft); }
+.lsc-kv.is-hl { background: #F4F7F3; }
+.lsc-kv.is-hl .lsc-kv-k,
+.lsc-kv.is-hl .lsc-kv-v { color: var(--forest); font-weight: 800; }
+.lsc-kv-pad { height: 8px; }
+/* first kv row after a tight header hugs the header (no top border) */
+.lsc-card-h--tight { padding-bottom: 12px; }
+.lsc-card-h--tight + .lsc-kv { border-top: none; }
+
+/* rate lock countdown */
+.lsc-lockcard {
+  background: var(--forest);
+  border-radius: 20px;
+  padding: 22px;
+  box-shadow: var(--shadow-sm);
+  display: flex;
+  align-items: center;
+  gap: 18px;
+}
+.lsc-lockring {
+  flex: 0 0 auto;
+  position: relative;
+  width: 74px;
+  height: 74px;
+  display: grid;
+  place-items: center;
+}
+.lsc-lockring svg {
+  position: absolute;
+  inset: 0;
+  transform: rotate(-90deg);
+}
+.lsc-lockring-num { text-align: center; }
+.lsc-lockring-num b {
+  display: block;
+  font-size: 22px;
+  font-weight: 800;
+  color: #fff;
+  line-height: 1;
+}
+.lsc-lockring-x { font-size: 22px; color: var(--amber); }
+.lsc-lockring-num span {
+  display: block;
+  font-size: 8.5px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  color: var(--sage);
+  margin-top: 2px;
+}
+.lsc-locktx b { display: block; color: var(--mint); font-size: 15px; font-weight: 800; }
+.lsc-lock-rate { color: #fff; font-size: 13px; font-weight: 700; margin-top: 3px; }
+.lsc-locktx span { display: block; color: var(--sage); font-size: 11.5px; margin-top: 3px; }
+.lsc-lockcard.is-urgent .lsc-locktx b { color: var(--amber); }
+
+/* key dates */
+.lsc-drow {
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  padding: 10px 22px;
+}
+.lsc-drow:first-of-type { margin-top: 12px; }
+.lsc-dchip {
+  flex: 0 0 auto;
+  width: 44px;
+  text-align: center;
+  background: #F4F7F3;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 5px 0;
+}
+.lsc-dchip b { display: block; font-size: 15px; font-weight: 800; color: var(--forest); line-height: 1; }
+.lsc-dchip span { display: block; font-size: 9px; font-weight: 700; letter-spacing: 1px; color: var(--ink-soft); margin-top: 3px; }
+.lsc-drow-tx b { display: block; font-size: 13px; font-weight: 700; }
+.lsc-drow-tx span { display: block; font-size: 11px; color: var(--ink-soft); }
+.lsc-drow.is-hot .lsc-dchip { background: var(--forest); border-color: var(--forest); }
+.lsc-drow.is-hot .lsc-dchip b { color: var(--mint); }
+.lsc-drow.is-hot .lsc-dchip span { color: var(--sage); }
+.lsc-cal-open {
+  margin: 14px 22px 20px;
+  width: calc(100% - 44px);
+  border: 1.5px solid var(--field-line);
+  background: #fff;
+  color: var(--forest);
+  font-weight: 800;
+  font-size: 13px;
+  padding: 12px;
+  border-radius: 12px;
+  min-height: 44px;
+}
+.lsc-cal-open:hover { border-color: var(--green); color: var(--green); }
+
+/* appraisal tracker */
+.lsc-appr-steps { display: flex; gap: 6px; padding: 14px 22px 4px; }
+.lsc-appr-steps i {
+  flex: 1;
+  height: 6px;
+  border-radius: 99px;
+  background: #E4E9E3;
+  font-style: normal;
+}
+.lsc-appr-steps i.is-on { background: var(--green); }
+.lsc-appr-cap {
+  display: flex;
+  justify-content: space-between;
+  padding: 0 22px 6px;
+  font-size: 10.5px;
+  font-weight: 700;
+  color: var(--ink-soft);
+}
+
+/* loan officer contact */
+.lsc-lo {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 16px 22px 6px;
+}
+.lsc-lo-ph {
+  flex: 0 0 auto;
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  background: var(--forest);
+  color: var(--mint);
+  display: grid;
+  place-items: center;
+  font-size: 17px;
+  font-weight: 800;
+}
+.lsc-lo-id b { display: block; font-size: 14.5px; font-weight: 800; }
+.lsc-lo-id span { display: block; font-size: 11.5px; color: var(--ink-soft); margin-top: 1px; }
+.lsc-lo-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 22px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--forest);
+  text-decoration: none;
+}
+.lsc-lo-row:hover { text-decoration: underline; }
+.lsc-lo-ic {
+  width: 26px;
+  height: 26px;
+  border-radius: 8px;
+  background: #EAF7EE;
+  color: var(--green);
+  display: grid;
+  place-items: center;
+  font-size: 12px;
+}
+
+/* notification prefs */
+.lsc-np {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 11px 22px;
+  border-top: 1px solid var(--line);
+  min-height: 44px;
+}
+.lsc-np:first-of-type { margin-top: 12px; border-top: none; }
+.lsc-np-tx { flex: 1; min-width: 0; }
+.lsc-np-tx b { display: block; font-size: 13px; font-weight: 700; }
+.lsc-np-tx span { display: block; font-size: 11px; color: var(--ink-soft); }
+.lsc-np-error {
+  margin: 12px 22px 0;
+  padding: 8px 12px;
+  background: var(--amber-bg);
+  border: 1px solid var(--amber);
+  border-radius: 10px;
+  color: #8a5a11;
+  font-size: 12px;
+  font-weight: 600;
+}
+.lsc-sw {
+  flex: 0 0 auto;
+  position: relative;
+  width: 44px;
+  height: 26px;
+  border-radius: 99px;
+  background: #DDE3DC;
+  border: none;
+  transition: background .15s;
+}
+.lsc-sw::after {
+  content: "";
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, .25);
+  transition: left .15s;
+}
+.lsc-sw.is-on { background: var(--green); }
+.lsc-sw.is-on::after { left: 21px; }
+.lsc-np-ch { display: flex; gap: 6px; }
+.lsc-chip {
+  border: 1.5px solid var(--field-line);
+  background: #fff;
+  color: var(--ink-soft);
+  font-size: 11px;
+  font-weight: 700;
+  padding: 5px 10px;
+  border-radius: 999px;
+}
+.lsc-chip.is-on { background: var(--forest); border-color: var(--forest); color: var(--mint); }
+
 /* ---------- responsive ---------- */
 @media (max-width: 1180px) {
   .lsc-grid { grid-template-columns: minmax(0, 1fr) 330px; }

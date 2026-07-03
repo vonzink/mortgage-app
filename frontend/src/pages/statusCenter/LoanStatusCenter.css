@@ -218,10 +218,100 @@
   100% { background-position: -200% 0; }
 }
 
+/* ---------- status rail (Task 14) ---------- */
+/* Ported from the .railcard/.rail/.rl block of the hifi design. Forest card,
+ * green connector line, mint glow on the current node, muted upcoming rows. */
+.lsc-rail {
+  list-style: none;
+  margin: 0;
+  padding: 24px 22px;
+  background: var(--forest);
+  border-radius: 20px;
+  box-shadow: var(--shadow-sm);
+}
+.lsc-rl {
+  position: relative;
+  display: flex;
+  gap: 14px;
+  padding-bottom: 24px;
+}
+/* connector line down from each node into the next */
+.lsc-rl::before {
+  content: "";
+  position: absolute;
+  left: 13px;
+  top: 28px;
+  bottom: 0;
+  width: 3px;
+  background: rgba(255, 255, 255, .12);
+}
+.lsc-rl:last-child { padding-bottom: 0; }
+.lsc-rl:last-child::before { display: none; }
+.lsc-rl.done::before { background: var(--green); }
+
+.lsc-rl-node {
+  flex: 0 0 auto;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-size: 13px;
+  font-weight: 800;
+  position: relative;
+  z-index: 2;
+}
+.lsc-rl.done .lsc-rl-node { background: var(--green); color: #06281A; }
+.lsc-rl.current .lsc-rl-node {
+  background: var(--mint);
+  color: #06281A;
+  box-shadow: 0 0 0 5px rgba(130, 226, 166, .2);
+}
+.lsc-rl.upcoming .lsc-rl-node {
+  background: rgba(255, 255, 255, .14);
+  color: rgba(255, 255, 255, .5);
+}
+
+.lsc-rl-body { min-width: 0; }
+.lsc-rl-label {
+  display: block;
+  font-size: 13.5px;
+  font-weight: 700;
+  color: #fff;
+  padding-top: 2px;
+}
+.lsc-rl.upcoming .lsc-rl-label { color: rgba(255, 255, 255, .45); }
+.lsc-rl-sub {
+  display: block;
+  font-size: 11.5px;
+  color: var(--sage);
+  margin-top: 2px;
+}
+
 /* ---------- responsive ---------- */
 @media (max-width: 1180px) {
   .lsc-grid { grid-template-columns: minmax(0, 1fr) 330px; }
   .lsc-rail-col { grid-column: 1 / -1; }
+
+  /* horizontal stepper variant */
+  .lsc-rail { display: flex; gap: 0; padding: 20px; }
+  .lsc-rl {
+    flex: 1;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    gap: 8px;
+    padding-bottom: 0;
+  }
+  .lsc-rl::before {
+    left: 50%;
+    top: 13px;
+    bottom: auto;
+    width: 100%;
+    height: 3px;
+  }
+  .lsc-rl-label { font-size: 11.5px; padding-top: 0; }
+  .lsc-rl-sub { display: none; }
 }
 @media (max-width: 860px) {
   .lsc-grid { grid-template-columns: 1fr; padding: 18px 16px 50px; gap: 16px; }

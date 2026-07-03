@@ -288,6 +288,215 @@
   margin-top: 2px;
 }
 
+/* ---------- main-column cards (Task 15) ---------- */
+/* Ported from the .card / .card-h / .cond / .tag / .dz3 / .hrow blocks of the
+ * hifi design. White cards with a titled header + count pill; condition rows
+ * (to-do + cleared); the dark "forest" dropzone; the document-history / downloads
+ * rows with a filetype chip. All lsc-prefixed + scoped under .lsc-page. */
+.lsc-card {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 20px;
+  box-shadow: var(--shadow-sm);
+}
+.lsc-card-h {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 18px 22px 0;
+}
+.lsc-card-h h3 {
+  font-size: 15.5px;
+  font-weight: 800;
+  letter-spacing: -.2px;
+}
+.lsc-cnt {
+  margin-left: auto;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--ink-soft);
+  background: #F1F4F0;
+  padding: 4px 10px;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+.lsc-cic {
+  flex: 0 0 auto;
+  width: 26px;
+  height: 26px;
+  border-radius: 8px;
+  display: grid;
+  place-items: center;
+  font-size: 13px;
+  font-weight: 800;
+}
+.lsc-cic--amber { background: var(--amber-bg); color: var(--amber); }
+.lsc-cic--green { background: #EAF7EE; color: var(--green); }
+.lsc-cic--forest { background: #F1F4F0; color: var(--forest); }
+
+/* condition rows (to-do + cleared) */
+.lsc-cond {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 22px;
+  border-top: 1px solid var(--line);
+  min-height: 44px;
+}
+.lsc-cond:first-of-type { margin-top: 14px; }
+.lsc-st {
+  flex: 0 0 auto;
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  display: grid;
+  place-items: center;
+  font-size: 15px;
+  font-weight: 800;
+}
+.lsc-st--out { background: var(--amber-bg); color: var(--amber); }
+.lsc-st--ok { background: #EAF7EE; color: var(--green); }
+.lsc-st--rev { background: #EDF2FA; color: #4A78C2; }
+.lsc-cond-tx { min-width: 0; flex: 1; }
+.lsc-cond-tx b { display: block; font-size: 13.5px; font-weight: 700; }
+.lsc-cond-tx span { display: block; font-size: 11.5px; color: var(--ink-soft); margin-top: 1px; }
+
+.lsc-tag {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+.lsc-tag--out { background: var(--amber-bg); color: #B07A1E; }
+.lsc-tag--ok { background: #EAF7EE; color: #1E8E3E; }
+.lsc-tag--rev { background: #EDF2FA; color: #3D69B0; }
+
+.lsc-up-btn {
+  border: 1.5px solid var(--field-line);
+  background: #fff;
+  color: var(--ink);
+  font-size: 12.5px;
+  font-weight: 700;
+  padding: 10px 14px;
+  border-radius: 999px;
+  white-space: nowrap;
+  min-height: 38px;
+}
+.lsc-up-btn:hover { border-color: var(--green); color: var(--green); }
+
+/* empty-state line shared by the main-column cards */
+.lsc-empty {
+  padding: 14px 22px 20px;
+  margin-top: 4px;
+  font-size: 13px;
+  color: var(--ink-soft);
+}
+
+/* dark "forest" dropzone (design #dz / .dz3) */
+.lsc-dz {
+  position: relative;
+  overflow: hidden;
+  border-radius: 16px;
+  background: var(--forest);
+  padding: 30px;
+  text-align: center;
+  margin: 16px 22px 22px;
+  cursor: pointer;
+}
+.lsc-dz::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(100% 140% at 50% -10%, rgba(130, 226, 166, .12), transparent 60%);
+}
+.lsc-dz::after {
+  content: "";
+  position: absolute;
+  inset: 10px;
+  border: 2px dashed rgba(130, 226, 166, .4);
+  border-radius: 12px;
+  pointer-events: none;
+}
+.lsc-dz > * { position: relative; }
+.lsc-dz.is-drag { outline: 3px solid var(--green); }
+.lsc-dz-ic {
+  width: 52px;
+  height: 52px;
+  margin: 0 auto 12px;
+  border-radius: 50%;
+  background: var(--green);
+  display: grid;
+  place-items: center;
+  color: #06281A;
+  font-size: 22px;
+  box-shadow: 0 10px 30px -6px rgba(41, 194, 78, .55);
+}
+.lsc-dz b { display: block; color: #fff; font-size: 15.5px; font-weight: 800; }
+.lsc-dz span { display: block; color: var(--sage); font-size: 12px; margin-top: 5px; }
+.lsc-dz-browse {
+  margin-top: 14px;
+  background: rgba(255, 255, 255, .1);
+  border: 1px solid var(--forest-line);
+  color: var(--mint);
+  font-weight: 700;
+  font-size: 13px;
+  padding: 11px 20px;
+  border-radius: 999px;
+  min-height: 44px;
+}
+.lsc-dz-browse:disabled { opacity: .7; cursor: default; }
+
+/* document-history / downloads rows */
+.lsc-hrow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 22px;
+  border-top: 1px solid var(--line);
+}
+.lsc-hrow:first-of-type { margin-top: 12px; }
+.lsc-fic {
+  flex: 0 0 auto;
+  width: 34px;
+  height: 34px;
+  border-radius: 9px;
+  background: #F7F9F6;
+  border: 1px solid var(--line);
+  display: grid;
+  place-items: center;
+  font-size: 9.5px;
+  font-weight: 800;
+  color: var(--red);
+}
+.lsc-fic--jpg,
+.lsc-fic--jpeg,
+.lsc-fic--png,
+.lsc-fic--heic { color: #3D69B0; }
+.lsc-hrow-tx { flex: 1; min-width: 0; }
+.lsc-hrow-tx b {
+  display: block;
+  font-size: 13px;
+  font-weight: 700;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.lsc-hrow-tx span { display: block; font-size: 11.5px; color: var(--ink-soft); }
+
+.lsc-dl-btn {
+  border: 1.5px solid var(--field-line);
+  background: #fff;
+  color: var(--forest);
+  font-size: 12.5px;
+  font-weight: 700;
+  padding: 8px 14px;
+  border-radius: 999px;
+  white-space: nowrap;
+  min-height: 36px;
+}
+.lsc-dl-btn:hover { border-color: var(--green); color: var(--green); }
+
 /* ---------- responsive ---------- */
 @media (max-width: 1180px) {
   .lsc-grid { grid-template-columns: minmax(0, 1fr) 330px; }

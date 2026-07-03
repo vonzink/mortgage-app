@@ -58,4 +58,11 @@ public interface LoanApplicationRepository extends JpaRepository<LoanApplication
      */
     @EntityGraph(attributePaths = {"property", "borrowers"})
     List<LoanApplication> findBySuiteLoanIdIsNull();
+
+    /**
+     * Legacy row linked to a suite loan — used by {@code SuiteLoanIdPathResolutionFilter} to
+     * accept suite UUIDs in /loan-applications/{id}/** URLs. {@code suite_loan_id} has no unique
+     * constraint, so pick the oldest row deterministically instead of erroring on a duplicate.
+     */
+    Optional<LoanApplication> findFirstBySuiteLoanIdOrderByIdAsc(String suiteLoanId);
 }

@@ -410,8 +410,11 @@ const ApplicationForm = () => {
         clearDraft(`${draftKey}:steps`);
 
         toast.success('Application submitted successfully!');
+        // Borrowers land on a confirmation page (what happens next, documents to gather,
+        // where to check status) — never the raw applications list (walkthrough finding).
+        const submittedLoanId = suiteLoanId;
         setTimeout(() => {
-          navigate('/applications');
+          navigate('/application-submitted', { state: { suiteLoanId: submittedLoanId } });
         }, 1000);
         return;
       }

@@ -396,6 +396,21 @@ const mortgageService = {
     }
   },
 
+  /**
+   * Borrower loan calendar — borrower-safe subset of the suite's Data Tracking dates
+   * (GET /api/loans/{id}/borrower/tracking; STAFF_AND_BORROWER + borrower-on-loan guarded).
+   * Returns the entries array; [] on any failure (the calendar degrades, never blocks).
+   */
+  getBorrowerTracking: async (suiteLoanId) => {
+    try {
+      const { data } = await suiteClient.get(`/loans/${suiteLoanId}/borrower/tracking`);
+      const body = unwrapEnvelope(data);
+      return Array.isArray(body?.entries) ? body.entries : [];
+    } catch {
+      return [];
+    }
+  },
+
   // ────────────────── MISMO export / import ──────────────────
 
   /**

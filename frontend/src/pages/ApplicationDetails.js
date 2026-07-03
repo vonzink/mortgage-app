@@ -4,6 +4,7 @@ import { toast } from 'react-toastify';
 
 import BorrowerDocuments from '../components/documents/BorrowerDocuments';
 import StaffDocumentsPanel from '../components/documents/StaffDocumentsPanel';
+import LoanCalendar from '../components/calendar/LoanCalendar';
 import mortgageService from '../services/mortgageService';
 import useRoles from '../hooks/useRoles';
 import { suiteLoanUrl } from '../services/suiteWeb';
@@ -136,7 +137,12 @@ const ApplicationDetails = () => {
       <div className="docs-layout docs-layout--full">
         <div className="docs-main">
           {useSuiteDocs
-            ? <BorrowerDocuments suiteLoanId={suiteLoanId} onChanged={fetchDocuments} />
+            ? (
+              <>
+                <BorrowerDocuments suiteLoanId={suiteLoanId} onChanged={fetchDocuments} />
+                <LoanCalendar suiteLoanId={suiteLoanId} />
+              </>
+            )
             : <StaffDocumentsPanel loanId={suiteLoanId} />}
         </div>
       </div>

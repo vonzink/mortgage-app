@@ -13,6 +13,7 @@ import SharedSessionCookieSync from './auth/SharedSessionCookieSync';
 import LandingPage from './pages/LandingPage';
 import AuthRedirect from './pages/AuthRedirect';
 import ApplicationForm from './pages/ApplicationForm';
+import ApplicationSubmitted from './pages/ApplicationSubmitted';
 import ApplicationList from './pages/ApplicationList';
 import ApplicationDetails from './pages/ApplicationDetails';
 import LoanDashboardPage from './pages/LoanDashboardPage';
@@ -96,6 +97,10 @@ function App() {
             <Route
               path="/apply"
               element={<RequireAuth><ApplicationForm /></RequireAuth>}
+            />
+            <Route
+              path="/application-submitted"
+              element={<RequireAuth><ApplicationSubmitted /></RequireAuth>}
             />
             <Route
               path="/applications"

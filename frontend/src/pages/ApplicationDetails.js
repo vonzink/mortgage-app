@@ -7,6 +7,7 @@ import StaffDocumentsPanel from '../components/documents/StaffDocumentsPanel';
 import mortgageService from '../services/mortgageService';
 import useRoles from '../hooks/useRoles';
 import { suiteLoanUrl } from '../services/suiteWeb';
+import { resolveSuiteLoanId } from '../utils/suiteLoanId';
 import { pushRecentLoan } from '../utils/recentLoans';
 import { formatCurrency } from '../utils/formHelpers';
 import DocumentsHero from '../components/design/DocumentsHero';
@@ -23,12 +24,17 @@ const ApplicationDetails = () => {
   // Borrower docs live in the suite (SoR); staff get a read-only suite view —
   // management happens in the Suite console.
   const useSuiteDocs = isBorrower && !isStaff;
-  const suiteHref = isStaff ? suiteLoanUrl(id) : null;
   const [application, setApplication] = useState(null);
   const [loading, setLoading] = useState(true);
   const [documents, setDocuments] = useState([]);
   const [statusHistory, setStatusHistory] = useState([]);
   const [showSummary, setShowSummary] = useState(false);
+
+  // Suite-keyed calls (documents/status/console links) must use the SUITE id, whichever
+  // world the route id came from. Null = no suite counterpart → those features disable
+  // cleanly instead of firing doomed requests with a legacy-numeric id.
+  const suiteLoanId = resolveSuiteLoanId(id, application);
+  const suiteHref = isStaff && suiteLoanId ? suiteLoanUrl(suiteLoanId) : null;
 
   const fetchApplication = useCallback(async () => {
     try {
@@ -54,24 +60,26 @@ const ApplicationDetails = () => {
   }, [id, navigate]);
 
   const fetchDocuments = useCallback(async () => {
+    if (!suiteLoanId) { setDocuments([]); return; }
     try {
       const docs = useSuiteDocs
-        ? await mortgageService.getBorrowerDocuments(id)   // suite (system of record)
-        : ((await mortgageService.getStaffDocuments(id)).documents || []);
+        ? await mortgageService.getBorrowerDocuments(suiteLoanId)   // suite (system of record)
+        : ((await mortgageService.getStaffDocuments(suiteLoanId)).documents || []);
       setDocuments(docs);
     } catch (error) {
       console.error('Error fetching documents:', error);
     }
-  }, [id, useSuiteDocs]);
+  }, [suiteLoanId, useSuiteDocs]);
 
   const fetchStatusHistory = useCallback(async () => {
+    if (!suiteLoanId) { setStatusHistory([]); return; }
     try {
-      const data = await mortgageService.getStatusHistory(id);
+      const data = await mortgageService.getStatusHistory(suiteLoanId);
       setStatusHistory(data);
     } catch (error) {
       console.error('Error fetching status history:', error);
     }
-  }, [id]);
+  }, [suiteLoanId]);
 
   useEffect(() => {
     fetchApplication();
@@ -128,8 +136,8 @@ const ApplicationDetails = () => {
       <div className="docs-layout docs-layout--full">
         <div className="docs-main">
           {useSuiteDocs
-            ? <BorrowerDocuments suiteLoanId={id} onChanged={fetchDocuments} />
-            : <StaffDocumentsPanel loanId={id} />}
+            ? <BorrowerDocuments suiteLoanId={suiteLoanId} onChanged={fetchDocuments} />
+            : <StaffDocumentsPanel loanId={suiteLoanId} />}
         </div>
       </div>
 

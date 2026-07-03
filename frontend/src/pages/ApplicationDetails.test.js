@@ -36,7 +36,12 @@ const APPLICATION = {
   applicationNumber: '1001',
   status: 'DRAFT',
   borrowers: [{ firstName: 'Ann', lastName: 'Buyer' }],
+  // Suite-keyed calls (documents/status/console links) resolve through this field when the
+  // route id isn't a suite UUID.
+  suiteLoanId: 'loan-123',
 };
+
+const SUITE_UUID = '632364d7-7b81-44b9-8d9d-a3596bdec30a';
 
 function renderPage(id = 'loan-123') {
   return render(
@@ -120,6 +125,40 @@ test('staff hero stats come from the suite documents, not the legacy documents e
   expect(await screen.findByText(/2 files/)).toBeInTheDocument();
   expect(mortgageService.getStaffDocuments).toHaveBeenCalledWith('loan-123');
   expect(mortgageService.getApplicationDocuments).not.toHaveBeenCalled();
+});
+
+test('staff arriving by numeric legacy id keys suite calls by application.suiteLoanId', async () => {
+  mockRoles = { isBorrower: false, isStaff: true };
+  mortgageService.getApplication.mockResolvedValue({ ...APPLICATION, id: 123, suiteLoanId: SUITE_UUID });
+  suiteWeb.suiteLoanUrl.mockReturnValue(`https://suite.msfgco.com/loans/${SUITE_UUID}`);
+
+  renderPage('123');
+  await waitFor(() => expect(mortgageService.getStaffDocuments).toHaveBeenCalledWith(SUITE_UUID));
+  await waitFor(() => expect(mortgageService.getStatusHistory).toHaveBeenCalledWith(SUITE_UUID));
+  expect(suiteWeb.suiteLoanUrl).toHaveBeenCalledWith(SUITE_UUID);
+  expect(mortgageService.getStaffDocuments).not.toHaveBeenCalledWith('123');
+});
+
+test('suite UUID route id keys suite calls directly', async () => {
+  mockRoles = { isBorrower: false, isStaff: true };
+  mortgageService.getApplication.mockResolvedValue({ ...APPLICATION, id: 123, suiteLoanId: SUITE_UUID });
+
+  renderPage(SUITE_UUID);
+  await waitFor(() => expect(mortgageService.getStatusHistory).toHaveBeenCalledWith(SUITE_UUID));
+  await waitFor(() => expect(mortgageService.getStaffDocuments).toHaveBeenCalledWith(SUITE_UUID));
+});
+
+test('loan with no suite link renders without suite calls or a dead console link', async () => {
+  mockRoles = { isBorrower: false, isStaff: true };
+  mortgageService.getApplication.mockResolvedValue({ ...APPLICATION, id: 123, suiteLoanId: null });
+  // Would be a dead link if the page built it from the numeric id anyway.
+  suiteWeb.suiteLoanUrl.mockReturnValue('https://suite.msfgco.com/loans/123');
+
+  renderPage('123');
+  await screen.findByText(/Application #1001/i);
+  expect(mortgageService.getStaffDocuments).not.toHaveBeenCalled();
+  expect(mortgageService.getStatusHistory).not.toHaveBeenCalled();
+  expect(screen.queryByTestId('open-in-suite-details')).not.toBeInTheDocument();
 });
 
 test('borrower branch is untouched: still renders BorrowerDocuments keyed by loanId', async () => {

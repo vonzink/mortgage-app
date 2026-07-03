@@ -1,5 +1,6 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
+import useRoles from '../../hooks/useRoles';
 import Pill from '../../components/design/Pill';
 import { formatMoneyShort } from '../../utils/format';
 import { stageTone } from './stageSlas';
@@ -27,16 +28,21 @@ function formatMonthDay(iso) {
 
 export default function PipelineRow({ row, showSuiteLink = false }) {
   const navigate = useNavigate();
+  const { isStaff } = useRoles();
   const age = daysBetween(row.statusChangedAt);
   const tone = stageTone(row.status, age ?? 0);
   const ltvHigh = row.ltvPct != null && row.ltvPct >= 80;
+  // Staff work the LO Loan Dashboard; clients open THEIR application page (documents,
+  // status, loan calendar). Sending a borrower to /loan/{id} lands them in staff
+  // tooling that also 403s for them (walkthrough finding, 2026-07-03).
+  const detailsPath = isStaff ? `/loan/${row.id}` : `/applications/${row.id}`;
 
   return (
     <tr
       className="pipe-row"
-      onClick={() => navigate(`/loan/${row.id}`)}
+      onClick={() => navigate(detailsPath)}
       tabIndex={0}
-      onKeyDown={(e) => { if (e.key === 'Enter') navigate(`/loan/${row.id}`); }}
+      onKeyDown={(e) => { if (e.key === 'Enter') navigate(detailsPath); }}
     >
       <td className="pipe-cell pipe-cell--name">
         <div className="pipe-name">{row.borrowerName || '(no borrower)'}</div>

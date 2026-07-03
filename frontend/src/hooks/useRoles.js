@@ -7,8 +7,10 @@ import { useAuth } from 'react-oidc-context';
  * Treat these as a UI hint only — the backend re-checks with @PreAuthorize on every call.
  */
 export default function useRoles() {
+  // Defensive: useAuth() is undefined outside an AuthProvider (some test/render trees) —
+  // degrade to "no groups" (→ borrower default) rather than crash; this is a UI hint only.
   const auth = useAuth();
-  const groups = auth.user?.profile?.['cognito:groups'] || [];
+  const groups = auth?.user?.profile?.['cognito:groups'] || [];
   const has = (role) => Array.isArray(groups) && groups.includes(role);
   // Any back-office role. Used to gate staff-only chrome (e.g. the global loan
   // search) out of the client/borrower view.

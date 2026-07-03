@@ -9,6 +9,11 @@ jest.mock('react-router-dom', () => ({
   useNavigate: () => mockNavigate,
 }));
 
+// Role-aware row destination: staff → the LO Loan Dashboard, clients → their own
+// application page (walkthrough finding: borrowers were sent into staff tooling).
+let mockRoles = { isStaff: true };
+jest.mock('../../hooks/useRoles', () => () => mockRoles);
+
 const row = {
   id: 42,
   applicationNumber: 'APP-042',
@@ -58,10 +63,18 @@ describe('PipelineRow', () => {
     expect(screen.getByText(/78\.2%/)).toBeInTheDocument();
   });
 
-  test('row click navigates to loan dashboard', () => {
+  test('STAFF row click navigates to the loan dashboard', () => {
+    mockRoles = { isStaff: true };
     render(<MemoryRouter><table><tbody><PipelineRow row={row} /></tbody></table></MemoryRouter>);
     fireEvent.click(screen.getByRole('row'));
     expect(mockNavigate).toHaveBeenCalledWith('/loan/42');
+  });
+
+  test('BORROWER row click navigates to their own application page, never staff tooling', () => {
+    mockRoles = { isStaff: false };
+    render(<MemoryRouter><table><tbody><PipelineRow row={row} /></tbody></table></MemoryRouter>);
+    fireEvent.click(screen.getByRole('row'));
+    expect(mockNavigate).toHaveBeenCalledWith('/applications/42');
   });
 
   test('suite link renders when showSuiteLink + URL configured, and does not trigger row nav', () => {

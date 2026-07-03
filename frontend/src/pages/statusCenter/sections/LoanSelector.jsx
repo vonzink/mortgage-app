@@ -23,8 +23,13 @@ function optionLabel(loan) {
  */
 export default function LoanSelector({ loans, selectedId, onSelect }) {
   const selectId = useId();
-  const [showOlder, setShowOlder] = useState(false);
   const { active, past, older } = groupLoans(loans);
+  // Auto-expand when the selection (e.g. from a ?loan= deep-link) is an
+  // older-group loan — otherwise the <select> would have no matching <option>
+  // until the user manually clicks "View older loans", showing blank.
+  const [showOlder, setShowOlder] = useState(
+    () => older.some((l) => String(l.id) === String(selectedId)),
+  );
 
   const renderGroup = (label, group) =>
     group.length > 0 && (

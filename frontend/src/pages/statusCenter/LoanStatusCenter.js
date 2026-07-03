@@ -187,7 +187,7 @@ export default function LoanStatusCenter() {
                 onUploadForCondition={focusDropzone}
               />
             )}
-            {payload?.documents != null && (
+            {payload?.documents?.uploads != null && (
               <div ref={dropzoneRef}>
                 <UploadDropzone suiteLoanId={selectedId} onUploaded={refetch} />
               </div>

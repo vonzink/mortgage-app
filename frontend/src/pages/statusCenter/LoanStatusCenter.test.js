@@ -218,6 +218,25 @@ describe('LoanStatusCenter', () => {
     expect(screen.queryByText('Dana Lender')).not.toBeInTheDocument();
   });
 
+  test('uploads hidden (showDocuments=false) but downloads shown: DownloadsCard renders, UploadDropzone does NOT', async () => {
+    mortgageService.getBorrowerDashboard.mockResolvedValue({
+      ...FULL_DASHBOARD,
+      documents: {
+        uploads: null,
+        fromTeam: [
+          { id: 't1', fileName: 'Disclosure.pdf', documentType: 'DISCLOSURE', status: 'ACCEPTED', uploadedAt: '2026-07-01', fromLoanTeam: true },
+        ],
+      },
+    });
+    renderPage();
+
+    // DownloadsCard is present — the download surface is shown.
+    expect(await screen.findByRole('button', { name: /^Download$/i })).toBeInTheDocument();
+    // The upload dropzone must NOT render — the upload surface was hidden by the LO,
+    // even though `documents` itself is non-null (documents.uploads is null).
+    expect(screen.queryByText(/Drop your documents here/i)).not.toBeInTheDocument();
+  });
+
   test('Key dates "Open calendar" opens the modal; closing removes it', async () => {
     mortgageService.getBorrowerDashboard.mockResolvedValue(FULL_DASHBOARD);
     const { container } = renderPage();

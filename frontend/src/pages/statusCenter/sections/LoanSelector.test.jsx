@@ -35,6 +35,16 @@ describe('LoanSelector', () => {
     expect(screen.getByRole('option', { name: /#1000000001/ })).toBeInTheDocument();
   });
 
+  test('deep-linking to an older-group loan auto-expands the Older optgroup', () => {
+    render(<LoanSelector loans={LOANS} selectedId="o-1" onSelect={jest.fn()} />);
+
+    // No click on "View older loans" — the Older group must already be present
+    // (and selected) so the <select value="o-1"> has a matching <option>.
+    expect(screen.getByRole('group', { name: 'Older' })).toBeInTheDocument();
+    expect(screen.getByRole('option', { name: /#1000000001/ })).toBeInTheDocument();
+    expect(screen.getByLabelText(/loan/i)).toHaveValue('o-1');
+  });
+
   test('no expander when there are no older loans', () => {
     render(<LoanSelector loans={LOANS.slice(0, 2)} selectedId="a-1" onSelect={jest.fn()} />);
     expect(screen.queryByRole('button', { name: /view older loans/i })).not.toBeInTheDocument();

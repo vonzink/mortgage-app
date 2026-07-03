@@ -1,9 +1,23 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 
 import mortgageService from '../../services/mortgageService';
 import { groupLoans } from './loanGroups';
 import LoanSelector, { humanizeStatus } from './sections/LoanSelector';
+import StatusRail from './sections/StatusRail';
+import TodoList from './sections/TodoList';
+import UploadDropzone from './sections/UploadDropzone';
+import ClearedItems from './sections/ClearedItems';
+import DocumentHistory from './sections/DocumentHistory';
+import DownloadsCard from './sections/DownloadsCard';
+import RateLockCard from './sections/RateLockCard';
+import KeyDatesCard from './sections/KeyDatesCard';
+import CalendarModal from './sections/CalendarModal';
+import AppraisalCard from './sections/AppraisalCard';
+import SnapshotCard from './sections/SnapshotCard';
+import PaymentCard from './sections/PaymentCard';
+import LoanOfficerCard from './sections/LoanOfficerCard';
+import NotificationsCard from './sections/NotificationsCard';
 import './LoanStatusCenter.css';
 
 /**
@@ -21,6 +35,21 @@ export default function LoanStatusCenter() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [retryTick, setRetryTick] = useState(0);
+  const [calendarOpen, setCalendarOpen] = useState(false);
+  const dropzoneRef = useRef(null);
+
+  // Re-run the dashboard fetch for the selected loan (used after an upload or a
+  // notifications save so the view reflects the new server state).
+  const refetch = useCallback(() => setRetryTick((t) => t + 1), []);
+
+  // Generic v1 for a to-do "Upload" click: focus/scroll the shared dropzone.
+  // (Per-condition upload matching is an explicit follow-up.)
+  const focusDropzone = useCallback(() => {
+    const el = dropzoneRef.current;
+    if (el && typeof el.scrollIntoView === 'function') {
+      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  }, []);
 
   const fetchLoans = useCallback(async () => {
     try {
@@ -139,11 +168,85 @@ export default function LoanStatusCenter() {
         <div className="lsc-skeleton" role="status" aria-label="Loading your loan" />
       ) : (
         <div className="lsc-grid">
-          {/* Section components land in Tasks 14–17. */}
-          <aside className="lsc-rail-col" />
-          <main className="lsc-main-col" />
-          <aside className="lsc-side-col" />
+          {/*
+            Each section renders ONLY when its gating payload field is non-null;
+            a null/absent field means the LO hid that section (server-visibility
+            contract), so we render nothing for it. visibility{} is always present
+            and gates the appraisal card, which has no own payload field.
+          */}
+          <aside className="lsc-rail-col">
+            {payload?.milestones != null && (
+              <StatusRail milestones={payload.milestones} />
+            )}
+          </aside>
+
+          <main className="lsc-main-col">
+            {payload?.conditions != null && (
+              <TodoList
+                conditions={payload.conditions}
+                onUploadForCondition={focusDropzone}
+              />
+            )}
+            {payload?.documents != null && (
+              <div ref={dropzoneRef}>
+                <UploadDropzone suiteLoanId={selectedId} onUploaded={refetch} />
+              </div>
+            )}
+            {payload?.conditions != null && (
+              <ClearedItems conditions={payload.conditions} />
+            )}
+            {payload?.documents?.uploads != null && (
+              <DocumentHistory uploads={payload.documents.uploads} />
+            )}
+            {payload?.documents?.fromTeam != null && (
+              <DownloadsCard
+                fromTeam={payload.documents.fromTeam}
+                suiteLoanId={selectedId}
+              />
+            )}
+          </main>
+
+          <aside className="lsc-side-col">
+            {payload?.rateLock != null && (
+              <RateLockCard rateLock={payload.rateLock} />
+            )}
+            {payload?.keyDates != null && (
+              <KeyDatesCard
+                keyDates={payload.keyDates}
+                onOpenCalendar={() => setCalendarOpen(true)}
+              />
+            )}
+            {payload?.visibility?.showAppraisal && (
+              <AppraisalCard
+                keyDates={payload.keyDates || []}
+                purchasePrice={payload.loanSnapshot?.purchasePrice}
+              />
+            )}
+            {payload?.loanSnapshot != null && (
+              <SnapshotCard loanSnapshot={payload.loanSnapshot} />
+            )}
+            {payload?.payment != null && (
+              <PaymentCard payment={payload.payment} />
+            )}
+            {payload?.loanOfficer != null && (
+              <LoanOfficerCard loanOfficer={payload.loanOfficer} />
+            )}
+            {payload?.notificationPrefs != null && (
+              <NotificationsCard
+                prefs={payload.notificationPrefs}
+                suiteLoanId={selectedId}
+                onSaved={refetch}
+              />
+            )}
+          </aside>
         </div>
+      )}
+
+      {calendarOpen && payload?.keyDates != null && (
+        <CalendarModal
+          keyDates={payload.keyDates}
+          onClose={() => setCalendarOpen(false)}
+        />
       )}
     </div>
   );

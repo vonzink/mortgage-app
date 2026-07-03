@@ -36,7 +36,7 @@ describe('ApplicationSubmitted', () => {
     expect(screen.getByText(/last 2 pay stubs/i)).toBeInTheDocument();
 
     const cta = screen.getByTestId('upload-documents-cta');
-    expect(cta).toHaveAttribute('href', '/applications/SUITE-1');
+    expect(cta).toHaveAttribute('href', '/dashboard?loan=SUITE-1');
   });
 
   test('without a loan id it still renders and points at My applications', () => {

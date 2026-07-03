@@ -70,11 +70,11 @@ describe('PipelineRow', () => {
     expect(mockNavigate).toHaveBeenCalledWith('/loan/42');
   });
 
-  test('BORROWER row click navigates to their own application page, never staff tooling', () => {
+  test('BORROWER row click navigates to their loan status center, never staff tooling', () => {
     mockRoles = { isStaff: false };
     render(<MemoryRouter><table><tbody><PipelineRow row={row} /></tbody></table></MemoryRouter>);
     fireEvent.click(screen.getByRole('row'));
-    expect(mockNavigate).toHaveBeenCalledWith('/applications/42');
+    expect(mockNavigate).toHaveBeenCalledWith('/dashboard?loan=42');
   });
 
   test('suite link renders when showSuiteLink + URL configured, and does not trigger row nav', () => {

@@ -1,0 +1,234 @@
+/*
+ * Loan Status Center (/dashboard) — borrower-facing.
+ * Ported from docs/design/loan-status-center/MSFG Loan Status Center.html.
+ * EVERYTHING is scoped under .lsc-page — this app ships global CSS, so we follow
+ * the .apply-page scoping precedent to avoid leaking tokens/resets. Section-level
+ * card styles (rail/conditions/rate-lock/key-dates/LO/prefs) land with their
+ * components in Tasks 14–17; this file carries the shell: tokens, hero, selector,
+ * grid, skeleton, and the error banner.
+ */
+.lsc-page {
+  --forest: #0E3B2C;
+  --forest-deep: #0A2C20;
+  --forest-line: rgba(255, 255, 255, .10);
+  --green: #29C24E;
+  --green-hover: #22A843;
+  --mint: #82E2A6;
+  --sage: #9FBCAC;
+  --cream: #F5F4ED;
+  --ink: #10271E;
+  --ink-soft: #516A5C;
+  --card: #fff;
+  --line: #E5E8E2;
+  --field-line: #D9DDD5;
+  --amber: #E8A13C;
+  --amber-bg: #FBF3E4;
+  --red: #C0392B;
+  --shadow: 0 24px 60px -20px rgba(8, 40, 28, .45);
+  --shadow-sm: 0 1px 2px rgba(16, 39, 30, .06), 0 4px 16px -8px rgba(16, 39, 30, .10);
+
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  background: var(--cream);
+  color: var(--ink);
+  min-height: 100%;
+  -webkit-font-smoothing: antialiased;
+}
+
+.lsc-page *,
+.lsc-page *::before,
+.lsc-page *::after {
+  box-sizing: border-box;
+}
+
+.lsc-page button {
+  font-family: inherit;
+  cursor: pointer;
+}
+
+/* ---------- error banner ---------- */
+.lsc-error-banner {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 16px 36px 0;
+  padding: 12px 18px;
+  background: var(--amber-bg);
+  border: 1px solid var(--amber);
+  border-radius: 14px;
+  color: #8a5a11;
+  font-size: 13.5px;
+  font-weight: 600;
+}
+.lsc-error-msg { flex: 1; min-width: 0; }
+.lsc-error-retry {
+  border: 1.5px solid var(--amber);
+  background: #fff;
+  color: #8a5a11;
+  font-size: 12.5px;
+  font-weight: 700;
+  padding: 7px 14px;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+.lsc-error-retry:hover { border-color: var(--green); color: var(--green); }
+.lsc-error-dismiss {
+  border: none;
+  background: transparent;
+  color: #8a5a11;
+  font-size: 15px;
+  font-weight: 800;
+  line-height: 1;
+  padding: 4px 6px;
+}
+
+/* ---------- hero ---------- */
+.lsc-hero {
+  position: relative;
+  background: var(--forest);
+  padding: 26px 36px;
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  flex-wrap: wrap;
+}
+.lsc-hero::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(120% 150% at 50% -20%, rgba(130, 226, 166, .10), transparent 55%),
+    repeating-radial-gradient(circle at 50% -10%, transparent 0 78px, rgba(255, 255, 255, .022) 78px 79px);
+}
+.lsc-hero > * { position: relative; }
+.lsc-hero-text { flex: 1; min-width: 0; }
+.lsc-eyebrow {
+  color: var(--green);
+  font-weight: 700;
+  font-size: 12px;
+  letter-spacing: 2.5px;
+  text-transform: uppercase;
+}
+.lsc-hero h1 {
+  font-size: 26px;
+  font-weight: 800;
+  letter-spacing: -.5px;
+  color: var(--mint);
+  margin-top: 6px;
+}
+.lsc-sub {
+  color: var(--sage);
+  font-size: 13.5px;
+  font-weight: 500;
+  margin-top: 4px;
+}
+.lsc-status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border-radius: 999px;
+  font-weight: 700;
+  background: var(--green);
+  color: #06281A;
+  padding: 13px 22px;
+  font-size: 14px;
+  box-shadow: 0 8px 20px -6px rgba(41, 194, 78, .5);
+  white-space: nowrap;
+}
+
+/* ---------- loan selector ---------- */
+.lsc-selector {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 18px 36px 0;
+}
+.lsc-selector-label {
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+}
+.lsc-selector-select {
+  font-family: inherit;
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--ink);
+  background: #fff;
+  border: 1.5px solid var(--field-line);
+  border-radius: 12px;
+  padding: 10px 14px;
+  min-height: 42px;
+  max-width: 340px;
+}
+.lsc-selector-select:focus {
+  outline: none;
+  border-color: var(--green);
+}
+.lsc-selector-older {
+  border: 1.5px solid var(--field-line);
+  background: #fff;
+  color: var(--forest);
+  font-size: 12.5px;
+  font-weight: 700;
+  padding: 9px 14px;
+  border-radius: 999px;
+  white-space: nowrap;
+  min-height: 38px;
+}
+.lsc-selector-older:hover { border-color: var(--green); color: var(--green); }
+
+/* ---------- layout grid ---------- */
+.lsc-grid {
+  display: grid;
+  grid-template-columns: 290px minmax(0, 1fr) 330px;
+  gap: 22px;
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 26px 36px 60px;
+}
+.lsc-rail-col,
+.lsc-main-col,
+.lsc-side-col {
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+  min-width: 0;
+}
+
+/* ---------- loading skeleton ---------- */
+.lsc-skeleton {
+  max-width: 1400px;
+  margin: 26px auto 60px;
+  height: 340px;
+  border-radius: 20px;
+  background: linear-gradient(100deg, #ECEFE9 30%, #F6F8F4 50%, #ECEFE9 70%);
+  background-size: 200% 100%;
+  animation: lsc-shimmer 1.3s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .lsc-skeleton { animation: none; }
+}
+@keyframes lsc-shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+/* ---------- responsive ---------- */
+@media (max-width: 1180px) {
+  .lsc-grid { grid-template-columns: minmax(0, 1fr) 330px; }
+  .lsc-rail-col { grid-column: 1 / -1; }
+}
+@media (max-width: 860px) {
+  .lsc-grid { grid-template-columns: 1fr; padding: 18px 16px 50px; gap: 16px; }
+  .lsc-hero { padding: 22px 16px; }
+  .lsc-hero h1 { font-size: 22px; }
+  .lsc-status-pill { width: 100%; justify-content: center; }
+  .lsc-selector { padding: 16px 16px 0; }
+  .lsc-error-banner { margin: 12px 16px 0; }
+  .lsc-skeleton { margin: 18px 16px 50px; }
+}

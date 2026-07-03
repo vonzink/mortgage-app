@@ -50,6 +50,8 @@ function renderPage(id = 'loan-123') {
     <MemoryRouter initialEntries={[`/applications/${id}`]}>
       <Routes>
         <Route path="/applications/:id" element={<ApplicationDetails />} />
+        {/* Borrowers with a suite-linked loan get redirected here (Loan Status Center). */}
+        <Route path="/dashboard" element={<div data-testid="loan-status-center-stub" />} />
       </Routes>
     </MemoryRouter>
   );
@@ -79,15 +81,16 @@ test('staff with a configured suite URL sees the Open in Suite link, correctly w
   expect(suiteWeb.suiteLoanUrl).toHaveBeenCalledWith('loan-123');
 });
 
-test('non-staff user does not see the Open in Suite link even when the suite URL is configured', async () => {
+test('non-staff user with a suite loan is redirected to the status center (never sees the Open in Suite link)', async () => {
   mockRoles = { isBorrower: true, isStaff: false };
   suiteWeb.suiteLoanUrl.mockReturnValue('https://suite.msfgco.com/loans/loan-123');
 
   renderPage('loan-123');
-  await screen.findByText(/Application #1001/i);
-  await waitFor(() => expect(mortgageService.getStatusHistory).toHaveBeenCalled());
 
+  // Redirected to /dashboard — the staff-only page (and its console link) is never rendered.
+  expect(await screen.findByTestId('loan-status-center-stub')).toBeInTheDocument();
   expect(screen.queryByTestId('open-in-suite-details')).not.toBeInTheDocument();
+  expect(screen.queryByText(/Application #1001/i)).not.toBeInTheDocument();
 });
 
 test('staff user does not see the Open in Suite link when the suite URL is unconfigured', async () => {
@@ -163,13 +166,25 @@ test('loan with no suite link renders without suite calls or a dead console link
   expect(screen.queryByTestId('open-in-suite-details')).not.toBeInTheDocument();
 });
 
-test('borrower branch is untouched: still renders BorrowerDocuments keyed by loanId', async () => {
+test('borrower with a suite-linked loan is redirected to the Loan Status Center', async () => {
   mockRoles = { isBorrower: true, isStaff: false };
 
   renderPage('loan-123');
-  await waitFor(() => expect(mortgageService.getStatusHistory).toHaveBeenCalled());
+
+  // The suite-linked borrower no longer sees the inline composition — they land on /dashboard.
+  expect(await screen.findByTestId('loan-status-center-stub')).toBeInTheDocument();
+  expect(screen.queryByTestId('borrower-documents-stub')).not.toBeInTheDocument();
+  expect(screen.queryByTestId('client-dashboard-stub')).not.toBeInTheDocument();
+  expect(screen.queryByTestId('loan-calendar-stub')).not.toBeInTheDocument();
+});
+
+test('borrower WITHOUT a suite loan id keeps the legacy inline composition (no redirect)', async () => {
+  mockRoles = { isBorrower: true, isStaff: false };
+  mortgageService.getApplication.mockResolvedValue({ ...APPLICATION, id: 123, suiteLoanId: null });
+
+  renderPage('123');
 
   expect(await screen.findByTestId('borrower-documents-stub')).toBeInTheDocument();
-  expect(screen.queryByTestId('workspace-tab-stub')).not.toBeInTheDocument();
+  expect(screen.queryByTestId('loan-status-center-stub')).not.toBeInTheDocument();
   expect(screen.queryByTestId('staff-documents-panel-stub')).not.toBeInTheDocument();
 });

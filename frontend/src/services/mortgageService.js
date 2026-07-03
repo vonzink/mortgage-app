@@ -410,6 +410,12 @@ const mortgageService = {
     }
   },
 
+  /** Save the borrower's notification preferences (suite; own-loan guarded). */
+  putNotificationPrefs: async (suiteLoanId, prefs) => {
+    const { data } = await suiteClient.put(`/loans/${suiteLoanId}/borrower/notification-prefs`, prefs);
+    return unwrapEnvelope(data);
+  },
+
   /**
    * Borrower loan calendar — borrower-safe subset of the suite's Data Tracking dates
    * (GET /api/loans/{id}/borrower/tracking; STAFF_AND_BORROWER + borrower-on-loan guarded).

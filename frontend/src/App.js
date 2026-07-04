@@ -19,8 +19,6 @@ import ApplicationDetails from './pages/ApplicationDetails';
 import LoanStatusCenter from './pages/statusCenter/LoanStatusCenter';
 import LoanSuiteRedirect from './pages/LoanSuiteRedirect';
 import AdminHome from './pages/admin/AdminHome';
-import DocumentTypesAdmin from './pages/admin/DocumentTypesAdmin';
-import FolderTemplatesAdmin from './pages/admin/FolderTemplatesAdmin';
 import AppSettingsAdmin from './pages/admin/AppSettingsAdmin';
 import UsersAdmin from './pages/admin/UsersAdmin';
 import ContinuePage from './pages/ContinuePage';
@@ -140,8 +138,6 @@ function App() {
 
             {/* Admin — backend enforces Admin role; frontend gate is UX only */}
             <Route path="/admin" element={<RequireAuth><AdminHome /></RequireAuth>} />
-            <Route path="/admin/document-types" element={<RequireAuth><DocumentTypesAdmin /></RequireAuth>} />
-            <Route path="/admin/folder-templates" element={<RequireAuth><FolderTemplatesAdmin /></RequireAuth>} />
             <Route path="/admin/settings" element={<RequireAuth><AppSettingsAdmin /></RequireAuth>} />
             <Route path="/admin/users" element={<RequireAuth><UsersAdmin /></RequireAuth>} />
             {/* Account security — passkey enroll/list/delete (no classic MFA) */}

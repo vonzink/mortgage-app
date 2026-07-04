@@ -1,6 +1,6 @@
 // Shared, tokenized inline style constants for the admin pages.
-// Single source of truth so AdminHome / DocumentTypesAdmin / FolderTemplatesAdmin /
-// AppSettingsAdmin stay visually consistent on the MSFG brand palette.
+// Single source of truth so AdminHome / AppSettingsAdmin / UsersAdmin
+// stay visually consistent on the MSFG brand palette.
 //
 // Brand palette references:
 //   spring      #1fb463   (primary action fill)

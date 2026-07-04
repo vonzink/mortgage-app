@@ -24,16 +24,6 @@ export default function AdminHome() {
       </p>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '1rem', marginTop: '1.5rem' }}>
         <AdminCard
-          title="Document Types"
-          description="Manage the structured document type list, MIME rules, and default folder routing."
-          to="/admin/document-types"
-        />
-        <AdminCard
-          title="Folder Templates"
-          description="Edit the default subfolder set seeded into every loan workspace."
-          to="/admin/folder-templates"
-        />
-        <AdminCard
           title="App Settings"
           description="AI evaluation toggle, default provider, and model."
           to="/admin/settings"

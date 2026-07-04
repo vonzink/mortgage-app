@@ -5,16 +5,16 @@ import mortgageService from '../services/mortgageService';
 
 // react-markdown v10 is ESM-only and CRA Jest can't transform it.
 // Mock to a passthrough that just renders children as text.
-jest.mock('react-markdown', () => ({
+vi.mock('react-markdown', () => ({
   __esModule: true,
   default: ({ children }) => <div data-testid="markdown">{children}</div>,
 }));
 
-jest.mock('../services/mortgageService', () => ({
+vi.mock('../services/mortgageService', () => ({
   __esModule: true,
   default: {
-    getFolderEvaluation: jest.fn(),
-    evaluateFolder: jest.fn(),
+    getFolderEvaluation: vi.fn(),
+    evaluateFolder: vi.fn(),
   },
 }));
 

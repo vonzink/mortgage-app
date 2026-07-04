@@ -20,7 +20,7 @@ test('Clear all visible when any filter active', () => {
 });
 
 test('toggling conditions-checkbox calls onChange with conditionsGt: 0', () => {
-  const onChange = jest.fn();
+  const onChange = vi.fn();
   render(
     <FilterChips filters={DEFAULT_FILTERS} resultCount={0} onChange={onChange} onClear={() => {}} />
   );
@@ -31,7 +31,7 @@ test('toggling conditions-checkbox calls onChange with conditionsGt: 0', () => {
 });
 
 test('Clear button calls onClear', () => {
-  const onClear = jest.fn();
+  const onClear = vi.fn();
   render(
     <FilterChips
       filters={{ ...DEFAULT_FILTERS, statuses: ['UNDERWRITING'] }}

@@ -5,9 +5,9 @@ import mortgageService from '../services/mortgageService';
 import { Factor } from '../auth/passwordless/factors';
 
 // ── navigation ──────────────────────────────────────────────────────────────
-const mockNavigate = jest.fn();
-jest.mock('react-router-dom', () => ({
-  ...jest.requireActual('react-router-dom'),
+const mockNavigate = vi.fn();
+vi.mock('react-router-dom', async () => ({
+  ...(await vi.importActual('react-router-dom')),
   useNavigate: () => mockNavigate,
 }));
 
@@ -15,23 +15,23 @@ jest.mock('react-router-dom', () => ({
 // The prod path MUST hard-navigate (storeUser doesn't raise userLoaded → a SPA
 // navigate would leave isAuthenticated=false → RequireAuth bounces to hosted UI).
 // REACT_APP_DEV_SUB is unset under test, so finishAndContinue takes the prod branch.
-const mockAssign = jest.fn();
+const mockAssign = vi.fn();
 Object.defineProperty(window, 'location', {
   configurable: true,
   value: { assign: mockAssign, href: 'http://localhost/' },
 });
 
 // ── mortgageService ──────────────────────────────────────────────────────────
-jest.mock('../services/mortgageService', () => ({
+vi.mock('../services/mortgageService', () => ({
   __esModule: true,
   default: {
-    createLoanFromIntake: jest.fn().mockResolvedValue({ loanId: 'L1', loanNumber: '100' }),
+    createLoanFromIntake: vi.fn().mockResolvedValue({ loanId: 'L1', loanNumber: '100' }),
   },
 }));
 
 // ── passwordless auth (widened contract: availableFactors/start/respond) ──────
 let mockAuthInstance;
-jest.mock('../auth/passwordless/PasswordlessAuthPort', () => ({
+vi.mock('../auth/passwordless/PasswordlessAuthPort', () => ({
   getPasswordlessAuth: () => mockAuthInstance,
 }));
 
@@ -66,19 +66,19 @@ beforeEach(() => {
   // .env sets REACT_APP_DEV_SUB for local dev; delete it so each test exercises the
   // PROD (hard-nav) branch by default. The dev-path test sets it back explicitly.
   delete process.env.REACT_APP_DEV_SUB;
-  // fresh auth instance per test so we get fresh jest.fn() spies (email-only so the
+  // fresh auth instance per test so we get fresh vi.fn() spies (email-only so the
   // chooser defaults to EMAIL_OTP and exposes the OTP code path).
   mockAuthInstance = {
     kind: 'dev',
-    availableFactors: jest.fn(() => [Factor.EMAIL_OTP]),
-    start: jest.fn(async (username, factor) => ({
+    availableFactors: vi.fn(() => [Factor.EMAIL_OTP]),
+    start: vi.fn(async (username, factor) => ({
       kind: 'otp',
       factor,
       username,
       session: 'sess',
       destination: username,
     })),
-    respond: jest.fn(async () => ({ user: { kind: 'dev' } })),
+    respond: vi.fn(async () => ({ user: { kind: 'dev' } })),
   };
 });
 

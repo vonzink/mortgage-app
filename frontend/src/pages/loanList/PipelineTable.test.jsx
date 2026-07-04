@@ -26,14 +26,14 @@ test('renders each row', () => {
 });
 
 test('clicking a sortable header calls onSort', () => {
-  const onSort = jest.fn();
+  const onSort = vi.fn();
   render(<MemoryRouter><PipelineTable rows={rows} sort={{ field: 'createdDate', dir: 'desc' }} onSort={onSort} /></MemoryRouter>);
   fireEvent.click(screen.getByRole('button', { name: /amount/i }));
   expect(onSort).toHaveBeenCalledWith('loanAmount', 'desc');
 });
 
 test('clicking the current sort column toggles direction', () => {
-  const onSort = jest.fn();
+  const onSort = vi.fn();
   render(<MemoryRouter><PipelineTable rows={rows} sort={{ field: 'loanAmount', dir: 'desc' }} onSort={onSort} /></MemoryRouter>);
   fireEvent.click(screen.getByRole('button', { name: /amount/i }));
   expect(onSort).toHaveBeenCalledWith('loanAmount', 'asc');

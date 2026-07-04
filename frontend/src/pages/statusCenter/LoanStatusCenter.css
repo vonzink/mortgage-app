@@ -731,7 +731,16 @@
 /* ---------- responsive ---------- */
 @media (max-width: 1180px) {
   .lsc-grid { grid-template-columns: minmax(0, 1fr) 330px; }
-  .lsc-rail-col { grid-column: 1 / -1; }
+  .lsc-rail-col {
+    grid-column: 1 / -1;
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: flex-start;
+  }
+  /* the full-width stepper keeps its own row; the LO + notifications cards moved
+     into the rail sit side by side beneath it (stacking on mobile via basis). */
+  .lsc-rail-col > .lsc-rail { flex: 1 1 100%; }
+  .lsc-rail-col > .lsc-card { flex: 1 1 280px; }
 
   /* horizontal stepper variant */
   .lsc-rail { display: flex; gap: 0; padding: 20px; }

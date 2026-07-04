@@ -186,7 +186,7 @@ describe('LoanStatusCenter', () => {
     expect(screen.getByText('2025 W-2 — all employers')).toBeInTheDocument();
     expect(screen.getByText(/Drop your documents here/i)).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /^Download$/i })).toBeInTheDocument();
-    // Side — the rate-lock card, the LO name, the payment total.
+    // Side — the rate-lock card, the payment total. (LO card now lives in the left rail.)
     // (5.990% renders in both the rate-lock and snapshot cards, hence getAllByText.)
     expect(screen.getByText('Rate lock active')).toBeInTheDocument();
     expect(screen.getAllByText(/5\.990%/).length).toBeGreaterThan(0);

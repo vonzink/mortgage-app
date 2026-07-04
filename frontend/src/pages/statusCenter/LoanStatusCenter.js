@@ -178,6 +178,16 @@ export default function LoanStatusCenter() {
             {payload?.milestones != null && (
               <StatusRail milestones={payload.milestones} />
             )}
+            {payload?.loanOfficer != null && (
+              <LoanOfficerCard loanOfficer={payload.loanOfficer} />
+            )}
+            {payload?.notificationPrefs != null && (
+              <NotificationsCard
+                prefs={payload.notificationPrefs}
+                suiteLoanId={selectedId}
+                onSaved={refetch}
+              />
+            )}
           </aside>
 
           <main className="lsc-main-col">
@@ -227,16 +237,6 @@ export default function LoanStatusCenter() {
             )}
             {payload?.payment != null && (
               <PaymentCard payment={payload.payment} />
-            )}
-            {payload?.loanOfficer != null && (
-              <LoanOfficerCard loanOfficer={payload.loanOfficer} />
-            )}
-            {payload?.notificationPrefs != null && (
-              <NotificationsCard
-                prefs={payload.notificationPrefs}
-                suiteLoanId={selectedId}
-                onSaved={refetch}
-              />
             )}
           </aside>
         </div>

@@ -4,6 +4,8 @@ import { useAuth } from 'react-oidc-context';
 import Icon from '../components/design/Icon';
 import Button from '../components/design/Button';
 import { buildCognitoSignupUrl } from '../auth/cognitoConfig';
+import useRoles from '../hooks/useRoles';
+import { redirectStaffToConsole } from '../auth/consoleHandoff';
 import './LandingPage.design.css';
 
 /**
@@ -16,12 +18,14 @@ import './LandingPage.design.css';
 export default function LandingPage() {
   const navigate = useNavigate();
   const auth = useAuth();
+  const { isStaff } = useRoles();
 
   useEffect(() => {
-    if (auth.isAuthenticated) {
-      navigate('/applications', { replace: true });
-    }
-  }, [auth.isAuthenticated, navigate]);
+    if (!auth.isAuthenticated) return;
+    // Staff → suite console (their pipeline lives there). Borrowers/agents → their loans.
+    if (isStaff && redirectStaffToConsole(auth.user)) return;
+    navigate('/applications', { replace: true });
+  }, [auth.isAuthenticated, auth.user, isStaff, navigate]);
 
   const handleSignIn = () => {
     navigate('/signin', { state: { returnTo: '/applications' } });

@@ -17,7 +17,7 @@ import ApplicationSubmitted from './pages/ApplicationSubmitted';
 import ApplicationList from './pages/ApplicationList';
 import ApplicationDetails from './pages/ApplicationDetails';
 import LoanStatusCenter from './pages/statusCenter/LoanStatusCenter';
-import LoanDashboardPage from './pages/LoanDashboardPage';
+import LoanSuiteRedirect from './pages/LoanSuiteRedirect';
 import AdminHome from './pages/admin/AdminHome';
 import DocumentTypesAdmin from './pages/admin/DocumentTypesAdmin';
 import FolderTemplatesAdmin from './pages/admin/FolderTemplatesAdmin';
@@ -26,6 +26,11 @@ import UsersAdmin from './pages/admin/UsersAdmin';
 import ContinuePage from './pages/ContinuePage';
 import SignInPage from './pages/SignInPage';
 import SecurityPage from './pages/account/SecurityPage';
+
+// Hooks / services
+import useRoles from './hooks/useRoles';
+import { redirectStaffToConsole } from './auth/consoleHandoff';
+import { suiteWebUrl } from './services/suiteWeb';
 
 // Styles
 import './App.css';
@@ -61,6 +66,14 @@ function AuthExpiredListener() {
  */
 function AuthCallback() {
   const auth = useAuth();
+  const { isStaff } = useRoles();
+  // Staff work loans in the suite console — forward them there after sign-in
+  // (borrowers/agents keep their in-app loans). The SSO cookie is written first.
+  const staffToConsole = auth.isAuthenticated && isStaff && !!suiteWebUrl();
+  useEffect(() => {
+    if (staffToConsole) redirectStaffToConsole(auth.user);
+  }, [staffToConsole, auth.user]);
+
   if (auth.isLoading) {
     return <div style={{ padding: '2rem', textAlign: 'center' }}>Finishing sign-in…</div>;
   }
@@ -71,6 +84,9 @@ function AuthCallback() {
         <p style={{ color: '#a8423a' }}>{auth.error.message}</p>
       </div>
     );
+  }
+  if (staffToConsole) {
+    return <div style={{ padding: '2rem', textAlign: 'center' }}>Opening the console…</div>;
   }
   return <Navigate to="/applications" replace />;
 }
@@ -115,10 +131,11 @@ function App() {
               path="/applications/:id"
               element={<RequireAuth><ApplicationDetails /></RequireAuth>}
             />
-            {/* Loan Dashboard — LO-side view, separate from the borrower URLA. */}
+            {/* Retired LO loan dashboard → forwards to the suite console loan
+                workspace (the route param is already a suite loan id). */}
             <Route
               path="/loan/:loanId"
-              element={<RequireAuth><LoanDashboardPage /></RequireAuth>}
+              element={<RequireAuth><LoanSuiteRedirect /></RequireAuth>}
             />
 
             {/* Admin — backend enforces Admin role; frontend gate is UX only */}

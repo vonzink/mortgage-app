@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import Icon from './Icon';
 import Pill from './Pill';
 import mortgageService from '../../services/mortgageService';
+import { suiteLoanUrl } from '../../services/suiteWeb';
 import { getRecentLoans, pushRecentLoan } from '../../utils/recentLoans';
 // Shared status→tone map (suite LoanStatus vocabulary, post-cutover).
 import { statusTone } from '../../pages/loanDashboard/helpers';
@@ -111,7 +112,12 @@ export default function LoanSearch() {
     });
     setOpen(false);
     setQuery('');
-    navigate(`/loan/${hit.id}`);
+    // Staff-only chrome: loans live in the suite console now. Open the loan there
+    // directly (the hit id is a suite loan id); fall back to the in-app pipeline
+    // if the console origin isn't configured.
+    const url = suiteLoanUrl(hit.id);
+    if (url) window.location.assign(url);
+    else navigate('/applications');
   }, [navigate]);
 
   const onKeyDown = (e) => {

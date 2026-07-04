@@ -91,21 +91,35 @@ describe('LoanSearch', () => {
     expect(calls[0].signal?.aborted).toBe(true);
   });
 
-  test('Enter on highlighted row navigates to /loan/:id', async () => {
-    mortgageService.searchLoans.mockResolvedValue([
-      { id: 42, applicationNumber: 'APP-042', borrowerName: 'Sawaged, Veronica',
-        city: 'Provo', state: 'UT', status: 'CTC' },
-    ]);
-    renderSearch();
-    const input = screen.getByPlaceholderText(/find a loan/i);
-    fireEvent.change(input, { target: { value: 'saw' } });
-    await act(async () => { jest.advanceTimersByTime(250); });
-    await waitFor(() => screen.getByText(textIncluding('Sawaged, Veronica')));
+  test('Enter on highlighted row opens the loan in the suite console', async () => {
+    const prevSuiteUrl = process.env.REACT_APP_SUITE_WEB_URL;
+    process.env.REACT_APP_SUITE_WEB_URL = 'https://suite.msfgco.com';
+    const assignMock = jest.fn();
+    const origLocation = window.location;
+    Object.defineProperty(window, 'location', {
+      configurable: true,
+      value: { assign: assignMock, href: 'http://localhost/', hostname: 'localhost', protocol: 'http:' },
+    });
+    try {
+      mortgageService.searchLoans.mockResolvedValue([
+        { id: 42, applicationNumber: 'APP-042', borrowerName: 'Sawaged, Veronica',
+          city: 'Provo', state: 'UT', status: 'CTC' },
+      ]);
+      renderSearch();
+      const input = screen.getByPlaceholderText(/find a loan/i);
+      fireEvent.change(input, { target: { value: 'saw' } });
+      await act(async () => { jest.advanceTimersByTime(250); });
+      await waitFor(() => screen.getByText(textIncluding('Sawaged, Veronica')));
 
-    fireEvent.keyDown(input, { key: 'ArrowDown' });
-    fireEvent.keyDown(input, { key: 'Enter' });
+      fireEvent.keyDown(input, { key: 'ArrowDown' });
+      fireEvent.keyDown(input, { key: 'Enter' });
 
-    expect(mockNavigate).toHaveBeenCalledWith('/loan/42');
+      expect(assignMock).toHaveBeenCalledWith('https://suite.msfgco.com/loans/42');
+      expect(mockNavigate).not.toHaveBeenCalled();
+    } finally {
+      Object.defineProperty(window, 'location', { configurable: true, value: origLocation });
+      process.env.REACT_APP_SUITE_WEB_URL = prevSuiteUrl;
+    }
   });
 
   test('Esc closes the dropdown', async () => {

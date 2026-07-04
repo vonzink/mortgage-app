@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from 'react-oidc-context';
 import { toast } from 'react-toastify';
 
 import mortgageService from '../services/mortgageService';
@@ -7,6 +8,8 @@ import Icon from '../components/design/Icon';
 import Button from '../components/design/Button';
 import Card from '../components/design/Card';
 import useRoles from '../hooks/useRoles';
+import { suiteWebUrl } from '../services/suiteWeb';
+import { redirectStaffToConsole } from '../auth/consoleHandoff';
 
 import PipelineTable from './loanList/PipelineTable';
 import FilterChips from './loanList/FilterChips';
@@ -23,6 +26,7 @@ import './ApplicationList.design.css';
  */
 export default function ApplicationList() {
   const navigate = useNavigate();
+  const auth = useAuth();
   const { isStaff } = useRoles();
   const {
     filters, sort, page, size,
@@ -32,6 +36,14 @@ export default function ApplicationList() {
 
   const [data, setData] = useState({ content: [], totalElements: 0, totalPages: 0 });
   const [loading, setLoading] = useState(true);
+
+  // The staff pipeline moved to the suite console. Staff who deep-link/bookmark
+  // this page are forwarded there; borrowers/agents still see their own loans
+  // (GET /api/me/loans is role-scoped server-side).
+  const bounceToConsole = isStaff && !!suiteWebUrl();
+  useEffect(() => {
+    if (bounceToConsole) redirectStaffToConsole(auth.user);
+  }, [bounceToConsole, auth.user]);
 
   const fetch = useCallback(async () => {
     setLoading(true);
@@ -46,7 +58,11 @@ export default function ApplicationList() {
     }
   }, [toQueryString]);
 
-  useEffect(() => { fetch(); }, [fetch]);
+  useEffect(() => { if (!bounceToConsole) fetch(); }, [fetch, bounceToConsole]);
+
+  if (bounceToConsole) {
+    return <div className="page" style={{ padding: '2rem' }}>Opening the console…</div>;
+  }
 
   // Lightweight stat cards over the current page only. (At 1K–5K loans these
   // are good-enough approximations — full-pipeline rollups would need a

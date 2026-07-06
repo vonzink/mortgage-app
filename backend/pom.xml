@@ -21,7 +21,7 @@
     <properties>
         <java.version>17</java.version>
         <lombok.version>1.18.46</lombok.version>
-        <aws.sdk.version>2.46.17</aws.sdk.version>
+        <aws.sdk.version>2.46.21</aws.sdk.version>
         <!-- Pin Flyway to a version that supports PostgreSQL 18. Flyway 10+
              modularized DB support, so Postgres needs flyway-database-postgresql
              (declared below) — without it boot fails: "Unsupported Database". -->

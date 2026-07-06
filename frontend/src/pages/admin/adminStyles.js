@@ -1,5 +1,5 @@
 // Shared, tokenized inline style constants for the admin pages.
-// Single source of truth so AdminHome / AppSettingsAdmin / UsersAdmin
+// Single source of truth so AdminHome / AppSettingsAdmin
 // stay visually consistent on the MSFG brand palette.
 //
 // Brand palette references:

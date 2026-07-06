@@ -20,7 +20,6 @@ import LoanStatusCenter from './pages/statusCenter/LoanStatusCenter';
 import LoanSuiteRedirect from './pages/LoanSuiteRedirect';
 import AdminHome from './pages/admin/AdminHome';
 import AppSettingsAdmin from './pages/admin/AppSettingsAdmin';
-import UsersAdmin from './pages/admin/UsersAdmin';
 import ContinuePage from './pages/ContinuePage';
 import SignInPage from './pages/SignInPage';
 import SecurityPage from './pages/account/SecurityPage';
@@ -139,7 +138,6 @@ function App() {
             {/* Admin — backend enforces Admin role; frontend gate is UX only */}
             <Route path="/admin" element={<RequireAuth><AdminHome /></RequireAuth>} />
             <Route path="/admin/settings" element={<RequireAuth><AppSettingsAdmin /></RequireAuth>} />
-            <Route path="/admin/users" element={<RequireAuth><UsersAdmin /></RequireAuth>} />
             {/* Account security — passkey enroll/list/delete (no classic MFA) */}
             <Route path="/account/security" element={<RequireAuth><SecurityPage /></RequireAuth>} />
             {/* Common typo / link-out — canonical route is /admin/settings */}

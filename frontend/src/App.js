@@ -17,6 +17,7 @@ import ApplicationSubmitted from './pages/ApplicationSubmitted';
 import ApplicationList from './pages/ApplicationList';
 import ApplicationDetails from './pages/ApplicationDetails';
 import LoanStatusCenter from './pages/statusCenter/LoanStatusCenter';
+import ClientView from './pages/clientView/ClientView';
 import LoanSuiteRedirect from './pages/LoanSuiteRedirect';
 import AdminHome from './pages/admin/AdminHome';
 import AppSettingsAdmin from './pages/admin/AppSettingsAdmin';
@@ -127,6 +128,11 @@ function App() {
             <Route
               path="/applications/:id"
               element={<RequireAuth><ApplicationDetails /></RequireAuth>}
+            />
+            {/* Staff "see it as the client sees it" preview for one suite loan. */}
+            <Route
+              path="/client-view/:loanId"
+              element={<RequireAuth><ClientView /></RequireAuth>}
             />
             {/* Retired LO loan dashboard → forwards to the suite console loan
                 workspace (the route param is already a suite loan id). */}

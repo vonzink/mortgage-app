@@ -28,7 +28,7 @@ import './LoanStatusCenter.css';
  * the empty grid columns (Tasks 14–17); a null/absent payload section means the
  * LO hid it, so sections render nothing for it.
  */
-export default function LoanStatusCenter() {
+export default function LoanStatusCenter({ loanId = null } = {}) {
   const [searchParams, setSearchParams] = useSearchParams();
   const [loans, setLoans] = useState(null);   // null = list not loaded yet
   const [payload, setPayload] = useState(null);
@@ -72,17 +72,21 @@ export default function LoanStatusCenter() {
     }
   }, []);
 
-  useEffect(() => { fetchLoans(); }, [fetchLoans]);
+  useEffect(() => {
+    if (loanId) return;      // explicit client-view mode: no /me/loans for a staff previewer
+    fetchLoans();
+  }, [fetchLoans, loanId]);
 
-  // Selection: ?loan= when it's one of the borrower's loans, else the most
-  // recently active loan, else the first loan overall.
+  // Selection: an explicit loanId (staff client-view) wins; else ?loan= when it's one of
+  // the borrower's loans, else the most recently active loan, else the first loan overall.
   const paramId = searchParams.get('loan');
   const selectedId = useMemo(() => {
+    if (loanId) return loanId;            // explicit client-view mode
     if (!loans || loans.length === 0) return null;
     if (paramId && loans.some((l) => String(l.id) === String(paramId))) return paramId;
     const { active } = groupLoans(loans);
     return active[0]?.id ?? loans[0]?.id ?? null;
-  }, [loans, paramId]);
+  }, [loans, paramId, loanId]);
 
   useEffect(() => {
     if (!selectedId) return undefined;
@@ -160,7 +164,7 @@ export default function LoanStatusCenter() {
         )}
       </header>
 
-      {loans && loans.length > 1 && (
+      {!loanId && loans && loans.length > 1 && (
         <LoanSelector loans={loans} selectedId={selectedId} onSelect={handleSelect} />
       )}
 

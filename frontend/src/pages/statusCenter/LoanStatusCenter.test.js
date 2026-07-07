@@ -115,6 +115,20 @@ describe('LoanStatusCenter', () => {
     expect(screen.getByRole('heading', { name: /loan status center/i })).toBeInTheDocument();
   });
 
+  test('explicit loanId prop: fetches that loan directly and does NOT call /me/loans', async () => {
+    render(
+      <MemoryRouter initialEntries={['/client-view/LX']}>
+        <LoanStatusCenter loanId="LX" />
+      </MemoryRouter>,
+    );
+    await waitFor(() =>
+      expect(mortgageService.getBorrowerDashboard).toHaveBeenCalledWith('LX'),
+    );
+    expect(mortgageService.getApplications).not.toHaveBeenCalled();
+    // No loan switcher in explicit mode.
+    expect(screen.queryByRole('combobox')).not.toBeInTheDocument();
+  });
+
   test('with TWO loans: selector rendered, defaults to the active loan', async () => {
     mortgageService.getApplications.mockResolvedValue({ content: [PAST_LOAN, ACTIVE_LOAN] });
 
@@ -252,4 +266,5 @@ describe('LoanStatusCenter', () => {
       expect(container.querySelector('.lsc-modal-bg')).not.toBeInTheDocument(),
     );
   });
+
 });

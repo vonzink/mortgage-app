@@ -54,7 +54,15 @@ export default function ContinuePage() {
       // result object ({ loanId, loanNumber }). Capture the loan id so /apply knows
       // which SoR loan to SAVE the full application into (borrower self-submit path).
       // Be robust to either field name (loanId is the contract; id is a fallback).
-      const intakeResult = await mortgageService.createLoanFromIntake(toIntakeRequest(payload));
+      // LO attribution: /lo/:slug stashed the LO's slug before routing into the funnel —
+      // carry it on the intake (org-guarded server-side, never fails the intake). Do NOT
+      // remove it here: the borrower may bounce and retry; ApplicationForm's successful
+      // submit is what consumes the stash.
+      const loSlug = sessionStorage.getItem('loSlug');
+      const intakeResult = await mortgageService.createLoanFromIntake({
+        ...toIntakeRequest(payload),
+        ...(loSlug ? { loSlug } : {}),
+      });
       const suiteLoanId = intakeResult?.loanId ?? intakeResult?.id ?? null;
       if (suiteLoanId) {
         sessionStorage.setItem('suiteLoanId', String(suiteLoanId));
@@ -97,9 +105,9 @@ export default function ContinuePage() {
   if (invite && !payload) {
     return (
       <div className="page continue-page">
-        <h1 className="continue-h1">You&apos;ve been invited</h1>
+        <h1 className="continue-h1">You&apos;ve been invited to a mortgage application</h1>
         <p className="muted">
-          You&apos;ve been added as a co-borrower on a mortgage application. Sign in with the email
+          Verify your email to pick up where your loan team left off. Sign in with the email
           your invitation was sent to, and we&apos;ll take you to your part of the application.
         </p>
         {working ? (

@@ -64,7 +64,13 @@ const FULL_DASHBOARD = {
     { key: 'APPRAISAL_INSPECTED', label: 'Appraisal inspection', date: '2026-07-14', urgent: false },
     { key: 'RATE_LOCK_EXPIRES', label: 'Rate lock expires', date: '2026-07-19', urgent: true },
   ],
-  rateLock: { status: 'LOCKED', noteRate: 5.99, lockedAt: '2026-06-19', expiresAt: '2026-07-19', lockDays: 30 },
+  // expiresAt must stay in the FUTURE at run time or RateLockCard renders its
+  // "Lock expired" branch (the original hardcoded 2026-07-19 was a time bomb).
+  rateLock: {
+    status: 'LOCKED', noteRate: 5.99, lockedAt: '2026-06-19',
+    expiresAt: new Date(Date.now() + 20 * 86400000).toISOString().slice(0, 10),
+    lockDays: 30,
+  },
   loanSnapshot: {
     program: 'Conventional', noteRate: 5.99, purchasePrice: 500000, baseLoanAmount: 400000,
     totalLoanAmount: 404000, financedFeesAmount: 4000, cashToClose: 25000,
@@ -113,6 +119,20 @@ describe('LoanStatusCenter', () => {
     // With a single loan there is no picker (the <select> combobox).
     expect(screen.queryByRole('combobox')).not.toBeInTheDocument();
     expect(screen.getByRole('heading', { name: /loan status center/i })).toBeInTheDocument();
+  });
+
+  test('explicit loanId prop: fetches that loan directly and does NOT call /me/loans', async () => {
+    render(
+      <MemoryRouter initialEntries={['/client-view/LX']}>
+        <LoanStatusCenter loanId="LX" />
+      </MemoryRouter>,
+    );
+    await waitFor(() =>
+      expect(mortgageService.getBorrowerDashboard).toHaveBeenCalledWith('LX'),
+    );
+    expect(mortgageService.getApplications).not.toHaveBeenCalled();
+    // No loan switcher in explicit mode.
+    expect(screen.queryByRole('combobox')).not.toBeInTheDocument();
   });
 
   test('with TWO loans: selector rendered, defaults to the active loan', async () => {
@@ -252,4 +272,5 @@ describe('LoanStatusCenter', () => {
       expect(container.querySelector('.lsc-modal-bg')).not.toBeInTheDocument(),
     );
   });
+
 });

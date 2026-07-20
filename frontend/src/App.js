@@ -17,11 +17,13 @@ import ApplicationSubmitted from './pages/ApplicationSubmitted';
 import ApplicationList from './pages/ApplicationList';
 import ApplicationDetails from './pages/ApplicationDetails';
 import LoanStatusCenter from './pages/statusCenter/LoanStatusCenter';
+import ClientView from './pages/clientView/ClientView';
 import LoanSuiteRedirect from './pages/LoanSuiteRedirect';
 import AdminHome from './pages/admin/AdminHome';
 import AppSettingsAdmin from './pages/admin/AppSettingsAdmin';
 import ContinuePage from './pages/ContinuePage';
 import SignInPage from './pages/SignInPage';
+import LoPage from './pages/loPage/LoPage';
 import SecurityPage from './pages/account/SecurityPage';
 
 // Hooks / services
@@ -107,6 +109,9 @@ function App() {
             {/* First-class passwordless sign-in (replaces the Hosted-UI redirect) */}
             <Route path="/signin" element={<SignInPage />} />
             <Route path="/continue" element={<ContinuePage />} />
+            {/* Public LO vanity page — the LO's shareable link. Stashes the slug for
+                intake attribution, then routes into signup (cold) or /apply (signed in). */}
+            <Route path="/lo/:slug" element={<LoPage />} />
 
             <Route
               path="/apply"
@@ -127,6 +132,11 @@ function App() {
             <Route
               path="/applications/:id"
               element={<RequireAuth><ApplicationDetails /></RequireAuth>}
+            />
+            {/* Staff "see it as the client sees it" preview for one suite loan. */}
+            <Route
+              path="/client-view/:loanId"
+              element={<RequireAuth><ClientView /></RequireAuth>}
             />
             {/* Retired LO loan dashboard → forwards to the suite console loan
                 workspace (the route param is already a suite loan id). */}

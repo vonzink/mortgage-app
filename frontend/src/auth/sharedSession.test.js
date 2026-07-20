@@ -6,7 +6,26 @@ import {
   cookieDomainAttrFor,
   writeSharedSessionCookie,
   clearSharedSessionCookie,
+  adoptSharedSession,
+  readSharedSessionCookie,
 } from './sharedSession';
+
+// ── adoptSharedSession collaborators (adopt-side tests only) ─────────────────
+const mockGetUser = jest.fn();
+const mockMintSession = jest.fn();
+jest.mock('./passwordless/cognitoSession', () => ({
+  getUserManager: () => ({ getUser: mockGetUser }),
+  mintSession: (...args) => mockMintSession(...args),
+  // Encode staff-ness in the fake id_token string so tests can steer isStaffIdToken.
+  decodeJwtPayload: (token) => {
+    if (token === 'STAFF') return { 'cognito:groups': ['LO'] };
+    if (token === 'BORROWER') return { 'cognito:groups': ['Borrower'] };
+    return {};
+  },
+}));
+jest.mock('./cognitoConfig', () => ({
+  cognitoAuthority: 'https://cognito-idp.us-west-1.amazonaws.com/us-west-1_pool',
+}));
 
 afterEach(() => {
   document.cookie = `${SSO_COOKIE}=; Path=/; Max-Age=0`;
@@ -103,4 +122,66 @@ describe('writeSharedSessionCookie', () => {
 test('canonical cross-repo cookie fixture decodes (suite-web pins the same literal)', () => {
   const FIXTURE = 'eyJ2IjoxLCJjaWQiOiIzNHJnMHZxb29iZnY4aGh2ZzhrdW5rZDczOCIsInJ0IjoiZml4dHVyZS1ydCJ9';
   expect(JSON.parse(atob(FIXTURE))).toEqual({ v: 1, cid: '34rg0vqoobfv8hhvg8kunkd738', rt: 'fixture-rt' });
+});
+
+describe('adoptSharedSession', () => {
+  const CID = 'client-x';
+  const setCookie = (obj) => { document.cookie = `${SSO_COOKIE}=${btoa(JSON.stringify(obj))}; Path=/`; };
+  const mockRefreshOk = (idToken) =>
+    global.fetch.mockResolvedValueOnce({
+      ok: true, status: 200,
+      json: async () => ({ AuthenticationResult: { IdToken: idToken, RefreshToken: 'new-rt' } }),
+    });
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    process.env.REACT_APP_COGNITO_CLIENT_ID = CID;
+    document.cookie = `${SSO_COOKIE}=; Path=/; Max-Age=0`;
+    mockGetUser.mockResolvedValue(null); // no live local session by default
+    global.fetch = jest.fn();
+    // jsdom's AbortSignal lacks .timeout (real browsers have it) — polyfill so
+    // cognitoRefresh's `AbortSignal.timeout(8000)` doesn't throw before fetch.
+    if (!AbortSignal.timeout) AbortSignal.timeout = () => new AbortController().signal;
+  });
+
+  it('adopts a staff shared session and mints it', async () => {
+    setCookie({ v: 1, cid: CID, rt: 'rt-1' });
+    mockRefreshOk('STAFF');
+    expect(await adoptSharedSession()).toBe(true);
+    expect(mockMintSession).toHaveBeenCalledTimes(1);
+  });
+
+  it('fails closed on a non-staff refreshed token (clears the cookie)', async () => {
+    setCookie({ v: 1, cid: CID, rt: 'rt-1' });
+    mockRefreshOk('BORROWER');
+    expect(await adoptSharedSession()).toBe(false);
+    expect(mockMintSession).not.toHaveBeenCalled();
+    expect(readSharedSessionCookie()).toBeNull(); // cleared
+  });
+
+  it('ignores a cookie minted for a different client id (no refresh, not cleared)', async () => {
+    setCookie({ v: 1, cid: 'other-client', rt: 'rt-1' });
+    expect(await adoptSharedSession()).toBe(false);
+    expect(global.fetch).not.toHaveBeenCalled();
+    expect(readSharedSessionCookie()).not.toBeNull(); // sibling cookie left alone
+  });
+
+  it('does not refresh when a live local session already exists', async () => {
+    mockGetUser.mockResolvedValue({ expired: false });
+    setCookie({ v: 1, cid: CID, rt: 'rt-1' });
+    expect(await adoptSharedSession()).toBe(false);
+    expect(global.fetch).not.toHaveBeenCalled();
+  });
+
+  it('clears the cookie on a Cognito 4xx but keeps it on a network error', async () => {
+    setCookie({ v: 1, cid: CID, rt: 'rt-1' });
+    global.fetch.mockResolvedValueOnce({ ok: false, status: 400, json: async () => ({ __type: 'NotAuthorizedException' }) });
+    expect(await adoptSharedSession()).toBe(false);
+    expect(readSharedSessionCookie()).toBeNull();
+
+    setCookie({ v: 1, cid: CID, rt: 'rt-2' });
+    global.fetch.mockRejectedValueOnce(new Error('network down'));
+    expect(await adoptSharedSession()).toBe(false);
+    expect(readSharedSessionCookie()).not.toBeNull();
+  });
 });

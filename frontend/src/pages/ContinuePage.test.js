@@ -130,6 +130,33 @@ test('email -> start -> respond -> creates loan, seeds carryOverData, HARD-navig
   expect(JSON.parse(sessionStorage.getItem('carryOverData')).borrowers[0].firstName).toBe('Ann');
 });
 
+test('stashed loSlug (from /lo/:slug) rides the intake body and is NOT consumed here', async () => {
+  // The LO vanity page stashed the slug before routing into the funnel. ContinuePage
+  // must forward it on the intake (LO attribution) but NOT clear it — the borrower may
+  // bounce and retry; ApplicationForm's successful submit is what consumes it.
+  sessionStorage.setItem('loSlug', 'zack-zink');
+  renderPage();
+  fireEvent.click(screen.getByRole('button', { name: /email me a code/i }));
+  const codeInput = await screen.findByLabelText(/enter the code/i);
+  fireEvent.change(codeInput, { target: { value: '000000' } });
+  fireEvent.click(screen.getByRole('button', { name: /verify/i }));
+
+  await waitFor(() => expect(mortgageService.createLoanFromIntake).toHaveBeenCalledTimes(1));
+  expect(mortgageService.createLoanFromIntake.mock.calls[0][0].loSlug).toBe('zack-zink');
+  expect(sessionStorage.getItem('loSlug')).toBe('zack-zink');
+});
+
+test('no stashed loSlug → intake body carries NO loSlug key', async () => {
+  renderPage();
+  fireEvent.click(screen.getByRole('button', { name: /email me a code/i }));
+  const codeInput = await screen.findByLabelText(/enter the code/i);
+  fireEvent.change(codeInput, { target: { value: '000000' } });
+  fireEvent.click(screen.getByRole('button', { name: /verify/i }));
+
+  await waitFor(() => expect(mortgageService.createLoanFromIntake).toHaveBeenCalledTimes(1));
+  expect('loSlug' in mortgageService.createLoanFromIntake.mock.calls[0][0]).toBe(false);
+});
+
 test('dev bypass (REACT_APP_DEV_SUB) uses SPA navigate, not a hard reload', async () => {
   process.env.REACT_APP_DEV_SUB = 'dev-sub';
   renderPage();

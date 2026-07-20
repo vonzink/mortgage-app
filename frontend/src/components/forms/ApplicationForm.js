@@ -472,7 +472,13 @@ const ApplicationForm = () => {
         if (!suiteLoanId) {
           debug('BORROWER SELF-SUBMIT: no stashed loan — creating one from the form');
           const leadId = `selfapply-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
-          const intakeResult = await mortgageService.createLoanFromIntake(formToSuiteIntake(data, leadId));
+          // LO attribution: /lo/:slug stashed the LO's slug — carry it on the intake so
+          // the suite attributes the loan (org-guarded, never fails the intake).
+          const loSlug = sessionStorage.getItem('loSlug');
+          const intakeResult = await mortgageService.createLoanFromIntake({
+            ...formToSuiteIntake(data, leadId),
+            ...(loSlug ? { loSlug } : {}),
+          });
           suiteLoanId = intakeResult?.loanId ?? intakeResult?.id ?? null;
           if (!suiteLoanId) {
             throw new Error('Could not start your application. Please try again.');
@@ -491,7 +497,10 @@ const ApplicationForm = () => {
         debug('Suite save succeeded! Response:', resp);
 
         // Self-submit consumed the stashed loan id; clear it + the autosaved draft.
+        // The LO-attribution slug is consumed too — the loan is created + attributed
+        // (a failed submit above keeps it, so a retry still attributes).
         sessionStorage.removeItem('suiteLoanId');
+        sessionStorage.removeItem('loSlug');
         clearDraft(draftKey);
         clearDraft(`${draftKey}:steps`);
 

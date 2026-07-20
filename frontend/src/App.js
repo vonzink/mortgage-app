@@ -23,6 +23,7 @@ import AdminHome from './pages/admin/AdminHome';
 import AppSettingsAdmin from './pages/admin/AppSettingsAdmin';
 import ContinuePage from './pages/ContinuePage';
 import SignInPage from './pages/SignInPage';
+import LoPage from './pages/loPage/LoPage';
 import SecurityPage from './pages/account/SecurityPage';
 
 // Hooks / services
@@ -108,6 +109,9 @@ function App() {
             {/* First-class passwordless sign-in (replaces the Hosted-UI redirect) */}
             <Route path="/signin" element={<SignInPage />} />
             <Route path="/continue" element={<ContinuePage />} />
+            {/* Public LO vanity page — the LO's shareable link. Stashes the slug for
+                intake attribution, then routes into signup (cold) or /apply (signed in). */}
+            <Route path="/lo/:slug" element={<LoPage />} />
 
             <Route
               path="/apply"

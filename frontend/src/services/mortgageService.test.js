@@ -25,3 +25,25 @@ describe('getSuiteApplication', () => {
     await expect(mortgageService.getSuiteApplication('L1')).resolves.toBeNull();
   });
 });
+
+describe('getPublicLoPage', () => {
+  beforeEach(() => jest.clearAllMocks());
+
+  it('GETs /public/lo-pages/{slug} (URL-encoded) and unwraps the envelope', async () => {
+    suiteClient.get.mockResolvedValueOnce({
+      data: {
+        success: true,
+        data: { slug: 'zack-zink', displayName: 'Zack Zink', nmlsId: '123456' },
+      },
+    });
+    const page = await mortgageService.getPublicLoPage('zack-zink');
+    expect(suiteClient.get).toHaveBeenCalledWith('/public/lo-pages/zack-zink');
+    expect(page.displayName).toBe('Zack Zink');
+    expect(page.nmlsId).toBe('123456');
+  });
+
+  it('returns null on failure — unknown/disabled slug 404s (never throws)', async () => {
+    suiteClient.get.mockRejectedValueOnce(new Error('404'));
+    await expect(mortgageService.getPublicLoPage('nobody')).resolves.toBeNull();
+  });
+});

@@ -1,0 +1,80 @@
+/* Public /lo/:slug LO vanity landing page.
+   Self-contained — borrows the VISUAL language of ApplySidebar's LO card
+   (card / eyebrow / av-copper tokens from design-system.css) without
+   mounting that (dead) component. */
+
+.lo-page { /* uses .page from design-system.css */ }
+
+.lo-page-wrap {
+  max-width: 480px;
+  margin: 0 auto;
+  padding-top: 56px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+@media (max-width: 640px) {
+  .lo-page-wrap { padding-top: 24px; }
+}
+
+.lo-card { display: flex; flex-direction: column; gap: 16px; }
+
+.lo-card-head {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.lo-card-av {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  font-size: 22px;
+  flex: 0 0 auto;
+}
+
+.lo-card-photo {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex: 0 0 auto;
+  border: 1px solid var(--ink-line);
+}
+
+.lo-card-name {
+  font-size: 24px;
+  line-height: 1.15;
+  letter-spacing: -0.02em;
+}
+
+.lo-card-meta {
+  margin-top: 4px;
+  font-size: 13px;
+}
+
+.lo-card-contacts {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.lo-card-contact {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  font-size: 14px;
+  color: var(--ink-700);
+  text-decoration: none;
+}
+.lo-card-contact:hover { color: var(--ink-900); text-decoration: underline; }
+.lo-card-contact svg { color: var(--ink-400); }
+
+.lo-card-hr { margin: 2px 0; }
+
+.lo-card-cta { width: 100%; }
+
+.lo-card-sub {
+  font-size: 12.5px;
+  text-align: center;
+}

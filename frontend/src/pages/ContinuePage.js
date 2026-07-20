@@ -54,7 +54,15 @@ export default function ContinuePage() {
       // result object ({ loanId, loanNumber }). Capture the loan id so /apply knows
       // which SoR loan to SAVE the full application into (borrower self-submit path).
       // Be robust to either field name (loanId is the contract; id is a fallback).
-      const intakeResult = await mortgageService.createLoanFromIntake(toIntakeRequest(payload));
+      // LO attribution: /lo/:slug stashed the LO's slug before routing into the funnel —
+      // carry it on the intake (org-guarded server-side, never fails the intake). Do NOT
+      // remove it here: the borrower may bounce and retry; ApplicationForm's successful
+      // submit is what consumes the stash.
+      const loSlug = sessionStorage.getItem('loSlug');
+      const intakeResult = await mortgageService.createLoanFromIntake({
+        ...toIntakeRequest(payload),
+        ...(loSlug ? { loSlug } : {}),
+      });
       const suiteLoanId = intakeResult?.loanId ?? intakeResult?.id ?? null;
       if (suiteLoanId) {
         sessionStorage.setItem('suiteLoanId', String(suiteLoanId));

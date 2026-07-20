@@ -105,9 +105,9 @@ export default function ContinuePage() {
   if (invite && !payload) {
     return (
       <div className="page continue-page">
-        <h1 className="continue-h1">You&apos;ve been invited</h1>
+        <h1 className="continue-h1">You&apos;ve been invited to a mortgage application</h1>
         <p className="muted">
-          You&apos;ve been added as a co-borrower on a mortgage application. Sign in with the email
+          Verify your email to pick up where your loan team left off. Sign in with the email
           your invitation was sent to, and we&apos;ll take you to your part of the application.
         </p>
         {working ? (

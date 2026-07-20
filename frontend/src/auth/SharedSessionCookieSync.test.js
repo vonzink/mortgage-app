@@ -1,3 +1,7 @@
+// writeSharedSessionCookie refuses (returns false, writes nothing) without a
+// client id — supply a test default, same pattern as sharedSession.https.test.js.
+process.env.REACT_APP_COGNITO_CLIENT_ID = process.env.REACT_APP_COGNITO_CLIENT_ID || 'test-client-id';
+
 import React from 'react';
 import { render } from '@testing-library/react';
 import SharedSessionCookieSync from './SharedSessionCookieSync';

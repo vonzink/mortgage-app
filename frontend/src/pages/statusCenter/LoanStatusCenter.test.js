@@ -64,7 +64,13 @@ const FULL_DASHBOARD = {
     { key: 'APPRAISAL_INSPECTED', label: 'Appraisal inspection', date: '2026-07-14', urgent: false },
     { key: 'RATE_LOCK_EXPIRES', label: 'Rate lock expires', date: '2026-07-19', urgent: true },
   ],
-  rateLock: { status: 'LOCKED', noteRate: 5.99, lockedAt: '2026-06-19', expiresAt: '2026-07-19', lockDays: 30 },
+  // expiresAt must stay in the FUTURE at run time or RateLockCard renders its
+  // "Lock expired" branch (the original hardcoded 2026-07-19 was a time bomb).
+  rateLock: {
+    status: 'LOCKED', noteRate: 5.99, lockedAt: '2026-06-19',
+    expiresAt: new Date(Date.now() + 20 * 86400000).toISOString().slice(0, 10),
+    lockDays: 30,
+  },
   loanSnapshot: {
     program: 'Conventional', noteRate: 5.99, purchasePrice: 500000, baseLoanAmount: 400000,
     totalLoanAmount: 404000, financedFeesAmount: 4000, cashToClose: 25000,

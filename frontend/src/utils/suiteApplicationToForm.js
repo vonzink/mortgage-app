@@ -1,11 +1,19 @@
 /**
  * Suite-to-form reverse mapper — the inverse of suiteApplicationPayload.js.
  *
- * Maps a suite `GET /api/loans/{id}/application` response (BorrowerApplicationResponse —
- * same section shapes as the PUT request body, plus loanId/loanNumber/borrowerId/hasSsn
- * read-only extras) back into the react-hook-form state the /apply wizard consumes via
- * `reset(data)`. Used by the staff "open a loan in the wizard" mode (Task 13) to prefill
- * the form with the loan's EXISTING application.
+ * Maps a suite `GET /api/loans/{id}/application` response back into the react-hook-form
+ * state the /apply wizard consumes via `reset(data)`. Used by the staff "open a loan in
+ * the wizard" mode (Task 13) to prefill the form with the loan's EXISTING application.
+ *
+ * ⚠️ WHAT THE SUITE RETURNS TODAY (BorrowerApplicationResponse.java): ONLY
+ * {loanId, loanNumber, borrowerId, loan, borrower} — the borrower carries hasSsn
+ * (never the SSN), and LoanInfo does NOT include the four proposed*Monthly escrow
+ * estimates. So in prod, TODAY, only the loan + borrower sections prefill. The other
+ * seven section mappers here (income, assets, liabilities, reo, declarations,
+ * demographics, coBorrowers) are future-proofing: they hydrate as plain wizard
+ * defaults until the suite GET grows to the full request shape. That is SAFE — an
+ * empty/default section forwards to null, and the suite SKIPS null sections on PUT,
+ * so loading a partial response and resubmitting cannot wipe SoR data.
  *
  * Pure functions only — no React, no HTTP. The invariant this file is tested against:
  *
@@ -354,6 +362,8 @@ function applyDemographics(target, demo) {
  */
 function toFormBorrower(sequenceNumber, sections) {
   const target = createDefaultBorrower(sequenceNumber);
+  // createDefaultBorrower has no suffix key (the wizard field predates it) — seed ''
+  // so the shape is stable whether or not a borrower section overrides it below.
   target.suffix = target.suffix || '';
   const {
     borrower, income, assets, liabilities, reo, declarations, demographics,

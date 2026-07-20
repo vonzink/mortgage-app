@@ -3,10 +3,11 @@
  *
  * The completion gate is the ROUND-TRIP invariant: for anything the /apply form
  * can express,   form → wire → form → wire   must produce two deep-equal wire
- * bodies, section by section. The suite GET response the mapper consumes in prod
- * has the same section shapes as the PUT request body (plus loanId/loanNumber/
- * borrowerId read-only extras), so round-tripping through the REQUEST shape is
- * the correct invariant.
+ * bodies, section by section. Round-tripping through the REQUEST shape is the
+ * right invariant even though TODAY's suite BorrowerApplicationResponse returns
+ * only {loanId, loanNumber, borrowerId, loan, borrower} — the extra section
+ * mappers are future-proofing that hydrate as wizard defaults until the GET grows
+ * (empty sections forward to null = suite-SKIP, so no data-loss hazard).
  *
  * Run: CI=true npx react-scripts test --watchAll=false --testPathPattern=suiteApplicationToForm
  */
@@ -105,11 +106,24 @@ const primaryBorrower = () => ({
       monthlyPayment: '1500', unpaidBalance: '180000',
     },
   ],
+  // ALL 15 §5 answers (mixed true/false) so the round-trip gate exercises every
+  // DECLARATION_KEY_BY_WIRE entry — a typo in ANY key would break wire equality
+  // (a null-omitted-null answer would let it pass silently).
   declaration: {
     occupyPrimaryResidence: true,
     ownershipInterestThreeYears: false,
+    familyBusinessAffiliation: false,
+    borrowingMoneyTransaction: true,
+    applyingMortgageOtherProperty: false,
+    applyingNewCredit: true,
+    propertySubjectLien: false,
+    coSignerGuarantor: true,
     outstandingJudgments: false,
+    delinquentFederalDebt: true,
     partyToLawsuit: false,
+    conveyedTitleLieuForeclosure: true,
+    preForeclosureSale: false,
+    propertyForeclosedSevenYears: true,
     declaredBankruptcySevenYears: true,
     hmdaRace: 'White,Asian',
     hmdaRaceRefusal: false,
@@ -396,6 +410,22 @@ describe('enum reversal', () => {
         income: { employments: [{ employerName: 'E', employmentStatus: s }], otherIncome: [] },
       }).borrowers[0].employmentHistory[0].employmentStatus,
     );
+  });
+
+  test('ownershipShare buckets re-hydrate to in-bucket representatives and survive resubmit', () => {
+    const toShare = (suiteValue) => suiteApplicationToForm({
+      income: { employments: [{ employerName: 'E', ownershipShare: suiteValue }], otherIncome: [] },
+    }).borrowers[0].employmentHistory[0].ownershipShare;
+    expect(toShare('GREATER_OR_EQUAL_25')).toBe(25);
+    expect(toShare('LESS_THAN_25')).toBe(24); // representative strictly inside the < 25 bucket
+    expect(toShare(null)).toBe('');
+    // Wire fidelity: both buckets re-emit themselves on resubmit.
+    ['GREATER_OR_EQUAL_25', 'LESS_THAN_25'].forEach((bucket) => {
+      const form = suiteApplicationToForm({
+        income: { employments: [{ employerName: 'E', ownershipShare: bucket }], otherIncome: [] },
+      });
+      expect(formToSuiteApplication(form).income.employments[0].ownershipShare).toBe(bucket);
+    });
   });
 
   test('assetType values round-trip', () => {

@@ -52,8 +52,8 @@ export default function ClientView() {
           {application?.loanNumber && <span className="cv-banner-loan">Loan #{application.loanNumber}</span>}
         </div>
         <p className="cv-banner-sub">
-          You are viewing this loan as the client sees it. Read-only — changes are made in the console
-          and recorded under your name.
+          You are viewing this loan as the client sees it. Changes save under your name — use
+          Fill out application on the Application tab to edit with the client.
         </p>
       </div>
 

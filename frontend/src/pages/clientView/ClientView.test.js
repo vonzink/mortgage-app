@@ -36,11 +36,11 @@ it('redirects a non-staff user away from client-view', async () => {
   await waitFor(() => expect(screen.getByTestId('home')).toBeInTheDocument());
 });
 
-it('shows the client-view banner with the client name + a read-only notice', async () => {
+it('shows the client-view banner with the client name + the edit-capability notice', async () => {
   renderAt('L1');
   await waitFor(() => expect(screen.getByText(/Ada Lovelace/)).toBeInTheDocument());
   expect(screen.getByText(/client view/i)).toBeInTheDocument();
-  expect(screen.getByText(/read-only/i)).toBeInTheDocument();
+  expect(screen.getByText(/changes save under your name/i)).toBeInTheDocument();
 });
 
 it('defaults to the Dashboard tab (LoanStatusCenter scoped to the loan)', async () => {

@@ -1,4 +1,5 @@
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import { suiteLoanUrl } from '../../services/suiteWeb';
 
 const money = (n) =>
@@ -15,10 +16,12 @@ const Row = ({ label, value }) => (
 
 /**
  * Read-only render of the client's 1003 (suite BorrowerApplicationResponse). NPI-safe by
- * construction — the payload carries no SSN, only hasSsn. Editing is intentionally NOT here:
- * the loan's authoritative editors live in the suite console ("Edit in console ↗").
+ * construction — the payload carries no SSN, only hasSsn. Editing happens via "Fill out
+ * application" (the /apply wizard in staff-loan mode, saving onto this loan under the
+ * staff member's own name) or in the suite console ("Edit in console ↗").
  */
 export default function ClientApplicationView({ application, loanId }) {
+  const navigate = useNavigate();
   if (!application) {
     return <p className="cv-empty">No application data for this loan yet.</p>;
   }
@@ -31,12 +34,23 @@ export default function ClientApplicationView({ application, loanId }) {
   return (
     <div className="cv-application">
       <div className="cv-application-head">
-        <p className="cv-note">Read-only — the client's submitted application. Edits are made in the console.</p>
-        {consoleUrl && (
-          <a className="cv-console-link" href={consoleUrl} target="_blank" rel="noopener noreferrer">
-            Edit in console ↗
-          </a>
-        )}
+        <p className="cv-note">
+          The client's application as it stands. Use Fill out application to edit it here with the client.
+        </p>
+        <div className="cv-application-actions">
+          <button
+            type="button"
+            className="cv-edit-app"
+            onClick={() => navigate(`/apply?loan=${loanId}`)}
+          >
+            Fill out application
+          </button>
+          {consoleUrl && (
+            <a className="cv-console-link" href={consoleUrl} target="_blank" rel="noopener noreferrer">
+              Edit in console ↗
+            </a>
+          )}
+        </div>
       </div>
 
       <section className="cv-section">

@@ -1,10 +1,20 @@
 import React from 'react';
-import { render, screen } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import ClientApplicationView from './ClientApplicationView';
 
 jest.mock('../../services/suiteWeb', () => ({
   suiteLoanUrl: (id) => `https://suite.example/loans/${id}`,
 }));
+
+const mockNavigate = jest.fn();
+jest.mock('react-router-dom', () => ({
+  ...jest.requireActual('react-router-dom'),
+  useNavigate: () => mockNavigate,
+}));
+
+beforeEach(() => {
+  mockNavigate.mockClear();
+});
 
 const application = {
   loanId: 'L1', loanNumber: '1001',
@@ -24,6 +34,12 @@ it('links to the console loan workspace for editing', () => {
   render(<ClientApplicationView application={application} loanId="L1" />);
   const link = screen.getByRole('link', { name: /edit in console/i });
   expect(link).toHaveAttribute('href', 'https://suite.example/loans/L1');
+});
+
+it('staff can jump to the wizard with Fill out application', () => {
+  render(<ClientApplicationView application={application} loanId="L1" />);
+  fireEvent.click(screen.getByRole('button', { name: /fill out application/i }));
+  expect(mockNavigate).toHaveBeenCalledWith('/apply?loan=L1');
 });
 
 it('renders an empty-state when application is null', () => {

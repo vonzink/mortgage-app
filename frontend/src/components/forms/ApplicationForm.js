@@ -47,6 +47,7 @@ import { focusFirstInvalidField } from '../../utils/formErrorHelpers';
 import { useDraftAutosave, clearDraft } from '../../hooks/useDraftAutosave';
 import { formToApplicationPayload } from '../../utils/applicationPayload';
 import { formToSuiteApplication, formToSuiteIntake } from '../../utils/suiteApplicationPayload';
+import suiteApplicationToForm from '../../utils/suiteApplicationToForm';
 import useRoles from '../../hooks/useRoles';
 
 // Borrower self-submit → suite (system of record). RE-ENABLED 2026-06-29: the
@@ -62,6 +63,7 @@ const ApplicationForm = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const editId = searchParams.get('edit');
+  const staffLoanId = searchParams.get('loan');
   const isViewing = searchParams.get('view') === '1';
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
@@ -69,7 +71,13 @@ const ApplicationForm = () => {
 
   // Role drives the submit target: staff (LO/Processor/Admin/Manager) use the legacy
   // mortgage-app create; a Borrower always writes to the suite (system of record).
-  const { isBorrower } = useRoles();
+  const { isBorrower, isStaff } = useRoles();
+
+  // STAFF-LOAN MODE (?loan=<suiteLoanId>, staff only — entered from client-view's
+  // "Fill out application"): the wizard loads the loan's CURRENT suite application,
+  // and submit PUTs straight back onto that loan (attributed to the staff token),
+  // then returns to client-view. Never intake-creates, never touches the legacy path.
+  const isStaffLoanMode = isStaff && !!staffLoanId;
 
   // Form setup
   const { register, handleSubmit, control, formState: { errors }, trigger, getValues, watch, setValue, reset } = useForm({
@@ -81,9 +89,11 @@ const ApplicationForm = () => {
     }
   });
 
-  // Draft autosave — survives session-expired re-auth round-trips. Distinct keys for new
-  // vs edit so we don't cross-contaminate.
-  const draftKey = editId ? `draft:edit:${editId}` : 'draft:new';
+  // Draft autosave — survives session-expired re-auth round-trips. Distinct keys for
+  // staff-loan vs edit vs new so we don't cross-contaminate.
+  const draftKey = staffLoanId ? `draft:staff:${staffLoanId}`
+    : editId ? `draft:edit:${editId}`
+    : 'draft:new';
   useDraftAutosave({
     watch, getValues, reset,
     storageKey: draftKey,
@@ -106,7 +116,7 @@ const ApplicationForm = () => {
   // Load carry-over data if available
   useEffect(() => {
     const carryOverData = sessionStorage.getItem('carryOverData');
-    if (carryOverData && !editId) {
+    if (carryOverData && !editId && !isStaffLoanMode) {
       try {
         const data = JSON.parse(carryOverData);
         debug('Loading carry-over data:', data);
@@ -122,7 +132,7 @@ const ApplicationForm = () => {
         console.error('Error loading carry-over data:', error);
       }
     }
-  }, [editId, reset]);
+  }, [editId, isStaffLoanMode, reset]);
 
   // Custom hooks
   const {
@@ -141,6 +151,30 @@ const ApplicationForm = () => {
   const { borrowers, getFieldArray } = useBorrowerFieldArrays(control);
 
   useFormValidation(getValues, watch);
+
+  // STAFF-LOAN MODE load: prefill the wizard with the loan's CURRENT application from
+  // the suite (system of record). Today's suite GET returns only the loan + primary-
+  // borrower sections, so the prefill may be SPARSE — the remaining sections start as
+  // blank wizard defaults, which forward to null on PUT and the suite SKIPS null
+  // sections, so a sparse load + resubmit can never wipe SoR data (see
+  // utils/suiteApplicationToForm.js header). Stale-guarded like ClientView's effect.
+  useEffect(() => {
+    if (!isStaffLoanMode) return undefined;
+    let stale = false;
+    (async () => {
+      const app = await mortgageService.getSuiteApplication(staffLoanId);
+      if (stale) return;
+      const formData = suiteApplicationToForm(app);
+      if (formData) {
+        reset(formData);
+        // Mirror edit-mode: an existing application unlocks free step navigation.
+        setVisitedSteps(new Set([1, 2, 3, 4, 5, 6, 7]));
+        toast.info("Loaded this loan's current application");
+      }
+    })();
+    return () => { stale = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isStaffLoanMode, staffLoanId]);
 
   // Load application data if editing
   useEffect(() => {
@@ -370,6 +404,26 @@ const ApplicationForm = () => {
 
     setIsSubmitting(true);
     try {
+      // STAFF-LOAN MODE: save the wizard straight onto the EXISTING suite loan via the
+      // same borrower-application PUT (staff-admitted; targets the primary borrower;
+      // audited under the staff token). Never intake-creates. SSN safety: a blank form
+      // SSN goes out as null and the suite KEEPS the stored value on null
+      // (BorrowerService.applyPii guards `if (ssn != null)`), so a staff save can
+      // never wipe a borrower's SSN.
+      if (isStaffLoanMode) {
+        debug('STAFF-LOAN MODE: saving to suite loan', staffLoanId);
+        const suiteBody = formToSuiteApplication(data);
+        const { data: resp } = await suiteClient.put(`/loans/${staffLoanId}/application`, suiteBody);
+        if (resp && resp.success === false) {
+          throw new Error(resp.message || 'Application could not be saved.');
+        }
+        clearDraft(draftKey);
+        clearDraft(`${draftKey}:steps`);
+        toast.success('Application saved to the loan!');
+        setTimeout(() => { navigate(`/client-view/${staffLoanId}`); }, 600);
+        return;
+      }
+
       // BORROWER SELF-SUBMIT PATH: the funnel → /continue flow already created the
       // loan in the msfg-suite (system of record) and stashed its id. When present,
       // SAVE the full application into the SoR via the borrower-self endpoint
@@ -379,7 +433,7 @@ const ApplicationForm = () => {
       // caller is a Borrower (so a borrower who reached /apply directly — no funnel — still
       // writes to the SoR instead of 403ing on the staff-only POST /loan-applications).
       let suiteLoanId = sessionStorage.getItem('suiteLoanId');
-      if (SUITE_SELF_SUBMIT_ENABLED && !(isEditing && editId) && (suiteLoanId || isBorrower)) {
+      if (SUITE_SELF_SUBMIT_ENABLED && !isStaffLoanMode && !(isEditing && editId) && (suiteLoanId || isBorrower)) {
         // No stashed loan (didn't come through the funnel) → materialize one in the suite
         // first. createLoanFromIntake hits the borrower-allowed suite POST /loans/intake
         // (the same call ContinuePage makes) and returns the new loan's id.

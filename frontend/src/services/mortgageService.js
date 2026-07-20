@@ -410,6 +410,20 @@ const mortgageService = {
     }
   },
 
+  /*
+   * Full borrower-self application (§4 loan subset + primary borrower row), NPI-safe. Staff read
+   * the PRIMARY borrower's row (LoanAccessGuard admits staff). Used by the read-only client-view
+   * Application tab. Swallows failures → null.
+   */
+  getSuiteApplication: async (loanId) => {
+    try {
+      const { data } = await suiteClient.get(`/loans/${loanId}/application`);
+      return unwrapEnvelope(data) || null;
+    } catch {
+      return null;
+    }
+  },
+
   /** Save the borrower's notification preferences (suite; own-loan guarded). */
   putNotificationPrefs: async (suiteLoanId, prefs) => {
     const { data } = await suiteClient.put(`/loans/${suiteLoanId}/borrower/notification-prefs`, prefs);

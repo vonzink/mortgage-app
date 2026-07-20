@@ -42,8 +42,14 @@ export default function LoPage() {
   useEffect(() => {
     let stale = false;
     (async () => {
-      const page = await mortgageService.getPublicLoPage(normalizedSlug);
-      if (!stale) setLo(page);
+      try {
+        const page = await mortgageService.getPublicLoPage(normalizedSlug);
+        if (!stale) setLo(page);
+      } catch {
+        // The service already swallows 404s to null; this guards a future
+        // throw path so the prospect gets the home redirect, not a blank page.
+        if (!stale) setLo(null);
+      }
     })();
     return () => { stale = true; };
   }, [normalizedSlug]);
@@ -54,7 +60,16 @@ export default function LoPage() {
     if (lo === null) navigate('/', { replace: true });
   }, [lo, navigate]);
 
-  if (!lo) return null;
+  if (lo === undefined) {
+    return (
+      <div className="page lo-page">
+        <div className="lo-page-wrap">
+          <div className="dim lo-page-loading">Loading…</div>
+        </div>
+      </div>
+    );
+  }
+  if (lo === null) return null; // redirecting home (effect above)
 
   const start = () => {
     // Stash BEFORE navigating — the intake call sites (ContinuePage funnel tail +

@@ -102,5 +102,7 @@ it('Start (authenticated) stashes the slug and goes straight to /apply', async (
 it('stashes the slug lowercased+trimmed (URL case-forgiveness)', async () => {
   renderLoPage('Zack-Zink');
   fireEvent.click(await screen.findByRole('button', { name: /start your application/i }));
+  // The fetch uses the SAME normalized slug — mixed-case URL never leaks upstream.
+  expect(mortgageService.getPublicLoPage).toHaveBeenCalledWith('zack-zink');
   expect(sessionStorage.getItem('loSlug')).toBe('zack-zink');
 });

@@ -29,7 +29,7 @@ jest.mock('react-router-dom', () => ({
 }));
 
 jest.mock('react-toastify', () => ({
-  toast: { info: jest.fn(), success: jest.fn(), error: jest.fn() },
+  toast: { info: jest.fn(), success: jest.fn(), error: jest.fn(), warn: jest.fn() },
 }));
 
 // useRoles mocked via a mutable box so each test can flip staff/borrower.
@@ -67,7 +67,10 @@ jest.mock('../assistant/AskAiWidget', () => () => null);
 jest.mock('../design/ApplyChrome', () => {
   const React = require('react');
   return {
-    ApplyHero: () => null,
+    ApplyHero: ({ onSaveAndExit }) =>
+      onSaveAndExit
+        ? React.createElement('button', { type: 'button', onClick: onSaveAndExit }, 'save-exit')
+        : null,
     // The strip's Continue/Submit CTA is the submit trigger on the last step.
     ApplyProgressStrip: ({ onContinue, continueLabel }) =>
       React.createElement(
@@ -135,7 +138,7 @@ it('staff submit PUTs onto the suite loan (no intake-create) and returns to clie
   renderApply('?loan=L9');
   await waitFor(() => expect(toast.info).toHaveBeenCalledWith("Loaded this loan's current application"));
 
-  fireEvent.click(screen.getByRole('button', { name: /submit application/i }));
+  fireEvent.click(screen.getByRole('button', { name: /save to loan/i }));
 
   await waitFor(() => expect(suiteClient.put).toHaveBeenCalledTimes(1));
   const [url, body] = suiteClient.put.mock.calls[0];
@@ -159,12 +162,63 @@ it('staff ?loan= mode wins over a stale stashed borrower suiteLoanId', async () 
   renderApply('?loan=L9');
   await waitFor(() => expect(toast.info).toHaveBeenCalledWith("Loaded this loan's current application"));
 
-  fireEvent.click(screen.getByRole('button', { name: /submit application/i }));
+  fireEvent.click(screen.getByRole('button', { name: /save to loan/i }));
 
   await waitFor(() => expect(suiteClient.put).toHaveBeenCalledTimes(1));
   expect(suiteClient.put.mock.calls[0][0]).toBe('/loans/L9/application');
   // The borrower stash is NOT consumed by a staff save.
   expect(sessionStorage.getItem('suiteLoanId')).toBe('SL1');
+});
+
+it('a restored staff draft WINS over the server load (no reset-clobber)', async () => {
+  // A draft is, by construction, NEWER than the server state — the staff member was
+  // mid-edit when they left. The load effect must not clobber it.
+  sessionStorage.setItem('draft:staff:L9', JSON.stringify({ borrowers: [{ firstName: 'Draftina' }] }));
+  renderApply('?loan=L9');
+  await waitFor(() =>
+    expect(toast.info).toHaveBeenCalledWith('Restored your in-progress draft for this loan'));
+  expect(screen.getByTestId('primary-first-name')).toHaveTextContent('Draftina');
+  expect(mortgageService.getSuiteApplication).not.toHaveBeenCalled();
+  expect(toast.info).not.toHaveBeenCalledWith("Loaded this loan's current application");
+});
+
+it('a failed/empty staff load warns and stays on the blank wizard', async () => {
+  // getSuiteApplication swallows fetch errors to null, so null = "nothing to load OR
+  // the fetch failed" — say so neutrally and keep the blank form (a valid use case).
+  mortgageService.getSuiteApplication.mockResolvedValue(null);
+  renderApply('?loan=L9');
+  await waitFor(() =>
+    expect(toast.warn).toHaveBeenCalledWith('Could not load an existing application — starting blank'));
+  expect(toast.info).not.toHaveBeenCalledWith("Loaded this loan's current application");
+  expect(mockNavigate).not.toHaveBeenCalled();
+  expect(screen.getByTestId('primary-first-name').textContent).toBe('');
+});
+
+it('staff Save & Exit returns to client-view with neutral copy', async () => {
+  renderApply('?loan=L9');
+  await waitFor(() => expect(toast.info).toHaveBeenCalledWith("Loaded this loan's current application"));
+  fireEvent.click(screen.getByRole('button', { name: /save-exit/i }));
+  expect(toast.info).toHaveBeenCalledWith('Draft saved on this device.');
+  expect(mockNavigate).toHaveBeenCalledWith('/client-view/L9');
+});
+
+it('a non-staff user with ?loan stays OUT of staff mode (borrower path, no staff PUT)', async () => {
+  mockRoles = { isStaff: false, isBorrower: true };
+  sessionStorage.setItem('suiteLoanId', 'SL1');
+  // draftKey keys off ?loan PRESENCE (not role), so the steps key is still draft:staff:L9:steps.
+  sessionStorage.setItem('draft:staff:L9:steps', STEPS_AT_REVIEW);
+  renderApply('?loan=L9');
+
+  fireEvent.click(await screen.findByRole('button', { name: /submit application/i }));
+
+  await waitFor(() => expect(suiteClient.put).toHaveBeenCalledTimes(1));
+  expect(suiteClient.put.mock.calls[0][0]).toBe('/loans/SL1/application');
+  expect(mortgageService.getSuiteApplication).not.toHaveBeenCalled();
+  expect(mortgageService.createLoanFromIntake).not.toHaveBeenCalled();
+  await waitFor(
+    () => expect(mockNavigate).toHaveBeenCalledWith('/application-submitted', expect.anything()),
+    { timeout: 2500 },
+  );
 });
 
 it('staff mode ignores carryOverData and keys drafts by the loan', async () => {

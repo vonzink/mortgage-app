@@ -90,7 +90,13 @@ const ApplicationForm = () => {
   });
 
   // Draft autosave — survives session-expired re-auth round-trips. Distinct keys for
-  // staff-loan vs edit vs new so we don't cross-contaminate.
+  // staff-loan vs edit vs new so we don't cross-contaminate. The key deliberately hinges
+  // on ?loan PRESENCE, not isStaffLoanMode: roles resolve from the auth session (which can
+  // hydrate after mount) while useDraftAutosave/useFormSteps read storage ONCE at mount,
+  // so the key must be derivable from the URL alone. Side effect: a borrower who lands on
+  // /apply?loan=X drafts under draft:staff:X but NEVER gets staff behavior (load/submit
+  // both gate on isStaffLoanMode). In staff-loan mode a restored draft WINS over the
+  // server load — see the staff-load effect below.
   const draftKey = staffLoanId ? `draft:staff:${staffLoanId}`
     : editId ? `draft:edit:${editId}`
     : 'draft:new';
@@ -158,18 +164,44 @@ const ApplicationForm = () => {
   // blank wizard defaults, which forward to null on PUT and the suite SKIPS null
   // sections, so a sparse load + resubmit can never wipe SoR data (see
   // utils/suiteApplicationToForm.js header). Stale-guarded like ClientView's effect.
+  //
+  // DRAFT-WINS: if useDraftAutosave restored a draft for this draftKey, the server load
+  // is SKIPPED — the draft is by construction newer (the staff member was mid-edit when
+  // they left). The restore runs before this effect (its hook is registered first, and
+  // it purges corrupt drafts), so a valid entry at draftKey here means "restored".
+  // The presence check mirrors the hook's own restore predicate.
   useEffect(() => {
     if (!isStaffLoanMode) return undefined;
+    let hasDraft = false;
+    try {
+      const raw = sessionStorage.getItem(draftKey);
+      const draft = raw ? JSON.parse(raw) : null;
+      hasDraft = !!draft && typeof draft === 'object';
+    } catch { hasDraft = false; }
+    if (hasDraft) {
+      toast.info('Restored your in-progress draft for this loan');
+      return undefined;
+    }
     let stale = false;
     (async () => {
-      const app = await mortgageService.getSuiteApplication(staffLoanId);
-      if (stale) return;
-      const formData = suiteApplicationToForm(app);
-      if (formData) {
-        reset(formData);
-        // Mirror edit-mode: an existing application unlocks free step navigation.
-        setVisitedSteps(new Set([1, 2, 3, 4, 5, 6, 7]));
-        toast.info("Loaded this loan's current application");
+      try {
+        const app = await mortgageService.getSuiteApplication(staffLoanId);
+        if (stale) return;
+        const formData = suiteApplicationToForm(app);
+        if (formData) {
+          reset(formData);
+          // Mirror edit-mode: an existing application unlocks free step navigation.
+          setVisitedSteps(new Set([1, 2, 3, 4, 5, 6, 7]));
+          toast.info("Loaded this loan's current application");
+        } else {
+          // getSuiteApplication swallows fetch errors to null, so a null here is EITHER
+          // "no application yet" or a failed fetch — we can't distinguish. Say so
+          // neutrally and STAY on the blank wizard (blank-start is a valid staff flow).
+          toast.warn('Could not load an existing application — starting blank');
+        }
+      } catch (error) {
+        console.error('Error loading suite application:', error);
+        if (!stale) toast.warn('Could not load an existing application — starting blank');
       }
     })();
     return () => { stale = true; };
@@ -620,10 +652,15 @@ const ApplicationForm = () => {
   const currentStepLabel = steps.find((s) => s.number === currentStep)?.title || null;
 
   const handleSaveAndExit = () => {
-    // useDraftAutosave already wrote to sessionStorage; bounce to the list.
-    // Honest wording: drafts live in this browser's sessionStorage only and
-    // do NOT show up in the Applications list until the user submits. Don't
-    // imply a server-side save here.
+    // useDraftAutosave already wrote to sessionStorage. Staff-loan mode bounces back to
+    // client-view (where they came from); everyone else goes to the Applications list.
+    // Honest wording either way: drafts live in this browser's sessionStorage only and
+    // do NOT show up anywhere else until submitted. Don't imply a server-side save here.
+    if (isStaffLoanMode) {
+      toast.info('Draft saved on this device.');
+      navigate(`/client-view/${staffLoanId}`);
+      return;
+    }
     toast.info('Draft saved on this device. Submit to send to your loan officer.');
     navigate('/applications');
   };
@@ -631,7 +668,7 @@ const ApplicationForm = () => {
   // Continue / Submit nav — relocated from the green hero CTA to the progress strip
   // (opposite the Back pill). Step 7 submits; earlier steps advance.
   const continueLabel =
-    isLastStep ? (isEditing ? 'Save changes' : 'Submit application')
+    isLastStep ? (isStaffLoanMode ? 'Save to loan' : isEditing ? 'Save changes' : 'Submit application')
     : currentStep === totalSteps - 1 ? 'Continue to review'
     : 'Continue';
   const handleContinue =

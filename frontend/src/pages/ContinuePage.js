@@ -25,7 +25,11 @@ export default function ContinuePage() {
     const p = new URLSearchParams(h.slice(1));
     const token = p.get('invite');
     const loanId = p.get('loan');
-    return token && loanId ? { token, loanId } : null;
+    // Staff can send a "dashboard" invite (e.g. inviting an existing borrower to just
+    // check status) alongside the ordinary co-borrower/primary invite. Any other/absent
+    // value falls back to the default (post-accept landing on /apply).
+    const dest = p.get('dest') === 'dashboard' ? 'dashboard' : null;
+    return token && loanId ? { token, loanId, dest } : null;
   }, []);
   const auth = useMemo(() => getPasswordlessAuth(), []);
   const [email, setEmail] = useState(payload?.borrower?.email || '');
@@ -81,18 +85,27 @@ export default function ContinuePage() {
     }
   };
 
-  // Co-borrower invite tail: bind the invitee to their co-borrower party (accept-invite), set the
-  // suite loan id so /apply loads THIS loan, then hard-navigate (same mintSession rationale as the
-  // primary path). No intake/createLoanFromIntake — the loan already exists.
+  // Co-borrower invite tail: bind the invitee to their co-borrower party (accept-invite), then
+  // hard-navigate (same mintSession rationale as the primary path). No intake/createLoanFromIntake
+  // — the loan already exists. Default destination is /apply (the invitee fills out their part);
+  // a "dashboard" invite (dest=dashboard) instead lands on the loan's Status Center.
   const finishCoBorrowerInvite = async () => {
     setWorking(true);
     try {
       await mortgageService.acceptCoBorrowerInvite(invite.loanId, invite.token);
-      sessionStorage.setItem('suiteLoanId', String(invite.loanId));
+      const toDashboard = invite.dest === 'dashboard';
+      const target = toDashboard ? `/dashboard?loan=${invite.loanId}` : '/apply';
+      // suiteLoanId tells /apply which suite loan to load/save into. The dashboard
+      // (LoanStatusCenter) resolves its loan from the ?loan= param instead, so it has
+      // no use for the stash — and leaving it behind would risk a LATER, unrelated
+      // /apply visit silently writing into this loan instead of starting a fresh one.
+      if (!toDashboard) {
+        sessionStorage.setItem('suiteLoanId', String(invite.loanId));
+      }
       if (process.env.REACT_APP_DEV_SUB) {
-        navigate('/apply');
+        navigate(target);
       } else {
-        window.location.assign('/apply');
+        window.location.assign(target);
       }
     } catch (e) {
       toast.error("We couldn't accept your invite. Make sure you signed in with the email it was sent to.");
@@ -108,7 +121,8 @@ export default function ContinuePage() {
         <h1 className="continue-h1">You&apos;ve been invited to a mortgage application</h1>
         <p className="muted">
           Verify your email to pick up where your loan team left off. Sign in with the email
-          your invitation was sent to, and we&apos;ll take you to your part of the application.
+          your invitation was sent to, and we&apos;ll take you to{' '}
+          {invite.dest === 'dashboard' ? 'your loan dashboard.' : 'your part of the application.'}
         </p>
         {working ? (
           <p className="muted">Finishing sign-in…</p>

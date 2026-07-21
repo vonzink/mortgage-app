@@ -26,6 +26,7 @@ jest.mock('../services/mortgageService', () => ({
   __esModule: true,
   default: {
     createLoanFromIntake: jest.fn().mockResolvedValue({ loanId: 'L1', loanNumber: '100' }),
+    acceptCoBorrowerInvite: jest.fn().mockResolvedValue({}),
   },
 }));
 
@@ -63,6 +64,11 @@ beforeEach(() => {
   mockNavigate.mockClear();
   mockAssign.mockClear();
   mortgageService.createLoanFromIntake.mockClear();
+  mortgageService.acceptCoBorrowerInvite.mockClear();
+  // the mocked window.location object is reused across tests (see the
+  // Object.defineProperty above) — reset the fragment so the payload-based tests
+  // (which set it to '' via the default) don't leak an invite from a prior test.
+  window.location.hash = '';
   // .env sets REACT_APP_DEV_SUB for local dev; delete it so each test exercises the
   // PROD (hard-nav) branch by default. The dev-path test sets it back explicitly.
   delete process.env.REACT_APP_DEV_SUB;
@@ -166,4 +172,84 @@ test('dev bypass (REACT_APP_DEV_SUB) uses SPA navigate, not a hard reload', asyn
   fireEvent.click(screen.getByRole('button', { name: /verify/i }));
   await waitFor(() => expect(mockNavigate).toHaveBeenCalledWith('/apply'));
   expect(mockAssign).not.toHaveBeenCalled();
+});
+
+// ── co-borrower invite entry (URL fragment #invite=<token>&loan=<loanId>[&dest=dashboard]) ──
+describe('co-borrower invite entry', () => {
+  function renderInvite(hash) {
+    window.location.hash = hash;
+    return render(
+      <MemoryRouter initialEntries={['/continue']}>
+        <ContinuePage />
+      </MemoryRouter>
+    );
+  }
+
+  // Drives the shared FactorChooser through email -> start -> code -> verify, which
+  // fires onAuthenticated (finishCoBorrowerInvite here). Mirrors the payload-flow tests.
+  async function completeFactor(email = 'co@example.com') {
+    fireEvent.change(screen.getByLabelText(/^email$/i), { target: { value: email } });
+    fireEvent.click(screen.getByRole('button', { name: /email me a code/i }));
+    const codeInput = await screen.findByLabelText(/enter the code/i);
+    fireEvent.change(codeInput, { target: { value: '000000' } });
+    fireEvent.click(screen.getByRole('button', { name: /verify/i }));
+  }
+
+  test('no dest: accepts invite, hard-navigates to /apply, stashes suiteLoanId (regression pin)', async () => {
+    renderInvite('#invite=tok123&loan=42');
+    await completeFactor();
+
+    await waitFor(() =>
+      expect(mortgageService.acceptCoBorrowerInvite).toHaveBeenCalledWith('42', 'tok123')
+    );
+    await waitFor(() => expect(mockAssign).toHaveBeenCalledWith('/apply'));
+    expect(mockNavigate).not.toHaveBeenCalledWith('/apply');
+    expect(sessionStorage.getItem('suiteLoanId')).toBe('42');
+  });
+
+  test('junk dest: falls back to /apply (unrecognized dest = default behavior)', async () => {
+    renderInvite('#invite=tok123&loan=42&dest=bogus');
+    await completeFactor();
+
+    await waitFor(() => expect(mockAssign).toHaveBeenCalledWith('/apply'));
+    expect(sessionStorage.getItem('suiteLoanId')).toBe('42');
+  });
+
+  test('dest=dashboard: accepts invite and hard-navigates to /dashboard?loan=<loanId>', async () => {
+    renderInvite('#invite=tok123&loan=42&dest=dashboard');
+    await completeFactor();
+
+    await waitFor(() =>
+      expect(mortgageService.acceptCoBorrowerInvite).toHaveBeenCalledWith('42', 'tok123')
+    );
+    await waitFor(() => expect(mockAssign).toHaveBeenCalledWith('/dashboard?loan=42'));
+    expect(mockNavigate).not.toHaveBeenCalledWith(expect.stringContaining('/dashboard'));
+  });
+
+  test('dest=dashboard: does NOT stash suiteLoanId (irrelevant to the dashboard route, which resolves its loan via ?loan=)', async () => {
+    renderInvite('#invite=tok123&loan=42&dest=dashboard');
+    await completeFactor();
+
+    await waitFor(() => expect(mockAssign).toHaveBeenCalledWith('/dashboard?loan=42'));
+    expect(sessionStorage.getItem('suiteLoanId')).toBeNull();
+  });
+
+  test('dest=dashboard: dev bypass (REACT_APP_DEV_SUB) uses SPA navigate to /dashboard?loan=<loanId>', async () => {
+    process.env.REACT_APP_DEV_SUB = 'dev-sub';
+    renderInvite('#invite=tok123&loan=42&dest=dashboard');
+    await completeFactor();
+
+    await waitFor(() => expect(mockNavigate).toHaveBeenCalledWith('/dashboard?loan=42'));
+    expect(mockAssign).not.toHaveBeenCalled();
+  });
+
+  test('dest=dashboard sharpens the landing copy', () => {
+    renderInvite('#invite=tok123&loan=42&dest=dashboard');
+    expect(screen.getByText(/loan dashboard/i)).toBeInTheDocument();
+  });
+
+  test('no dest keeps the application-focused landing copy (regression pin)', () => {
+    renderInvite('#invite=tok123&loan=42');
+    expect(screen.getByText(/your part of the application/i)).toBeInTheDocument();
+  });
 });

@@ -8,7 +8,6 @@ import StatusRail from './sections/StatusRail';
 import TodoList from './sections/TodoList';
 import UploadDropzone from './sections/UploadDropzone';
 import ClearedItems from './sections/ClearedItems';
-import DocumentHistory from './sections/DocumentHistory';
 import DownloadsCard from './sections/DownloadsCard';
 import RateLockCard from './sections/RateLockCard';
 import KeyDatesCard from './sections/KeyDatesCard';
@@ -208,9 +207,6 @@ export default function LoanStatusCenter({ loanId = null } = {}) {
             )}
             {payload?.conditions != null && (
               <ClearedItems conditions={payload.conditions} />
-            )}
-            {payload?.documents?.uploads != null && (
-              <DocumentHistory uploads={payload.documents.uploads} />
             )}
             {payload?.documents?.fromTeam != null && (
               <DownloadsCard

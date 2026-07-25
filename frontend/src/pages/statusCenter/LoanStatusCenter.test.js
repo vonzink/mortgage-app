@@ -218,6 +218,17 @@ describe('LoanStatusCenter', () => {
     expect(container.querySelector('.lsc-side-col')).toHaveTextContent(/Appraisal/i);
   });
 
+  test('Document history card no longer renders, even with uploads present', async () => {
+    mortgageService.getBorrowerDashboard.mockResolvedValue(FULL_DASHBOARD);
+    renderPage();
+
+    // Wait for the grid, then assert the removed card is gone while the other
+    // two documents.uploads consumers (dropzone) and downloads still render.
+    expect(await screen.findByText(/Drop your documents here/i)).toBeInTheDocument();
+    expect(screen.queryByText('Document history')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /^Download$/i })).toBeInTheDocument();
+  });
+
   test('LO-hidden sections (rateLock/payment/loanOfficer null) render nothing while the rest stay', async () => {
     mortgageService.getBorrowerDashboard.mockResolvedValue({
       ...FULL_DASHBOARD,

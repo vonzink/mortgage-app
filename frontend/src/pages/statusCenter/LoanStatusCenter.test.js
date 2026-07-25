@@ -39,7 +39,11 @@ const DASHBOARD = {
 // is always present; showAppraisal gates the appraisal card.
 const FULL_DASHBOARD = {
   status: 'IN_UNDERWRITING',
-  property: { addressLine1: '123 Main St', city: 'Aurora', state: 'CO' },
+  property: {
+    addressLine1: '123 Main St', city: 'Aurora', state: 'CO',
+    photoUrl: 'https://s3.example.com/prop-photo.jpg?X-Amz-Signature=abc',
+    vesting: 'John Q. Public and Jane Q. Public, as joint tenants',
+  },
   milestones: [
     { key: 'APPLICATION', label: 'Application received', state: 'DONE', date: '2026-05-01' },
     { key: 'PROCESSING', label: 'In processing', state: 'CURRENT', date: null },
@@ -85,10 +89,19 @@ const FULL_DASHBOARD = {
     statusChangesEnabled: true, statusChangesChannel: 'EMAIL',
     keyDatesEnabled: true, keyDatesChannel: 'BOTH',
   },
+  contacts: [
+    { role: 'TITLE_COMPANY', roleLabel: 'Title', name: 'Terri Cruz', company: 'Alta Title Co.', phone: '(303) 555-0140', email: 'terri@altatitle.example.com' },
+    { role: 'INSURANCE_AGENT', roleLabel: 'Insurance', name: 'Ian Shore', company: 'Acme Insurance', phone: '(303) 555-0177', email: 'ian@acmeins.example.com' },
+  ],
+  closingCosts: {
+    origination: 3000, services: 2500, taxesAndGov: 1200, prepaidsAndEscrow: 1800, other: 400,
+    totalClosingCosts: 8900, sellerCredits: 5000, otherCredits: 250, estimatedCashToClose: 25000,
+  },
   visibility: {
-    showMilestones: true, showConditions: true, showDocuments: true, showKeyDates: true,
-    showRateLock: true, showAppraisal: true, showSnapshot: true, showPayment: true,
-    showLoanOfficer: true, showNotifications: true, showProperty: true,
+    showMilestones: true, showConditions: true, showDocuments: true, showDownloads: true,
+    showKeyDates: true, showAppraisal: true, showRateLock: true, showLoanSnapshot: true,
+    showPayment: true, showClosingCosts: true, showLoanOfficer: true, showContacts: true,
+    showNotifications: true,
   },
 };
 
@@ -214,6 +227,11 @@ describe('LoanStatusCenter', () => {
     expect(screen.getByText('Estimated monthly payment')).toBeInTheDocument();
     // Total row renders value + " / mo" suffix in one node.
     expect(screen.getByText(/\$2,620\.00\s*\/\s*mo/)).toBeInTheDocument();
+    // Snapshot card renders the (newly API-wired) cash-to-close slot. Scoped to
+    // the .lsc-kv row: ClosingCostsCard (Task 7) renders the same figure — the
+    // server sends one DoT cashFromToBorrower value to both slots.
+    const cashRow = screen.getByText('Est. cash to close').closest('.lsc-kv');
+    expect(cashRow).toHaveTextContent('$25,000.00');
     // Appraisal card is gated by visibility.showAppraisal.
     expect(container.querySelector('.lsc-side-col')).toHaveTextContent(/Appraisal/i);
   });
@@ -225,7 +243,7 @@ describe('LoanStatusCenter', () => {
     // Wait for the grid, then assert the removed card is gone while the other
     // two documents.uploads consumers (dropzone) and downloads still render.
     expect(await screen.findByText(/Drop your documents here/i)).toBeInTheDocument();
-    expect(screen.queryByText('Document history')).not.toBeInTheDocument();
+    expect(screen.queryByText(/document history/i)).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: /^Download$/i })).toBeInTheDocument();
   });
 

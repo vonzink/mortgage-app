@@ -291,7 +291,7 @@
 /* ---------- main-column cards (Task 15) ---------- */
 /* Ported from the .card / .card-h / .cond / .tag / .dz3 / .hrow blocks of the
  * hifi design. White cards with a titled header + count pill; condition rows
- * (to-do + cleared); the dark "forest" dropzone; the document-history / downloads
+ * (to-do + cleared); the dark "forest" dropzone; the downloads
  * rows with a filetype chip. All lsc-prefixed + scoped under .lsc-page. */
 .lsc-card {
   background: var(--card);
@@ -447,7 +447,7 @@
 }
 .lsc-dz-browse:disabled { opacity: .7; cursor: default; }
 
-/* document-history / downloads rows */
+/* downloads rows */
 .lsc-hrow {
   display: flex;
   align-items: center;

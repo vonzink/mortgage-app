@@ -10,6 +10,19 @@ import React from 'react';
  * treatment ("Nothing cleared yet").
  */
 
+const DATE_FMT = new Intl.DateTimeFormat('en-US', {
+  timeZone: 'UTC',
+  month: 'short',
+  day: 'numeric',
+});
+
+function formatDate(value) {
+  if (!value) return null;
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return null;
+  return DATE_FMT.format(d);
+}
+
 const CLEARED = new Set(['cleared', 'resolved', 'accepted', 'done']);
 
 function isCleared(status) {
@@ -31,16 +44,19 @@ export default function ClearedItems({ conditions }) {
       {cleared.length === 0 ? (
         <div className="lsc-empty">Nothing cleared yet.</div>
       ) : (
-        cleared.map((c, i) => (
-          <div className="lsc-cond" key={c.id != null ? c.id : i}>
-            <span className="lsc-st lsc-st--ok" aria-hidden="true">✓</span>
-            <div className="lsc-cond-tx">
-              <b>{c.conditionText || 'Condition'}</b>
-              {c.clearedDate && <span>Cleared {c.clearedDate}</span>}
+        cleared.map((c, i) => {
+          const when = formatDate(c.clearedAt);
+          return (
+            <div className="lsc-cond" key={c.id != null ? c.id : i}>
+              <span className="lsc-st lsc-st--ok" aria-hidden="true">✓</span>
+              <div className="lsc-cond-tx">
+                <b>{c.conditionText || 'Condition'}</b>
+                {when && <span>Cleared {when}</span>}
+              </div>
+              <span className="lsc-tag lsc-tag--ok">Cleared</span>
             </div>
-            <span className="lsc-tag lsc-tag--ok">Cleared</span>
-          </div>
-        ))
+          );
+        })
       )}
     </div>
   );

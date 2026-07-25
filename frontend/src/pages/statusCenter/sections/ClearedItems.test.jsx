@@ -5,7 +5,7 @@ import ClearedItems from './ClearedItems';
 const CONDITIONS = {
   items: [
     { id: 'c1', status: 'Outstanding', conditionText: '2025 W-2 — all employers' },
-    { id: 'c2', status: 'Cleared', conditionText: 'Purchase contract — fully executed', clearedDate: '2026-06-05' },
+    { id: 'c2', status: 'Cleared', conditionText: 'Purchase contract — fully executed', clearedAt: '2026-06-05T14:30:00Z' },
     { id: 'c3', status: 'Cleared', conditionText: "Driver's license — both borrowers" },
   ],
 };
@@ -17,6 +17,7 @@ describe('ClearedItems', () => {
     expect(screen.getByText("Driver's license — both borrowers")).toBeInTheDocument();
     expect(screen.queryByText('2025 W-2 — all employers')).not.toBeInTheDocument();
     expect(screen.getByText(/2 done/i)).toBeInTheDocument();
+    expect(screen.getByText('Cleared Jun 5')).toBeInTheDocument();
   });
 
   test('empty state renders when nothing is cleared', () => {

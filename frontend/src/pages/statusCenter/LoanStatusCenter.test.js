@@ -290,6 +290,58 @@ describe('LoanStatusCenter', () => {
     expect(container.querySelector('.lsc-vesting')).toBeNull();
   });
 
+  test('contacts render in the rail below the LO card; closing costs in the side column after Payment', async () => {
+    mortgageService.getBorrowerDashboard.mockResolvedValue(FULL_DASHBOARD);
+    const { container } = renderPage();
+    await screen.findByText('In processing');
+
+    // Contacts land in the rail column…
+    const rail = container.querySelector('.lsc-rail-col');
+    expect(rail).toHaveTextContent('Terri Cruz');
+    expect(rail).toHaveTextContent('Alta Title Co.');
+    expect(rail).toHaveTextContent('Ian Shore');
+    // …after the LO card and before Notifications (heading order proves placement).
+    const railHeadings = [...rail.querySelectorAll('.lsc-card-h h3')].map((h) => h.textContent);
+    expect(railHeadings.indexOf('Your loan officer')).toBeLessThan(railHeadings.indexOf('Title'));
+    expect(railHeadings.indexOf('Insurance')).toBeLessThan(railHeadings.indexOf('Notifications'));
+
+    // Closing costs land in the side column, after the payment card.
+    const side = container.querySelector('.lsc-side-col');
+    expect(side).toHaveTextContent('Closing costs');
+    expect(side).toHaveTextContent('$8,900.00');
+    expect(side).toHaveTextContent('Estimated cash to close');
+    const sideHeadings = [...side.querySelectorAll('.lsc-card-h h3')].map((h) => h.textContent);
+    expect(sideHeadings.indexOf('Estimated monthly payment')).toBeLessThan(sideHeadings.indexOf('Closing costs'));
+  });
+
+  test('LO-hid contract: contacts/closingCosts null (or contacts empty) render nothing', async () => {
+    mortgageService.getBorrowerDashboard.mockResolvedValue({
+      ...FULL_DASHBOARD,
+      contacts: null,
+      closingCosts: null,
+    });
+    renderPage();
+
+    expect(await screen.findByText('In processing')).toBeInTheDocument();
+    expect(screen.queryByText('Terri Cruz')).not.toBeInTheDocument();
+    expect(screen.queryByText('Closing costs')).not.toBeInTheDocument();
+    // The rest of the grid is intact.
+    expect(screen.getByText('Dana Lender')).toBeInTheDocument();
+    expect(screen.getByText('Estimated monthly payment')).toBeInTheDocument();
+  });
+
+  test('empty contacts array renders no contact cards', async () => {
+    mortgageService.getBorrowerDashboard.mockResolvedValue({
+      ...FULL_DASHBOARD,
+      contacts: [],
+    });
+    renderPage();
+
+    expect(await screen.findByText('In processing')).toBeInTheDocument();
+    expect(screen.queryByText('Terri Cruz')).not.toBeInTheDocument();
+    expect(screen.getByText('Your loan officer')).toBeInTheDocument();
+  });
+
   test('LO-hidden sections (rateLock/payment/loanOfficer null) render nothing while the rest stay', async () => {
     mortgageService.getBorrowerDashboard.mockResolvedValue({
       ...FULL_DASHBOARD,

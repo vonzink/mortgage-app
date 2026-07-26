@@ -17,6 +17,8 @@ import SnapshotCard from './sections/SnapshotCard';
 import PaymentCard from './sections/PaymentCard';
 import LoanOfficerCard from './sections/LoanOfficerCard';
 import NotificationsCard from './sections/NotificationsCard';
+import ContactCards from './sections/ContactCards';
+import ClosingCostsCard from './sections/ClosingCostsCard';
 import './LoanStatusCenter.css';
 
 /**
@@ -194,6 +196,9 @@ export default function LoanStatusCenter({ loanId = null } = {}) {
             {payload?.loanOfficer != null && (
               <LoanOfficerCard loanOfficer={payload.loanOfficer} />
             )}
+            {payload?.contacts != null && (
+              <ContactCards contacts={payload.contacts} />
+            )}
             {payload?.notificationPrefs != null && (
               <NotificationsCard
                 prefs={payload.notificationPrefs}
@@ -247,6 +252,9 @@ export default function LoanStatusCenter({ loanId = null } = {}) {
             )}
             {payload?.payment != null && (
               <PaymentCard payment={payload.payment} />
+            )}
+            {payload?.closingCosts != null && (
+              <ClosingCostsCard closingCosts={payload.closingCosts} />
             )}
           </aside>
         </div>

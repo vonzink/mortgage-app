@@ -8,9 +8,13 @@ import React from 'react';
  * Consumes payload.closingCosts:
  *   { origination, services, taxesAndGov, prepaidsAndEscrow, other,
  *     totalClosingCosts, sellerCredits, otherCredits, estimatedCashToClose }
- * All fields null-tolerant. estimatedCashToClose: positive = borrower brings
- * cash ("Estimated cash to close"); negative = cash back ("Estimated cash back
- * to you", absolute value shown). Credit values render as provided by the API.
+ * All fields null-tolerant.
+ * - estimatedCashToClose: positive = borrower brings cash ("Estimated cash to
+ *   close"); negative = cash back ("Estimated cash back to you"). The value
+ *   always renders as an absolute magnitude (so a JSON -0 can't show "-$0.00")
+ *   — the heading carries the sign.
+ * - Credits arrive as positive magnitudes; the heading carries the sign.
+ * - services = sections B+C (did-not-shop + did-shop), combined server-side.
  */
 
 const USD_FMT = new Intl.NumberFormat('en-US', {
@@ -49,7 +53,7 @@ export default function ClosingCostsCard({ closingCosts }) {
 
   const cashBack = Number.isFinite(estimatedCashToClose) && estimatedCashToClose < 0;
   const cashLabel = cashBack ? 'Estimated cash back to you' : 'Estimated cash to close';
-  const cashValue = usd(cashBack ? Math.abs(estimatedCashToClose) : estimatedCashToClose);
+  const cashValue = usd(Number.isFinite(estimatedCashToClose) ? Math.abs(estimatedCashToClose) : null);
 
   return (
     <div className="lsc-card">

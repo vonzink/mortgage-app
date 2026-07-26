@@ -53,7 +53,7 @@ const FULL_DASHBOARD = {
     outstandingCount: 1,
     items: [
       { id: 'c1', status: 'REQUESTED', conditionText: '2025 W-2 — all employers', dueDate: '2026-07-08' },
-      { id: 'c2', status: 'CLEARED', conditionText: 'Purchase contract', dueDate: null },
+      { id: 'c2', status: 'CLEARED', conditionText: 'Purchase contract', dueDate: null, clearedAt: '2026-07-14T16:00:00Z' },
     ],
   },
   documents: {

@@ -247,6 +247,29 @@ describe('LoanStatusCenter', () => {
     expect(screen.getByRole('button', { name: /^Download$/i })).toBeInTheDocument();
   });
 
+  test('property.photoUrl renders the hero photo banner layer', async () => {
+    mortgageService.getBorrowerDashboard.mockResolvedValue(FULL_DASHBOARD);
+    const { container } = renderPage();
+    await screen.findByText('In processing');
+
+    const hero = container.querySelector('.lsc-hero');
+    expect(hero.classList.contains('lsc-hero--photo')).toBe(true);
+    const photo = container.querySelector('.lsc-hero-photo');
+    expect(photo).not.toBeNull();
+    expect(photo.getAttribute('style')).toContain('prop-photo.jpg');
+    expect(photo).toHaveAttribute('aria-hidden', 'true');
+  });
+
+  test('no property.photoUrl → flat forest hero, no photo layer', async () => {
+    // Default DASHBOARD fixture has no photoUrl.
+    const { container } = renderPage();
+    await screen.findByText(/123 Main St/);
+
+    const hero = container.querySelector('.lsc-hero');
+    expect(hero.classList.contains('lsc-hero--photo')).toBe(false);
+    expect(container.querySelector('.lsc-hero-photo')).toBeNull();
+  });
+
   test('LO-hidden sections (rateLock/payment/loanOfficer null) render nothing while the rest stay', async () => {
     mortgageService.getBorrowerDashboard.mockResolvedValue({
       ...FULL_DASHBOARD,

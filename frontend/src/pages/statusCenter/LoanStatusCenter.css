@@ -893,3 +893,25 @@
   white-space: nowrap;
 }
 .lsc-page .lsc-cal-empty { color: var(--ink-soft); font-weight: 600; }
+
+/* ---------- Borrower Dashboard v2: hero photo banner ---------- */
+/* Appended at end of file ON PURPOSE: .lsc-hero-photo must beat the
+ * equal-specificity `.lsc-hero > * { position: relative; }` (line ~103) by
+ * source order. The gradient overlay lives in ::after (not an inline
+ * `linear-gradient(), url()` shorthand) so jsdom can still see the url(). */
+.lsc-hero--photo::before { display: none; } /* ring decoration reads as noise over a photo */
+.lsc-hero-photo {
+  position: absolute;
+  inset: 0;
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  pointer-events: none;
+}
+.lsc-hero-photo::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  /* forest gradient overlay for text legibility over any photo (#0A2C20 = --forest-deep) */
+  background: linear-gradient(rgba(10, 44, 32, .55), rgba(10, 44, 32, .75));
+}

@@ -126,6 +126,7 @@ export default function LoanStatusCenter({ loanId = null } = {}) {
 
   const selectedLoan = loans?.find((l) => String(l.id) === String(selectedId)) || null;
   const prop = payload?.property || null;
+  const photoUrl = prop?.photoUrl || null;
   const addressLine = prop
     ? [prop.addressLine1, [prop.city, prop.state].filter(Boolean).join(', ')]
         .filter(Boolean).join(' · ') || null
@@ -150,7 +151,14 @@ export default function LoanStatusCenter({ loanId = null } = {}) {
         </div>
       )}
 
-      <header className="lsc-hero">
+      <header className={`lsc-hero${photoUrl ? ' lsc-hero--photo' : ''}`}>
+        {photoUrl && (
+          <div
+            className="lsc-hero-photo"
+            style={{ backgroundImage: `url("${photoUrl}")` }}
+            aria-hidden="true"
+          />
+        )}
         <div className="lsc-hero-text">
           {selectedLoan?.loanNumber && (
             <div className="lsc-eyebrow">Loan #{selectedLoan.loanNumber}</div>

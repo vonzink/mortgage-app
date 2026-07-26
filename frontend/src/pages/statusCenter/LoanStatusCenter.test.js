@@ -271,6 +271,25 @@ describe('LoanStatusCenter', () => {
     expect(container.querySelector('.lsc-hero-photo')).toBeNull();
   });
 
+  test('property.vesting renders under the address line', async () => {
+    mortgageService.getBorrowerDashboard.mockResolvedValue(FULL_DASHBOARD);
+    const { container } = renderPage();
+    await screen.findByText('In processing');
+
+    const vest = container.querySelector('.lsc-vesting');
+    expect(vest).not.toBeNull();
+    expect(vest).toHaveTextContent('John Q. Public and Jane Q. Public, as joint tenants');
+    // It sits inside the hero text block, after the address sub-line.
+    expect(vest.closest('.lsc-hero-text')).not.toBeNull();
+  });
+
+  test('no property.vesting → no vesting line', async () => {
+    // Default DASHBOARD fixture has no vesting.
+    const { container } = renderPage();
+    await screen.findByText(/123 Main St/);
+    expect(container.querySelector('.lsc-vesting')).toBeNull();
+  });
+
   test('LO-hidden sections (rateLock/payment/loanOfficer null) render nothing while the rest stay', async () => {
     mortgageService.getBorrowerDashboard.mockResolvedValue({
       ...FULL_DASHBOARD,

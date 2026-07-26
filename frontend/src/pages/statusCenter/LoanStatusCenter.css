@@ -921,3 +921,15 @@
 .lsc-hero--photo .lsc-sub {
   color: var(--mint);
 }
+
+/* vesting line — small-caps muted variant of .lsc-sub; end-of-file so it wins
+ * the equal-specificity fight with .lsc-sub (line ~119) by source order */
+.lsc-vesting {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: var(--sage);
+  opacity: .85;
+  margin-top: 3px;
+}

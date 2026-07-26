@@ -166,6 +166,7 @@ export default function LoanStatusCenter({ loanId = null } = {}) {
           )}
           <h1>Loan status center</h1>
           {addressLine && <p className="lsc-sub">{addressLine}</p>}
+          {prop?.vesting && <p className="lsc-sub lsc-vesting">{prop.vesting}</p>}
         </div>
         {payload?.status && (
           <span className="lsc-status-pill">{humanizeStatus(payload.status)}</span>

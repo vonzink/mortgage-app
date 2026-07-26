@@ -290,6 +290,16 @@ describe('LoanStatusCenter', () => {
     expect(container.querySelector('.lsc-vesting')).toBeNull();
   });
 
+  test('whitespace-only property.vesting → no vesting line', async () => {
+    mortgageService.getBorrowerDashboard.mockResolvedValue({
+      ...FULL_DASHBOARD,
+      property: { ...FULL_DASHBOARD.property, vesting: '   ' },
+    });
+    const { container } = renderPage();
+    await screen.findByText('In processing');
+    expect(container.querySelector('.lsc-vesting')).toBeNull();
+  });
+
   test('contacts render in the rail below the LO card; closing costs in the side column after Payment', async () => {
     mortgageService.getBorrowerDashboard.mockResolvedValue(FULL_DASHBOARD);
     const { container } = renderPage();

@@ -51,6 +51,14 @@ export default function ClosingCostsCard({ closingCosts }) {
     estimatedCashToClose,
   } = closingCosts;
 
+  // All-blank skip (ContactCards' spirit): when no field would produce a row,
+  // don't render an empty shell (heading + pad with zero rows).
+  const fields = [
+    origination, services, taxesAndGov, prepaidsAndEscrow, other,
+    totalClosingCosts, sellerCredits, otherCredits, estimatedCashToClose,
+  ];
+  if (!fields.some((n) => Number.isFinite(n))) return null;
+
   const cashBack = Number.isFinite(estimatedCashToClose) && estimatedCashToClose < 0;
   const cashLabel = cashBack ? 'Estimated cash back to you' : 'Estimated cash to close';
   const cashValue = usd(Number.isFinite(estimatedCashToClose) ? Math.abs(estimatedCashToClose) : null);

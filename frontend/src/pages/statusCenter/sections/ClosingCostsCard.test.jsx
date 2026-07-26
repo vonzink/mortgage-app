@@ -74,6 +74,12 @@ describe('ClosingCostsCard', () => {
     expect(screen.getByText('Total closing costs')).toBeInTheDocument();
   });
 
+  test('renders nothing when every field is null (no empty shell)', () => {
+    const allNull = Object.fromEntries(Object.keys(FULL).map((k) => [k, null]));
+    const { container } = render(<ClosingCostsCard closingCosts={allNull} />);
+    expect(container.querySelector('.lsc-card')).toBeNull();
+  });
+
   test('renders nothing when closingCosts is null', () => {
     const { container } = render(<ClosingCostsCard closingCosts={null} />);
     expect(container.querySelector('.lsc-card')).toBeNull();

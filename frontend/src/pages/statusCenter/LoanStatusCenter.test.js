@@ -302,6 +302,9 @@ describe('LoanStatusCenter', () => {
     expect(rail).toHaveTextContent('Ian Shore');
     // …after the LO card and before Notifications (heading order proves placement).
     const railHeadings = [...rail.querySelectorAll('.lsc-card-h h3')].map((h) => h.textContent);
+    expect(railHeadings).toEqual(
+      expect.arrayContaining(['Your loan officer', 'Title', 'Insurance', 'Notifications'])
+    );
     expect(railHeadings.indexOf('Your loan officer')).toBeLessThan(railHeadings.indexOf('Title'));
     expect(railHeadings.indexOf('Insurance')).toBeLessThan(railHeadings.indexOf('Notifications'));
 
@@ -311,6 +314,9 @@ describe('LoanStatusCenter', () => {
     expect(side).toHaveTextContent('$8,900.00');
     expect(side).toHaveTextContent('Estimated cash to close');
     const sideHeadings = [...side.querySelectorAll('.lsc-card-h h3')].map((h) => h.textContent);
+    expect(sideHeadings).toEqual(
+      expect.arrayContaining(['Estimated monthly payment', 'Closing costs'])
+    );
     expect(sideHeadings.indexOf('Estimated monthly payment')).toBeLessThan(sideHeadings.indexOf('Closing costs'));
   });
 

@@ -895,12 +895,12 @@
 .lsc-page .lsc-cal-empty { color: var(--ink-soft); font-weight: 600; }
 
 /* ---------- Borrower Dashboard v2: hero photo banner ---------- */
-/* Appended at end of file ON PURPOSE: .lsc-hero-photo must beat the
- * equal-specificity `.lsc-hero > * { position: relative; }` (line ~103) by
- * source order. The gradient overlay lives in ::after (not an inline
+/* `.lsc-hero > .lsc-hero-photo` out-specifies the equal-specificity
+ * `.lsc-hero > * { position: relative; }` (line ~103), so this block does not
+ * depend on source order. The gradient overlay lives in ::after (not an inline
  * `linear-gradient(), url()` shorthand) so jsdom can still see the url(). */
 .lsc-hero--photo::before { display: none; } /* ring decoration reads as noise over a photo */
-.lsc-hero-photo {
+.lsc-hero > .lsc-hero-photo {
   position: absolute;
   inset: 0;
   background-size: cover;
@@ -913,5 +913,11 @@
   position: absolute;
   inset: 0;
   /* forest gradient overlay for text legibility over any photo (#0A2C20 = --forest-deep) */
-  background: linear-gradient(rgba(10, 44, 32, .55), rgba(10, 44, 32, .75));
+  background: linear-gradient(rgba(10, 44, 32, .7), rgba(10, 44, 32, .85));
+}
+/* photo mode: lift the dimmer hero text tones to mint — sage/green over a
+ * bright photo region measured ~1.5-2.3:1 contrast */
+.lsc-hero--photo .lsc-eyebrow,
+.lsc-hero--photo .lsc-sub {
+  color: var(--mint);
 }

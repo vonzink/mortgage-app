@@ -256,6 +256,7 @@ describe('LoanStatusCenter', () => {
     expect(hero.classList.contains('lsc-hero--photo')).toBe(true);
     const photo = container.querySelector('.lsc-hero-photo');
     expect(photo).not.toBeNull();
+    expect(hero.firstElementChild).toBe(photo);
     expect(photo.getAttribute('style')).toContain('prop-photo.jpg');
     expect(photo).toHaveAttribute('aria-hidden', 'true');
   });

@@ -152,6 +152,7 @@ export default function LoanStatusCenter({ loanId = null } = {}) {
       )}
 
       <header className={`lsc-hero${photoUrl ? ' lsc-hero--photo' : ''}`}>
+        {/* must stay first child — hero text paints above it by DOM order */}
         {photoUrl && (
           <div
             className="lsc-hero-photo"

@@ -923,7 +923,9 @@
 }
 
 /* vesting line — small-caps muted variant of .lsc-sub; end-of-file so it wins
- * the equal-specificity fight with .lsc-sub (line ~119) by source order */
+ * the equal-specificity fight with .lsc-sub (line ~119) by source order.
+ * photo mode: `.lsc-hero--photo .lsc-sub` (above) out-specifies this and
+ * recolors to mint — intentional. */
 .lsc-vesting {
   font-size: 11px;
   font-weight: 700;
@@ -932,4 +934,10 @@
   color: var(--sage);
   opacity: .85;
   margin-top: 3px;
+}
+/* photo mode: drop the muting — mint at .85 opacity measures 3.87:1 over
+ * near-white photo regions (fails 4.5:1 at 11px small-caps); full opacity
+ * restores 4.68:1+ */
+.lsc-hero--photo .lsc-vesting {
+  opacity: 1;
 }

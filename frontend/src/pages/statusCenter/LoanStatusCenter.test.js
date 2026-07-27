@@ -40,6 +40,8 @@ const DASHBOARD = {
 // is always present; showAppraisal gates the appraisal card.
 const FULL_DASHBOARD = {
   status: 'IN_UNDERWRITING',
+  // v2.1: the API now surfaces the investor loan number for the hero eyebrow.
+  investorLoanNumber: 'INV-55501',
   property: {
     addressLine1: '123 Main St', city: 'Aurora', state: 'CO',
     photoUrl: 'https://s3.example.com/prop-photo.jpg?X-Amz-Signature=abc',
@@ -147,7 +149,10 @@ describe('LoanStatusCenter', () => {
     expect(await screen.findByText(/123 Main St/)).toBeInTheDocument();
     // With a single loan there is no picker (the <select> combobox).
     expect(screen.queryByRole('combobox')).not.toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: /loan status center/i })).toBeInTheDocument();
+    // The h1 IS the property address now (was a fixed "Loan status center").
+    expect(
+      screen.getByRole('heading', { level: 1, name: /123 Main St/i }),
+    ).toBeInTheDocument();
   });
 
   test('explicit loanId prop: fetches that loan directly and does NOT call /me/loans', async () => {
@@ -421,7 +426,7 @@ describe('LoanStatusCenter', () => {
     const vest = container.querySelector('.lsc-vesting');
     expect(vest).not.toBeNull();
     expect(vest).toHaveTextContent('John Q. Public and Jane Q. Public, as joint tenants');
-    // It sits inside the hero text block, after the address sub-line.
+    // It sits inside the hero text block, below the h1 address headline.
     expect(vest.closest('.lsc-hero-text')).not.toBeNull();
   });
 
@@ -440,6 +445,96 @@ describe('LoanStatusCenter', () => {
     const { container } = renderPage();
     await screen.findByText('Underwriting');
     expect(container.querySelector('.lsc-vesting')).toBeNull();
+  });
+
+  test('hero h1 IS the property address; no duplicate address subline', async () => {
+    mortgageService.getBorrowerDashboard.mockResolvedValue(FULL_DASHBOARD);
+    const { container } = renderPage();
+    await screen.findByText('Underwriting');
+
+    const h1 = container.querySelector('.lsc-hero-text h1');
+    expect(h1).not.toBeNull();
+    expect(h1).toHaveTextContent('123 Main St');
+    expect(h1).toHaveTextContent('Aurora, CO');
+    // The address is the headline now — the only remaining .lsc-sub in the hero
+    // is the vesting line; there is no separate address subline duplicating it.
+    const heroSubs = container.querySelector('.lsc-hero-text').querySelectorAll('.lsc-sub');
+    expect(heroSubs).toHaveLength(1);
+    expect(heroSubs[0]).toHaveClass('lsc-vesting');
+  });
+
+  test('no property/address → h1 falls back to "Loan status center"', async () => {
+    // DASHBOARD (default) has an address; strip the property to hit the fallback.
+    mortgageService.getBorrowerDashboard.mockResolvedValue({ status: 'IN_UNDERWRITING' });
+    renderPage();
+    expect(
+      await screen.findByRole('heading', { level: 1, name: /loan status center/i }),
+    ).toBeInTheDocument();
+  });
+
+  test('eyebrow shows the investor loan number when present', async () => {
+    mortgageService.getBorrowerDashboard.mockResolvedValue(FULL_DASHBOARD);
+    const { container } = renderPage();
+    await screen.findByText('Underwriting');
+    const eyebrow = container.querySelector('.lsc-eyebrow');
+    expect(eyebrow).not.toBeNull();
+    expect(eyebrow).toHaveTextContent('Loan #INV-55501');
+  });
+
+  test('eyebrow falls back to payload.loanNumber when no investorLoanNumber', async () => {
+    mortgageService.getBorrowerDashboard.mockResolvedValue({
+      ...FULL_DASHBOARD,
+      investorLoanNumber: undefined,
+      loanNumber: 'INTERNAL-9',
+    });
+    const { container } = renderPage();
+    await screen.findByText('Underwriting');
+    expect(container.querySelector('.lsc-eyebrow')).toHaveTextContent('Loan #INTERNAL-9');
+  });
+
+  test('eyebrow falls back to the loan-list number when the payload has none', async () => {
+    // FULL_DASHBOARD stripped of both payload numbers → selectedLoan.loanNumber
+    // (= ACTIVE_LOAN.applicationNumber '1000000042').
+    const { investorLoanNumber, ...noPayloadNums } = FULL_DASHBOARD;
+    mortgageService.getBorrowerDashboard.mockResolvedValue(noPayloadNums);
+    const { container } = renderPage();
+    await screen.findByText('Underwriting');
+    expect(container.querySelector('.lsc-eyebrow')).toHaveTextContent('Loan #1000000042');
+  });
+
+  test('no loan number anywhere → no eyebrow rendered', async () => {
+    // Explicit loanId mode: no loan list, and a payload with no numbers.
+    mortgageService.getBorrowerDashboard.mockResolvedValue({ status: 'IN_UNDERWRITING' });
+    const { container } = render(
+      <MemoryRouter initialEntries={['/client-view/LX']}>
+        <LoanStatusCenter loanId="LX" />
+      </MemoryRouter>,
+    );
+    await waitFor(() =>
+      expect(mortgageService.getBorrowerDashboard).toHaveBeenCalledWith('LX'),
+    );
+    expect(container.querySelector('.lsc-eyebrow')).toBeNull();
+  });
+
+  test('status pill still renders in the hero', async () => {
+    mortgageService.getBorrowerDashboard.mockResolvedValue(FULL_DASHBOARD);
+    const { container } = renderPage();
+    await screen.findByText('Underwriting');
+    const pill = container.querySelector('.lsc-status-pill');
+    expect(pill).not.toBeNull();
+    expect(pill).toHaveTextContent(/underwriting/i);
+  });
+
+  test('photo-mode hero keeps the h1 address and eyebrow inside the hero text block', async () => {
+    // FULL_DASHBOARD has property.photoUrl → lsc-hero--photo.
+    mortgageService.getBorrowerDashboard.mockResolvedValue(FULL_DASHBOARD);
+    const { container } = renderPage();
+    await screen.findByText('Underwriting');
+    const hero = container.querySelector('.lsc-hero');
+    expect(hero.classList.contains('lsc-hero--photo')).toBe(true);
+    const text = container.querySelector('.lsc-hero-text');
+    expect(text.querySelector('h1')).toHaveTextContent('123 Main St');
+    expect(text.querySelector('.lsc-eyebrow')).toHaveTextContent('Loan #INV-55501');
   });
 
   test('single "Your loan team" card renders in the rail below the LO card; closing costs unchanged', async () => {

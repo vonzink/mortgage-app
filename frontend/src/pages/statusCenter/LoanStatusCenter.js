@@ -153,6 +153,11 @@ export default function LoanStatusCenter({ loanId = null } = {}) {
     ? [prop.addressLine1, [prop.city, prop.state].filter(Boolean).join(', ')]
         .filter(Boolean).join(' · ') || null
     : null;
+  // v2.1 hero: the eyebrow shows the INVESTOR loan number when the API provides
+  // it (payload.investorLoanNumber), then the payload's internal loan number,
+  // then the loan-list number — robust before/after the API field lands.
+  const eyebrowLoanNumber =
+    payload?.investorLoanNumber ?? payload?.loanNumber ?? selectedLoan?.loanNumber ?? null;
 
   // v2.1 layout contract: one renderer for all 14 section keys, gated exactly
   // like the old inline blocks — a null/absent payload field means the LO hid
@@ -290,11 +295,13 @@ export default function LoanStatusCenter({ loanId = null } = {}) {
           />
         )}
         <div className="lsc-hero-text">
-          {selectedLoan?.loanNumber && (
-            <div className="lsc-eyebrow">Loan #{selectedLoan.loanNumber}</div>
+          {eyebrowLoanNumber && (
+            <div className="lsc-eyebrow">Loan #{eyebrowLoanNumber}</div>
           )}
-          <h1>Loan status center</h1>
-          {addressLine && <p className="lsc-sub">{addressLine}</p>}
+          {/* The property address is the hero headline; falls back to the app
+              title so the h1 is never empty. The old address subline is gone —
+              it would duplicate the h1. */}
+          <h1>{addressLine || 'Loan status center'}</h1>
           {prop?.vesting?.trim() && (
             <p className="lsc-sub lsc-vesting">{prop.vesting.trim()}</p>
           )}

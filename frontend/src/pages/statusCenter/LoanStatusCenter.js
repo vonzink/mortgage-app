@@ -91,6 +91,15 @@ export default function LoanStatusCenter({ loanId = null } = {}) {
     return active[0]?.id ?? loans[0]?.id ?? null;
   }, [loans, paramId, loanId]);
 
+  // Reset the hero to the first photo ONLY when the selected loan changes — not
+  // on a background refetch (retryTick bumps from NotificationsCard onSaved /
+  // UploadDropzone onUploaded), which would yank a borrower off the thumbnail
+  // they picked. A same-loan refetch that shrinks the photo list is handled by
+  // the heroEffectiveIdx clamp below, so a preserved index stays valid.
+  useEffect(() => {
+    setHeroIdx(0);
+  }, [selectedId]);
+
   useEffect(() => {
     if (!selectedId) return undefined;
     let stale = false;
@@ -101,7 +110,6 @@ export default function LoanStatusCenter({ loanId = null } = {}) {
       if (stale) return;
       if (data) {
         setPayload(data);
-        setHeroIdx(0); // new payload → hero returns to the first photo
         setError(null);
       } else {
         setError("Couldn't load your loan right now.");

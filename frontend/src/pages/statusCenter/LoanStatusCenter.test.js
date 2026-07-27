@@ -7,6 +7,7 @@ jest.mock('../../services/mortgageService', () => ({
   default: {
     getApplications: jest.fn(),
     getBorrowerDashboard: jest.fn(),
+    putNotificationPrefs: jest.fn(),
   },
 }));
 
@@ -379,6 +380,37 @@ describe('LoanStatusCenter', () => {
       expect(container.querySelector('.lsc-hero-photo').getAttribute('style')).toContain('prop-kitchen.jpg'),
     );
     expect(screen.getAllByRole('button', { name: /show photo \d of 2/i })[0].className).toContain('is-active');
+  });
+
+  test('a background refetch on the SAME loan PRESERVES the selected hero photo', async () => {
+    // Regression: the payload effect used to setHeroIdx(0) on every fetch, so a
+    // retryTick bump (NotificationsCard onSaved / UploadDropzone onUploaded) yanked
+    // the borrower back to photo #1. Reset now only fires on a loan change.
+    mortgageService.putNotificationPrefs.mockResolvedValue({});
+    mortgageService.getBorrowerDashboard.mockResolvedValue({
+      ...FULL_DASHBOARD,
+      property: { ...FULL_DASHBOARD.property, photoUrls: PHOTOS },
+    });
+    const { container } = renderPage();
+    await screen.findByText('Dana Lender');
+    const callsBefore = mortgageService.getBorrowerDashboard.mock.calls.length;
+
+    // Borrower picks the 2nd photo.
+    fireEvent.click(screen.getByRole('button', { name: /show photo 2 of 3/i }));
+    expect(container.querySelector('.lsc-hero-photo').getAttribute('style')).toContain('prop-back.jpg');
+
+    // Toggling a notification pref fires onSaved → refetch (retryTick bump) for the
+    // SAME loan — a background refresh, not a loan switch.
+    fireEvent.click(screen.getByRole('button', { name: /toggle condition updates/i }));
+    await waitFor(() =>
+      expect(mortgageService.getBorrowerDashboard.mock.calls.length).toBe(callsBefore + 1),
+    );
+
+    // Hero still shows the borrower's chosen photo — NOT reset to photo #1.
+    expect(container.querySelector('.lsc-hero-photo').getAttribute('style')).toContain('prop-back.jpg');
+    const thumbs = screen.getAllByRole('button', { name: /show photo \d of 3/i });
+    expect(thumbs[1].className).toContain('is-active');
+    expect(thumbs[0].className).not.toContain('is-active');
   });
 
   test('property.vesting renders under the address line', async () => {

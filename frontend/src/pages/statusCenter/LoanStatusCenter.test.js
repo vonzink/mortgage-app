@@ -105,6 +105,14 @@ const FULL_DASHBOARD = {
   },
 };
 
+// v2.1 multi-photo contract: ordered presigned GETs, no null elements
+// (the server skips failed presigns); property.photoUrl = first element.
+const PHOTOS = [
+  'https://s3.example.com/prop-photo.jpg?X-Amz-Signature=abc',
+  'https://s3.example.com/prop-back.jpg?X-Amz-Signature=def',
+  'https://s3.example.com/prop-kitchen.jpg?X-Amz-Signature=ghi',
+];
+
 function renderPage(initialEntry = '/dashboard') {
   return render(
     <MemoryRouter initialEntries={[initialEntry]}>
@@ -269,6 +277,88 @@ describe('LoanStatusCenter', () => {
     const hero = container.querySelector('.lsc-hero');
     expect(hero.classList.contains('lsc-hero--photo')).toBe(false);
     expect(container.querySelector('.lsc-hero-photo')).toBeNull();
+  });
+
+  test('photoUrls with >1 entries renders the thumbnail strip; hero shows the first photo', async () => {
+    mortgageService.getBorrowerDashboard.mockResolvedValue({
+      ...FULL_DASHBOARD,
+      property: { ...FULL_DASHBOARD.property, photoUrls: PHOTOS },
+    });
+    const { container } = renderPage();
+    await screen.findByText('Dana Lender');
+
+    const thumbs = screen.getAllByRole('button', { name: /show photo \d of 3/i });
+    expect(thumbs).toHaveLength(3);
+    expect(thumbs[0].className).toContain('is-active');
+    expect(thumbs[0]).toHaveAttribute('aria-pressed', 'true');
+    expect(thumbs[1]).toHaveAttribute('aria-pressed', 'false');
+    expect(container.querySelector('.lsc-hero-photo').getAttribute('style')).toContain('prop-photo.jpg');
+  });
+
+  test('clicking a thumbnail swaps it into the hero (client-side only, no refetch)', async () => {
+    mortgageService.getBorrowerDashboard.mockResolvedValue({
+      ...FULL_DASHBOARD,
+      property: { ...FULL_DASHBOARD.property, photoUrls: PHOTOS },
+    });
+    const { container } = renderPage();
+    await screen.findByText('Dana Lender');
+    const callsBefore = mortgageService.getBorrowerDashboard.mock.calls.length;
+
+    fireEvent.click(screen.getByRole('button', { name: /show photo 2 of 3/i }));
+
+    expect(container.querySelector('.lsc-hero-photo').getAttribute('style')).toContain('prop-back.jpg');
+    const thumbs = screen.getAllByRole('button', { name: /show photo \d of 3/i });
+    expect(thumbs[1].className).toContain('is-active');
+    expect(thumbs[0].className).not.toContain('is-active');
+    expect(mortgageService.getBorrowerDashboard.mock.calls.length).toBe(callsBefore);
+  });
+
+  test('photoUrls-only payload with ONE photo: hero renders, no strip', async () => {
+    // No legacy photoUrl at all — pins the new derivation, not the v2 fallback.
+    const propNoLegacy = { ...FULL_DASHBOARD.property, photoUrls: [PHOTOS[0]] };
+    delete propNoLegacy.photoUrl;
+    mortgageService.getBorrowerDashboard.mockResolvedValue({
+      ...FULL_DASHBOARD,
+      property: propNoLegacy,
+    });
+    const { container } = renderPage();
+    await screen.findByText('Dana Lender');
+
+    expect(container.querySelector('.lsc-photo-strip')).toBeNull();
+    const hero = container.querySelector('.lsc-hero');
+    expect(hero.classList.contains('lsc-hero--photo')).toBe(true);
+    expect(container.querySelector('.lsc-hero-photo').getAttribute('style')).toContain('prop-photo.jpg');
+  });
+
+  test('no photoUrls: legacy property.photoUrl still drives the hero, no strip (back-compat)', async () => {
+    // FULL_DASHBOARD.property has photoUrl but NO photoUrls — the pre-v2.1 shape.
+    mortgageService.getBorrowerDashboard.mockResolvedValue(FULL_DASHBOARD);
+    const { container } = renderPage();
+    await screen.findByText('Dana Lender');
+
+    expect(container.querySelector('.lsc-photo-strip')).toBeNull();
+    expect(container.querySelector('.lsc-hero-photo').getAttribute('style')).toContain('prop-photo.jpg');
+  });
+
+  test('switching loans resets the hero to the new loan\'s first photo', async () => {
+    mortgageService.getApplications.mockResolvedValue({ content: [ACTIVE_LOAN, PAST_LOAN] });
+    mortgageService.getBorrowerDashboard.mockImplementation(async (id) => (
+      id === 'suite-1'
+        ? { ...FULL_DASHBOARD, property: { ...FULL_DASHBOARD.property, photoUrls: PHOTOS } }
+        : { ...FULL_DASHBOARD, property: { ...FULL_DASHBOARD.property, photoUrls: [PHOTOS[2], PHOTOS[1]] } }
+    ));
+    const { container } = renderPage();
+    const select = await screen.findByRole('combobox');
+    await screen.findByText('Dana Lender');
+
+    fireEvent.click(screen.getByRole('button', { name: /show photo 2 of 3/i }));
+    expect(container.querySelector('.lsc-hero-photo').getAttribute('style')).toContain('prop-back.jpg');
+
+    fireEvent.change(select, { target: { value: 'suite-2' } });
+    await waitFor(() =>
+      expect(container.querySelector('.lsc-hero-photo').getAttribute('style')).toContain('prop-kitchen.jpg'),
+    );
+    expect(screen.getAllByRole('button', { name: /show photo \d of 2/i })[0].className).toContain('is-active');
   });
 
   test('property.vesting renders under the address line', async () => {

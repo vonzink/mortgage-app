@@ -38,6 +38,7 @@ export default function LoanStatusCenter({ loanId = null } = {}) {
   const [error, setError] = useState(null);
   const [retryTick, setRetryTick] = useState(0);
   const [calendarOpen, setCalendarOpen] = useState(false);
+  const [heroIdx, setHeroIdx] = useState(0); // thumbnail-strip selection (v2.1)
   const dropzoneRef = useRef(null);
 
   // Re-run the dashboard fetch for the selected loan (used after an upload or a
@@ -100,6 +101,7 @@ export default function LoanStatusCenter({ loanId = null } = {}) {
       if (stale) return;
       if (data) {
         setPayload(data);
+        setHeroIdx(0); // new payload → hero returns to the first photo
         setError(null);
       } else {
         setError("Couldn't load your loan right now.");
@@ -129,7 +131,16 @@ export default function LoanStatusCenter({ loanId = null } = {}) {
 
   const selectedLoan = loans?.find((l) => String(l.id) === String(selectedId)) || null;
   const prop = payload?.property || null;
-  const photoUrl = prop?.photoUrl || null;
+  // v2.1 multi-photo: property.photoUrls (ordered presigned GETs, never
+  // containing nulls — the server skips failed presigns) drives the hero and
+  // the thumbnail strip; property.photoUrl (= first element; the only field on
+  // pre-v2.1 payloads) remains the legacy fallback. heroIdx is clamped so a
+  // stale index (payload refetch shrank the list) falls back to the first photo.
+  const photoList = Array.isArray(prop?.photoUrls) && prop.photoUrls.length > 0
+    ? prop.photoUrls
+    : (prop?.photoUrl ? [prop.photoUrl] : []);
+  const heroEffectiveIdx = photoList[heroIdx] != null ? heroIdx : 0;
+  const photoUrl = photoList[heroEffectiveIdx] ?? null;
   const addressLine = prop
     ? [prop.addressLine1, [prop.city, prop.state].filter(Boolean).join(', ')]
         .filter(Boolean).join(' · ') || null
@@ -284,6 +295,22 @@ export default function LoanStatusCenter({ loanId = null } = {}) {
           <span className="lsc-status-pill">{humanizeStatus(payload.status)}</span>
         )}
       </header>
+
+      {photoList.length > 1 && (
+        <div className="lsc-photo-strip" role="group" aria-label="Property photos">
+          {photoList.map((url, i) => (
+            <button
+              key={`photo-${i}`}
+              type="button"
+              className={`lsc-photo-thumb${i === heroEffectiveIdx ? ' is-active' : ''}`}
+              style={{ backgroundImage: `url("${url}")` }}
+              aria-label={`Show photo ${i + 1} of ${photoList.length}`}
+              aria-pressed={i === heroEffectiveIdx}
+              onClick={() => setHeroIdx(i)}
+            />
+          ))}
+        </div>
+      )}
 
       {!loanId && loans && loans.length > 1 && (
         <LoanSelector loans={loans} selectedId={selectedId} onSelect={handleSelect} />

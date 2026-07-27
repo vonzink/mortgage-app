@@ -978,3 +978,38 @@
 .lsc-contact-id { padding: 6px 22px 2px; }
 .lsc-contact-id b { display: block; font-size: 14px; font-weight: 800; }
 .lsc-contact-id span { display: block; font-size: 11.5px; color: var(--ink-soft); margin-top: 1px; }
+
+/* ---------- Borrower Dashboard v2.1: property photo thumbnail strip ---------- */
+/* Renders under the hero only when the payload carries >1 photo; horizontal
+ * scroll on overflow; the active thumb gets a green ring. Single-photo payloads
+ * never render the strip — the hero stays byte-identical to v2. */
+.lsc-photo-strip {
+  display: flex;
+  gap: 10px;
+  overflow-x: auto;
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 14px 36px 0;
+  -webkit-overflow-scrolling: touch;
+}
+.lsc-photo-thumb {
+  flex: 0 0 auto;
+  width: 84px;
+  height: 56px;
+  padding: 0;
+  border-radius: 12px;
+  border: 2px solid transparent;
+  background-color: #DDE3DC;
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  box-shadow: var(--shadow-sm);
+}
+.lsc-photo-thumb:hover { border-color: var(--sage); }
+.lsc-photo-thumb.is-active {
+  border-color: var(--green);
+  box-shadow: 0 0 0 3px rgba(41, 194, 78, .25);
+}
+@media (max-width: 860px) {
+  .lsc-photo-strip { padding: 12px 16px 0; }
+}

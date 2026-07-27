@@ -3,6 +3,7 @@ import { useSearchParams } from 'react-router-dom';
 
 import mortgageService from '../../services/mortgageService';
 import { groupLoans } from './loanGroups';
+import planColumns from './planColumns';
 import LoanSelector, { humanizeStatus } from './sections/LoanSelector';
 import StatusRail from './sections/StatusRail';
 import TodoList from './sections/TodoList';
@@ -134,6 +135,113 @@ export default function LoanStatusCenter({ loanId = null } = {}) {
         .filter(Boolean).join(' · ') || null
     : null;
 
+  // v2.1 layout contract: one renderer for all 14 section keys, gated exactly
+  // like the old inline blocks — a null/absent payload field means the LO hid
+  // the section, so its key renders nothing no matter which column the layout
+  // puts it in.
+  const renderSection = (key) => {
+    switch (key) {
+      case 'milestones':
+        return payload?.milestones != null
+          ? <StatusRail key="milestones" milestones={payload.milestones} />
+          : null;
+      case 'loanOfficer':
+        return payload?.loanOfficer != null
+          ? <LoanOfficerCard key="loanOfficer" loanOfficer={payload.loanOfficer} />
+          : null;
+      case 'contacts':
+        return payload?.contacts != null
+          ? <ContactCards key="contacts" contacts={payload.contacts} />
+          : null;
+      case 'notifications':
+        return payload?.notificationPrefs != null
+          ? (
+            <NotificationsCard
+              key="notifications"
+              prefs={payload.notificationPrefs}
+              suiteLoanId={selectedId}
+              onSaved={refetch}
+            />
+          )
+          : null;
+      case 'todo':
+        return payload?.conditions != null
+          ? (
+            <TodoList
+              key="todo"
+              conditions={payload.conditions}
+              onUploadForCondition={focusDropzone}
+            />
+          )
+          : null;
+      case 'dropzone':
+        return payload?.documents?.uploads != null
+          ? (
+            <div key="dropzone" ref={dropzoneRef}>
+              <UploadDropzone suiteLoanId={selectedId} onUploaded={refetch} />
+            </div>
+          )
+          : null;
+      case 'cleared':
+        return payload?.conditions != null
+          ? <ClearedItems key="cleared" conditions={payload.conditions} />
+          : null;
+      case 'downloads':
+        return payload?.documents?.fromTeam != null
+          ? (
+            <DownloadsCard
+              key="downloads"
+              fromTeam={payload.documents.fromTeam}
+              suiteLoanId={selectedId}
+            />
+          )
+          : null;
+      case 'rateLock':
+        return payload?.rateLock != null
+          ? <RateLockCard key="rateLock" rateLock={payload.rateLock} />
+          : null;
+      case 'keyDates':
+        return payload?.keyDates != null
+          ? (
+            <KeyDatesCard
+              key="keyDates"
+              keyDates={payload.keyDates}
+              onOpenCalendar={() => setCalendarOpen(true)}
+            />
+          )
+          : null;
+      case 'appraisal':
+        return payload?.visibility?.showAppraisal
+          ? (
+            <AppraisalCard
+              key="appraisal"
+              keyDates={payload.keyDates || []}
+              purchasePrice={payload.loanSnapshot?.purchasePrice}
+            />
+          )
+          : null;
+      case 'snapshot':
+        return payload?.loanSnapshot != null
+          ? <SnapshotCard key="snapshot" loanSnapshot={payload.loanSnapshot} />
+          : null;
+      case 'payment':
+        return payload?.payment != null
+          ? <PaymentCard key="payment" payment={payload.payment} />
+          : null;
+      case 'closingCosts':
+        return payload?.closingCosts != null
+          ? <ClosingCostsCard key="closingCosts" closingCosts={payload.closingCosts} />
+          : null;
+      default:
+        return null;
+    }
+  };
+
+  // Column plan: layout-claimed keys render in the column that claims them
+  // (cross-column drags honored); unclaimed keys append to their home column
+  // in default order. Absent/malformed layout → the default arrangement.
+  const columnPlan = planColumns(payload?.layout);
+
   return (
     <div className="lsc-page">
       {error && (
@@ -188,76 +296,26 @@ export default function LoanStatusCenter({ loanId = null } = {}) {
           {/*
             Each section renders ONLY when its gating payload field is non-null;
             a null/absent field means the LO hid that section (server-visibility
-            contract), so we render nothing for it. visibility{} is always present
-            and gates the appraisal card, which has no own payload field.
+            contract). visibility{} is always present and gates the appraisal
+            card, which has no own payload field.
+
+            v2.1: section ARRANGEMENT (column + order) comes from payload.layout
+            (the LO's saved drag-to-arrange; union contract — any key in any
+            column) via planColumns — absent layout falls back to the default
+            arrangement, unknown keys are ignored, cross-array duplicates
+            resolve global-first-occurrence-wins, unclaimed keys append to
+            their home column in default order. Hiding beats ordering.
           */}
           <aside className="lsc-rail-col">
-            {payload?.milestones != null && (
-              <StatusRail milestones={payload.milestones} />
-            )}
-            {payload?.loanOfficer != null && (
-              <LoanOfficerCard loanOfficer={payload.loanOfficer} />
-            )}
-            {payload?.contacts != null && (
-              <ContactCards contacts={payload.contacts} />
-            )}
-            {payload?.notificationPrefs != null && (
-              <NotificationsCard
-                prefs={payload.notificationPrefs}
-                suiteLoanId={selectedId}
-                onSaved={refetch}
-              />
-            )}
+            {columnPlan.rail.map(renderSection)}
           </aside>
 
           <main className="lsc-main-col">
-            {payload?.conditions != null && (
-              <TodoList
-                conditions={payload.conditions}
-                onUploadForCondition={focusDropzone}
-              />
-            )}
-            {payload?.documents?.uploads != null && (
-              <div ref={dropzoneRef}>
-                <UploadDropzone suiteLoanId={selectedId} onUploaded={refetch} />
-              </div>
-            )}
-            {payload?.conditions != null && (
-              <ClearedItems conditions={payload.conditions} />
-            )}
-            {payload?.documents?.fromTeam != null && (
-              <DownloadsCard
-                fromTeam={payload.documents.fromTeam}
-                suiteLoanId={selectedId}
-              />
-            )}
+            {columnPlan.main.map(renderSection)}
           </main>
 
           <aside className="lsc-side-col">
-            {payload?.rateLock != null && (
-              <RateLockCard rateLock={payload.rateLock} />
-            )}
-            {payload?.keyDates != null && (
-              <KeyDatesCard
-                keyDates={payload.keyDates}
-                onOpenCalendar={() => setCalendarOpen(true)}
-              />
-            )}
-            {payload?.visibility?.showAppraisal && (
-              <AppraisalCard
-                keyDates={payload.keyDates || []}
-                purchasePrice={payload.loanSnapshot?.purchasePrice}
-              />
-            )}
-            {payload?.loanSnapshot != null && (
-              <SnapshotCard loanSnapshot={payload.loanSnapshot} />
-            )}
-            {payload?.payment != null && (
-              <PaymentCard payment={payload.payment} />
-            )}
-            {payload?.closingCosts != null && (
-              <ClosingCostsCard closingCosts={payload.closingCosts} />
-            )}
+            {columnPlan.side.map(renderSection)}
           </aside>
         </div>
       )}

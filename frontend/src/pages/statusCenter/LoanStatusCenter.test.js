@@ -328,6 +328,110 @@ describe('LoanStatusCenter', () => {
     expect(sideHeadings.indexOf('Estimated monthly payment')).toBeLessThan(sideHeadings.indexOf('Closing costs'));
   });
 
+  test('payload.layout reorders sections within each column', async () => {
+    mortgageService.getBorrowerDashboard.mockResolvedValue({
+      ...FULL_DASHBOARD,
+      layout: {
+        rail: ['notifications', 'contacts', 'loanOfficer', 'milestones'],
+        main: ['downloads', 'cleared', 'dropzone', 'todo'],
+        side: ['closingCosts', 'payment', 'snapshot', 'appraisal', 'keyDates', 'rateLock'],
+      },
+    });
+    const { container } = renderPage();
+    await screen.findByText('Dana Lender');
+
+    const rail = [...container.querySelector('.lsc-rail-col').children];
+    expect(rail[0].querySelector('h3')).toHaveTextContent('Notifications');
+    expect(rail[1].querySelector('h3')).toHaveTextContent('Your loan team');
+    expect(rail[2].querySelector('h3')).toHaveTextContent('Your loan officer');
+    expect(rail[3].classList.contains('lsc-rail')).toBe(true); // StatusRail <ol> last
+
+    const main = [...container.querySelector('.lsc-main-col').children];
+    expect(main[0].querySelector('h3')).toHaveTextContent('Downloads');
+    expect(main[1].querySelector('h3')).toHaveTextContent('Cleared items');
+    expect(main[2]).toHaveTextContent('Drop your documents here'); // dropzone wrapper div
+    expect(main[3].querySelector('h3')).toHaveTextContent('Your to-do list');
+
+    const side = [...container.querySelector('.lsc-side-col').children];
+    expect(side[0].querySelector('h3')).toHaveTextContent('Closing costs');
+    expect(side[1].querySelector('h3')).toHaveTextContent('Estimated monthly payment');
+    expect(side[2].querySelector('h3')).toHaveTextContent('Your loan at a glance');
+    expect(side[3].querySelector('h3')).toHaveTextContent('Appraisal');
+    expect(side[4].querySelector('h3')).toHaveTextContent('Key dates');
+    expect(side[5].classList.contains('lsc-lockcard')).toBe(true); // RateLockCard (headerless)
+  });
+
+  test('layout: unknown keys are ignored and missing keys append in default order', async () => {
+    mortgageService.getBorrowerDashboard.mockResolvedValue({
+      ...FULL_DASHBOARD,
+      layout: {
+        rail: ['contacts', 'somethingNew'], // partial + unknown key
+        main: ['downloads'],                // partial
+        // side absent entirely → default side order
+      },
+    });
+    const { container } = renderPage();
+    await screen.findByText('Dana Lender');
+
+    const rail = [...container.querySelector('.lsc-rail-col').children];
+    expect(rail[0].querySelector('h3')).toHaveTextContent('Your loan team');
+    expect(rail[1].classList.contains('lsc-rail')).toBe(true); // milestones appended first…
+    expect(rail[2].querySelector('h3')).toHaveTextContent('Your loan officer');
+    expect(rail[3].querySelector('h3')).toHaveTextContent('Notifications');
+
+    const main = [...container.querySelector('.lsc-main-col').children];
+    expect(main[0].querySelector('h3')).toHaveTextContent('Downloads');
+    expect(main[1].querySelector('h3')).toHaveTextContent('Your to-do list');
+    expect(main[2]).toHaveTextContent('Drop your documents here');
+    expect(main[3].querySelector('h3')).toHaveTextContent('Cleared items');
+
+    const side = [...container.querySelector('.lsc-side-col').children];
+    expect(side[0].classList.contains('lsc-lockcard')).toBe(true); // default order intact
+    expect(side[side.length - 1].querySelector('h3')).toHaveTextContent('Closing costs');
+  });
+
+  test('a section listed in the layout but hidden by the LO still renders nothing', async () => {
+    mortgageService.getBorrowerDashboard.mockResolvedValue({
+      ...FULL_DASHBOARD,
+      contacts: null, // LO hid the loan-team card
+      layout: { rail: ['contacts', 'loanOfficer', 'milestones', 'notifications'] },
+    });
+    const { container } = renderPage();
+    await screen.findByText('Dana Lender');
+
+    expect(screen.queryByText('Your loan team')).not.toBeInTheDocument();
+    // loanOfficer leads the rail — the hidden contacts key contributed nothing.
+    const rail = [...container.querySelector('.lsc-rail-col').children];
+    expect(rail[0].querySelector('h3')).toHaveTextContent('Your loan officer');
+  });
+
+  test('cross-column placement: a key dragged to another column renders there', async () => {
+    // Union contract: the console can drag any section across columns; the
+    // API plan's ITs park rateLock in rail and expect 200 — the borrower app
+    // must honor the persisted placement, not snap it back to its home column.
+    mortgageService.getBorrowerDashboard.mockResolvedValue({
+      ...FULL_DASHBOARD,
+      layout: {
+        rail: ['rateLock', 'milestones', 'loanOfficer', 'contacts', 'notifications'],
+        main: ['todo', 'dropzone', 'cleared', 'downloads'],
+        side: ['keyDates', 'appraisal', 'snapshot', 'payment', 'closingCosts'],
+      },
+    });
+    const { container } = renderPage();
+    await screen.findByText('Dana Lender');
+
+    // RateLockCard now leads the RAIL — and is gone from the side column.
+    const rail = container.querySelector('.lsc-rail-col');
+    expect(rail.firstElementChild.classList.contains('lsc-lockcard')).toBe(true);
+    expect(container.querySelector('.lsc-side-col .lsc-lockcard')).toBeNull();
+
+    // The side column renders its remaining sections, in order, without rateLock.
+    const sideHeadings = [...container.querySelectorAll('.lsc-side-col .lsc-card-h h3')].map((h) => h.textContent);
+    expect(sideHeadings).toEqual([
+      'Key dates', 'Appraisal', 'Your loan at a glance', 'Estimated monthly payment', 'Closing costs',
+    ]);
+  });
+
   test('LO-hid contract: contacts/closingCosts null (or contacts empty) render nothing', async () => {
     mortgageService.getBorrowerDashboard.mockResolvedValue({
       ...FULL_DASHBOARD,

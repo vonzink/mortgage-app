@@ -5,8 +5,12 @@ import React from 'react';
  * Ported from the "status rail" (.railcard/.rail/.rl) block of
  * docs/design/loan-status-center/MSFG Loan Status Center.html, rendered as a
  * semantic <ol>/<li>. The container passes the borrower dashboard's
- * `milestones`: exactly 6 { key, label, state, date } where
- * state ∈ {"DONE","CURRENT","UPCOMING"} and date is an ISO date string or null.
+ * `milestones`: since v2.1 the 8 pipeline Kanban lanes in board order (key is
+ * the lane enum name, e.g. "PRE_APPROVAL"; label is the lane label, e.g.
+ * "Pre-Approval") as { key, label, state, date } where state ∈
+ * {"DONE","CURRENT","UPCOMING"} and date is an ISO date string or null. The
+ * component renders whatever list arrives — no hardcoded count. An INACTIVE
+ * effective lane arrives as a rail with no CURRENT entry.
  */
 
 // UTC-pinned so a YYYY-MM-DD ISO date (parsed at UTC midnight) never renders one

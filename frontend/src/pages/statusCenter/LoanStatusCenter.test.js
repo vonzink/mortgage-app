@@ -44,10 +44,17 @@ const FULL_DASHBOARD = {
     photoUrl: 'https://s3.example.com/prop-photo.jpg?X-Amz-Signature=abc',
     vesting: 'John Q. Public and Jane Q. Public, as joint tenants',
   },
+  // v2.1: the 8 pipeline Kanban lanes in board order (key = KanbanLane.name(),
+  // label = lane label()); CURRENT matches this fixture's IN_UNDERWRITING status.
   milestones: [
-    { key: 'APPLICATION', label: 'Application received', state: 'DONE', date: '2026-05-01' },
-    { key: 'PROCESSING', label: 'In processing', state: 'CURRENT', date: null },
-    { key: 'CLEAR_TO_CLOSE', label: 'Clear to close', state: 'UPCOMING', date: null },
+    { key: 'PRE_APPROVAL', label: 'Pre-Approval', state: 'DONE', date: '2026-04-20' },
+    { key: 'APPLICATION', label: 'Application', state: 'DONE', date: '2026-05-01' },
+    { key: 'PROCESSING', label: 'Processing', state: 'DONE', date: '2026-05-20' },
+    { key: 'UNDERWRITING', label: 'Underwriting', state: 'CURRENT', date: null },
+    { key: 'CONDITIONAL_APPROVAL', label: 'Conditional Approval', state: 'UPCOMING', date: null },
+    { key: 'CLEAR_TO_CLOSE', label: 'Clear to Close', state: 'UPCOMING', date: null },
+    { key: 'CLOSED', label: 'Closed', state: 'UPCOMING', date: null },
+    { key: 'FUNDED', label: 'Funded', state: 'UPCOMING', date: null },
   ],
   conditions: {
     outstandingCount: 1,
@@ -222,7 +229,7 @@ describe('LoanStatusCenter', () => {
     const { container } = renderPage();
 
     // Left rail — a milestone label.
-    expect(await screen.findByText('In processing')).toBeInTheDocument();
+    expect(await screen.findByText('Underwriting')).toBeInTheDocument();
     // Main — the to-do condition, the upload dropzone, a download button.
     expect(screen.getByText('2025 W-2 — all employers')).toBeInTheDocument();
     expect(screen.getByText(/Drop your documents here/i)).toBeInTheDocument();
@@ -244,6 +251,19 @@ describe('LoanStatusCenter', () => {
     expect(container.querySelector('.lsc-side-col')).toHaveTextContent(/Appraisal/i);
   });
 
+  test('milestone rail renders all 8 pipeline lanes in board order', async () => {
+    mortgageService.getBorrowerDashboard.mockResolvedValue(FULL_DASHBOARD);
+    const { container } = renderPage();
+    await screen.findByText('Dana Lender');
+
+    const labels = [...container.querySelectorAll('.lsc-rail .lsc-rl-label')].map((el) => el.textContent);
+    expect(labels).toEqual([
+      'Pre-Approval', 'Application', 'Processing', 'Underwriting',
+      'Conditional Approval', 'Clear to Close', 'Closed', 'Funded',
+    ]);
+    expect(container.querySelector('.lsc-rl.current .lsc-rl-label')).toHaveTextContent('Underwriting');
+  });
+
   test('Document history card no longer renders, even with uploads present', async () => {
     mortgageService.getBorrowerDashboard.mockResolvedValue(FULL_DASHBOARD);
     renderPage();
@@ -258,7 +278,7 @@ describe('LoanStatusCenter', () => {
   test('property.photoUrl renders the hero photo banner layer', async () => {
     mortgageService.getBorrowerDashboard.mockResolvedValue(FULL_DASHBOARD);
     const { container } = renderPage();
-    await screen.findByText('In processing');
+    await screen.findByText('Underwriting');
 
     const hero = container.querySelector('.lsc-hero');
     expect(hero.classList.contains('lsc-hero--photo')).toBe(true);
@@ -364,7 +384,7 @@ describe('LoanStatusCenter', () => {
   test('property.vesting renders under the address line', async () => {
     mortgageService.getBorrowerDashboard.mockResolvedValue(FULL_DASHBOARD);
     const { container } = renderPage();
-    await screen.findByText('In processing');
+    await screen.findByText('Underwriting');
 
     const vest = container.querySelector('.lsc-vesting');
     expect(vest).not.toBeNull();
@@ -386,7 +406,7 @@ describe('LoanStatusCenter', () => {
       property: { ...FULL_DASHBOARD.property, vesting: '   ' },
     });
     const { container } = renderPage();
-    await screen.findByText('In processing');
+    await screen.findByText('Underwriting');
     expect(container.querySelector('.lsc-vesting')).toBeNull();
   });
 
@@ -530,7 +550,7 @@ describe('LoanStatusCenter', () => {
     });
     renderPage();
 
-    expect(await screen.findByText('In processing')).toBeInTheDocument();
+    expect(await screen.findByText('Underwriting')).toBeInTheDocument();
     expect(screen.queryByText('Terri Cruz')).not.toBeInTheDocument();
     expect(screen.queryByText('Closing costs')).not.toBeInTheDocument();
     // The rest of the grid is intact.
@@ -545,7 +565,7 @@ describe('LoanStatusCenter', () => {
     });
     renderPage();
 
-    expect(await screen.findByText('In processing')).toBeInTheDocument();
+    expect(await screen.findByText('Underwriting')).toBeInTheDocument();
     expect(screen.queryByText('Terri Cruz')).not.toBeInTheDocument();
     expect(screen.queryByText('Your loan team')).not.toBeInTheDocument();
     expect(screen.getByText('Your loan officer')).toBeInTheDocument();
@@ -561,7 +581,7 @@ describe('LoanStatusCenter', () => {
     renderPage();
 
     // Visible sections still render (proves the rest of the grid is intact).
-    expect(await screen.findByText('In processing')).toBeInTheDocument();
+    expect(await screen.findByText('Underwriting')).toBeInTheDocument();
     expect(screen.getByText('2025 W-2 — all employers')).toBeInTheDocument();
 
     // Hidden sections are ABSENT (server-visibility contract flows to the UI).

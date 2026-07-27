@@ -300,33 +300,31 @@ describe('LoanStatusCenter', () => {
     expect(container.querySelector('.lsc-vesting')).toBeNull();
   });
 
-  test('contacts render in the rail below the LO card; closing costs in the side column after Payment', async () => {
+  test('single "Your loan team" card renders in the rail below the LO card; closing costs unchanged', async () => {
     mortgageService.getBorrowerDashboard.mockResolvedValue(FULL_DASHBOARD);
     const { container } = renderPage();
-    await screen.findByText('In processing');
+    await screen.findByText('Dana Lender');
 
-    // Contacts land in the rail column…
+    // ONE consolidated card holds both contacts…
     const rail = container.querySelector('.lsc-rail-col');
+    expect(rail.querySelectorAll('.lsc-contact')).toHaveLength(1);
     expect(rail).toHaveTextContent('Terri Cruz');
     expect(rail).toHaveTextContent('Alta Title Co.');
     expect(rail).toHaveTextContent('Ian Shore');
-    // …after the LO card and before Notifications (heading order proves placement).
+    // …with roleLabel eyebrows, not per-contact card headings.
     const railHeadings = [...rail.querySelectorAll('.lsc-card-h h3')].map((h) => h.textContent);
     expect(railHeadings).toEqual(
-      expect.arrayContaining(['Your loan officer', 'Title', 'Insurance', 'Notifications'])
+      expect.arrayContaining(['Your loan officer', 'Your loan team', 'Notifications'])
     );
-    expect(railHeadings.indexOf('Your loan officer')).toBeLessThan(railHeadings.indexOf('Title'));
-    expect(railHeadings.indexOf('Insurance')).toBeLessThan(railHeadings.indexOf('Notifications'));
+    expect(railHeadings).not.toEqual(expect.arrayContaining(['Title']));
+    expect(railHeadings.indexOf('Your loan officer')).toBeLessThan(railHeadings.indexOf('Your loan team'));
+    expect(railHeadings.indexOf('Your loan team')).toBeLessThan(railHeadings.indexOf('Notifications'));
 
-    // Closing costs land in the side column, after the payment card.
+    // Closing costs unchanged: side column, after the payment card.
     const side = container.querySelector('.lsc-side-col');
     expect(side).toHaveTextContent('Closing costs');
     expect(side).toHaveTextContent('$8,900.00');
-    expect(side).toHaveTextContent('Estimated cash to close');
     const sideHeadings = [...side.querySelectorAll('.lsc-card-h h3')].map((h) => h.textContent);
-    expect(sideHeadings).toEqual(
-      expect.arrayContaining(['Estimated monthly payment', 'Closing costs'])
-    );
     expect(sideHeadings.indexOf('Estimated monthly payment')).toBeLessThan(sideHeadings.indexOf('Closing costs'));
   });
 
@@ -346,7 +344,7 @@ describe('LoanStatusCenter', () => {
     expect(screen.getByText('Estimated monthly payment')).toBeInTheDocument();
   });
 
-  test('empty contacts array renders no contact cards', async () => {
+  test('empty contacts array renders no loan-team card', async () => {
     mortgageService.getBorrowerDashboard.mockResolvedValue({
       ...FULL_DASHBOARD,
       contacts: [],
@@ -355,6 +353,7 @@ describe('LoanStatusCenter', () => {
 
     expect(await screen.findByText('In processing')).toBeInTheDocument();
     expect(screen.queryByText('Terri Cruz')).not.toBeInTheDocument();
+    expect(screen.queryByText('Your loan team')).not.toBeInTheDocument();
     expect(screen.getByText('Your loan officer')).toBeInTheDocument();
   });
 

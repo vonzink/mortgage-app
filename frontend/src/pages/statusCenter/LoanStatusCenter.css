@@ -942,8 +942,39 @@
   opacity: 1;
 }
 
-/* contact cards (rail, under the LO card) — reuse .lsc-card / .lsc-lo-row;
- * only the compact identity block is new */
-.lsc-contact-id { padding: 12px 22px 4px; }
+/* ---------- Borrower Dashboard v2.1: single "Your loan team" card ---------- */
+/* One consolidated card in the rail (was one card per contact). Reuses
+ * .lsc-card / .lsc-lo-row; each contact is a .lsc-contact-row group with a
+ * roleLabel eyebrow. Divider uses the sibling combinator — NOT :first-of-type —
+ * because the .lsc-card-h header is also a <div>, so :first-of-type on
+ * .lsc-contact-row would never match. */
+.lsc-contact-row + .lsc-contact-row {
+  border-top: 1px solid var(--line);
+  margin-top: 12px;
+}
+.lsc-contact-eyebrow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 14px 22px 0;
+  font-size: 10.5px;
+  font-weight: 800;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+}
+.lsc-contact-eyebrow-ic {
+  flex: 0 0 auto;
+  width: 22px;
+  height: 22px;
+  border-radius: 7px;
+  background: #F1F4F0;
+  color: var(--forest);
+  display: grid;
+  place-items: center;
+  font-size: 11px;
+  letter-spacing: 0;
+}
+.lsc-contact-id { padding: 6px 22px 2px; }
 .lsc-contact-id b { display: block; font-size: 14px; font-weight: 800; }
 .lsc-contact-id span { display: block; font-size: 11.5px; color: var(--ink-soft); margin-top: 1px; }

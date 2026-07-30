@@ -56,6 +56,28 @@ export const STATUS_TONE = {
   CANCELLED: 'danger',
   DENIED: 'danger',
   SUSPENDED: 'danger',
+
+  // MSFG operational board — appended to LoanStatus after this map was written, so every one of
+  // them used to fall through to the 'muted' default. The dead and stuck ones especially: a loan
+  // that is rescinded or on collection hold read exactly like one that had merely just started.
+  NEW_LOAN: 'muted',
+  REGISTERED: 'muted',
+  NOT_READY_TO_SUBMIT: 'muted',
+  READY_TO_SUBMIT: 'review',
+  RESUBMITTED: 'review',
+  CONDITIONS_PENDING: 'review',
+  CONDITIONS_SENT: 'review',
+  BALANCED_FOR_CLOSING: 'active',
+  CLOSING_DOCS_OUT: 'active',
+  CLOSED: 'active',
+  WAITING_FOR_B1_REIMBURSEMENT: 'review',
+  // Not terminal, but stuck — on a list whose job is spotting problems, these are problems.
+  HOLD: 'danger',
+  HOLD_ON_COLLECTION: 'danger',
+  NOT_ACTIVE_LOAN: 'danger',
+  DL_RESCINDED: 'danger',
+  DL_NOT_ACCEPTED: 'danger',
+  DL_INCOMPLETE: 'danger',
 };
 
 /** Map a suite LoanStatus → a Pill tone token (default 'muted' for unknowns). */

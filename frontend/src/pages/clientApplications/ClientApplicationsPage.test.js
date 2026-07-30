@@ -3,6 +3,7 @@ import { render, screen, waitFor, within, fireEvent } from '@testing-library/rea
 import { MemoryRouter, Routes, Route, useLocation } from 'react-router-dom';
 import ClientApplicationsPage from './ClientApplicationsPage';
 import mortgageService from '../../services/mortgageService';
+import { setClientContext, clearClientContext } from '../clientView/clientContext';
 
 jest.mock('../../services/mortgageService');
 
@@ -31,7 +32,7 @@ function renderAt(borrowerId = 'B7') {
 const ACCESSIBLE = {
   loanId: 'L1',
   loanNumber: '1001',
-  status: 'PROCESSING',
+  status: 'IN_UNDERWRITING',
   primaryBorrowerName: 'Ada Lovelace',
   propertyCity: 'Boise',
   propertyState: 'ID',
@@ -43,7 +44,7 @@ const ACCESSIBLE = {
 const RESTRICTED = {
   loanId: 'L2',
   loanNumber: '2002',
-  status: 'UNDERWRITING',
+  status: 'CONDITIONS_PENDING',
   primaryBorrowerName: 'Ada Lovelace',
   propertyCity: 'Meridian',
   propertyState: 'ID',
@@ -62,6 +63,7 @@ function mockLoans({ accessible = [], restricted = [], totalMatched } = {}) {
 
 beforeEach(() => {
   mockRoles = { isStaff: true, isBorrower: false };
+  clearClientContext(); // sessionStorage outlives a test — a leaked stash silently names clients
   mockLoans({ accessible: [ACCESSIBLE], restricted: [RESTRICTED] });
 });
 
@@ -73,11 +75,21 @@ it('renders both an accessible and a restricted row', async () => {
 
   expect(within(accessible).getByText(/1001/)).toBeInTheDocument();
   expect(within(accessible).getByText(/Boise, ID/)).toBeInTheDocument();
-  expect(within(accessible).getByText(/PROCESSING/)).toBeInTheDocument();
+  expect(within(accessible).getByText(/IN_UNDERWRITING/)).toBeInTheDocument();
 
   expect(within(restricted).getByText(/2002/)).toBeInTheDocument();
   expect(within(restricted).getByText(/Meridian, ID/)).toBeInTheDocument();
-  expect(within(restricted).getByText(/UNDERWRITING/)).toBeInTheDocument();
+  expect(within(restricted).getByText(/CONDITIONS_PENDING/)).toBeInTheDocument();
+});
+
+it('tones a dead loan as a problem, not as work in progress', async () => {
+  // The row-level proof that this page reads the shared LoanStatus map: DL_RESCINDED is a real
+  // status the page's old private map had never heard of, so it rendered in the in-progress tone.
+  mockLoans({ accessible: [{ ...ACCESSIBLE, status: 'DL_RESCINDED' }], restricted: [] });
+  renderAt();
+
+  const row = await screen.findByTestId('client-loan-L1');
+  expect(within(row).getByText(/DL_RESCINDED/)).toHaveClass('pill', 'danger');
 });
 
 it('fetches with the borrowerId from the route', async () => {
@@ -160,6 +172,18 @@ it('names the client from the rows when the context stash is absent (deep link /
   renderAt();
 
   await screen.findByTestId('client-loan-L1');
+  expect(screen.getByText(/All loans on file for Ada Lovelace\./i)).toBeInTheDocument();
+});
+
+it('ignores a stash that names a different client than the route (stale stash)', async () => {
+  // The stash is written asynchronously, so it can still name the PREVIOUS client while this page
+  // shows the next one's loans. Headlining the stash here would put one client's name directly
+  // above another client's loans — on the page whose only job is saying whose loans these are.
+  setClientContext({ borrowerId: 'B7', loanId: 'L1', name: 'Jane Doe' });
+  renderAt('B42');
+
+  await screen.findByTestId('client-loan-L1');
+  expect(screen.queryByText(/jane doe/i)).not.toBeInTheDocument();
   expect(screen.getByText(/All loans on file for Ada Lovelace\./i)).toBeInTheDocument();
 });
 

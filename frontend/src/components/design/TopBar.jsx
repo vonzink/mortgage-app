@@ -8,7 +8,9 @@ import useRoles from '../../hooks/useRoles';
 import mortgageService from '../../services/mortgageService';
 import { buildCognitoLogoutUrl } from '../../auth/cognitoConfig';
 import { clearSharedSessionCookie } from '../../auth/sharedSession';
-import { getClientContext, clearClientContext } from '../../pages/clientView/clientContext';
+import {
+  getClientContext, clearClientContext, CLIENT_CONTEXT_EVENT,
+} from '../../pages/clientView/clientContext';
 
 /**
  * Design-system TopBar — replaces the legacy Header. Preserves all auth +
@@ -44,21 +46,27 @@ export default function TopBar() {
   // With a client in context the nav acts on THAT client; with none it behaves exactly as before
   // (Applications still lands on the list that bounces staff to the suite console).
   //
-  // Held in state, not read raw each render, for two reasons: the stash is written asynchronously
-  // by ClientView (so it must be re-read after navigation, not only on mount), and clearing it has
-  // to re-render this bar. It is a sessionStorage value, so nothing else can subscribe to it.
-  const [client, setClient] = useState(() => getClientContext());
-  useEffect(() => { setClient(getClientContext()); }, [location.pathname, location.search]);
+  // Held in state and driven by the stash's own event, NOT by navigation: ClientView writes it
+  // after its fetch resolves, which is neither a render nor a route change. Re-reading on
+  // navigation alone would leave the bar un-scoped on /client-view/:loanId — the page the whole
+  // client-scoped nav exists for — until some unrelated navigation happened to shake it loose.
+  const [stashedClient, setStashedClient] = useState(() => getClientContext());
+  useEffect(() => {
+    const sync = () => setStashedClient(getClientContext());
+    window.addEventListener(CLIENT_CONTEXT_EVENT, sync);
+    return () => window.removeEventListener(CLIENT_CONTEXT_EVENT, sync);
+  }, []);
 
+  // Staff-only scoping, matching the three page surfaces. A borrower with a leftover stash would
+  // otherwise see another person's name in their own header and get an Apply link that only
+  // bounces them home.
+  const client = isStaff ? stashedClient : null;
   const applicationsTo = client ? `/client/${client.borrowerId}/applications` : '/applications';
   const applyTo = client ? `/client/${client.borrowerId}/applications/new` : '/apply';
 
   // The way out. Without it the nav stays client-scoped for the whole tab session — /apply becomes
   // unreachable and Applications never returns to the global list.
-  const handleExitClient = () => {
-    clearClientContext();
-    setClient(null);
-  };
+  const handleExitClient = () => clearClientContext();
 
   const [showSettings, setShowSettings] = useState(false);
   const [busyMismo, setBusyMismo] = useState(false);
@@ -128,6 +136,9 @@ export default function TopBar() {
   // Passwordless page, not the Hosted UI (same rule as RequireAuth/LandingPage).
   const handleSignIn = () => navigate('/signin', { state: { returnTo: '/applications' } });
   const handleSignOut = async () => {
+    // sessionStorage survives the Cognito round trip — without this the next person to sign in on
+    // this tab inherits the previous user's client scope.
+    clearClientContext();
     clearSharedSessionCookie(); // kill the cross-app SSO cookie before the local session
     await auth.removeUser();
     clearSharedSessionCookie(); // again post-removeUser: closes the silent-renew race window

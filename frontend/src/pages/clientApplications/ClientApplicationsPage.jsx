@@ -8,6 +8,10 @@ import Button from '../../components/design/Button';
 import Pill from '../../components/design/Pill';
 import Icon from '../../components/design/Icon';
 import { getClientContext } from '../clientView/clientContext';
+// Shared with the LO dashboard and the global loan search — the tones are keyed on the suite's
+// LoanStatus enum, and the local copy this replaced was keyed on statuses that no longer exist
+// (CTC, DOCS_OUT, DISPOSITIONED, APPLICATION), so most real statuses fell through to one bucket.
+import { statusTone } from '../loanDashboard/helpers';
 import './ClientApplicationsPage.design.css';
 
 /**
@@ -42,14 +46,6 @@ function LockIcon({ size = 14 }) {
       <path d="M8 10V7a4 4 0 018 0v3" />
     </svg>
   );
-}
-
-function statusTone(status) {
-  if (!status) return 'muted';
-  if (status === 'FUNDED' || status === 'CTC' || status === 'DOCS_OUT') return 'active';
-  if (status === 'DISPOSITIONED' || status === 'WITHDRAWN' || status === 'DENIED') return 'danger';
-  if (status === 'REGISTERED' || status === 'APPLICATION') return 'muted';
-  return 'review';
 }
 
 function cityState(row) {
@@ -159,9 +155,13 @@ export default function ClientApplicationsPage() {
   const totalMatched = state.data?.totalMatched ?? shown;
   // A silently truncated list would read as "no collision" when there is one. Say so out loud.
   const truncated = totalMatched > shown;
-  // The context stash is absent on a deep link or a refresh; fall back to the rows themselves so a
-  // bookmarked page still says whose loans these are.
-  const clientName = getClientContext()?.name
+  // The stash is absent on a deep link or a refresh, and can be STALE otherwise: it is written
+  // asynchronously, so it may still name the previous client. It is only trusted when it agrees
+  // with the borrowerId this page is actually showing — otherwise the rows themselves, which are
+  // authoritative and already in hand, name the client. Naming the wrong one here is worse than
+  // naming nobody: this is the surface whose whole job is establishing whose loans these are.
+  const stashed = getClientContext();
+  const clientName = (stashed?.borrowerId === borrowerId && stashed.name)
     || accessible[0]?.primaryBorrowerName
     || restricted[0]?.primaryBorrowerName;
 

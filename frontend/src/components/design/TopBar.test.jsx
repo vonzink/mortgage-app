@@ -1,14 +1,16 @@
 import React from 'react';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, act, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import TopBar, { detectActive } from './TopBar';
 import {
   setClientContext, clearClientContext, getClientContext,
 } from '../../pages/clientView/clientContext';
 
-jest.mock('react-oidc-context', () => ({
-  useAuth: () => ({ isLoading: false, isAuthenticated: false, user: null, removeUser: jest.fn() }),
-}));
+let mockAuth = { isLoading: false, isAuthenticated: false, user: null, removeUser: jest.fn() };
+jest.mock('react-oidc-context', () => ({ useAuth: () => mockAuth }));
+
+// A hash URL keeps the sign-out redirect from tripping jsdom's "navigation not implemented".
+jest.mock('../../auth/cognitoConfig', () => ({ buildCognitoLogoutUrl: () => '#signed-out' }));
 
 jest.mock('../../services/mortgageService', () => ({ __esModule: true, default: {} }));
 
@@ -25,6 +27,7 @@ function renderBar(at = '/applications') {
 
 beforeEach(() => {
   mockRoles = { isAdmin: false, isStaff: true };
+  mockAuth = { isLoading: false, isAuthenticated: false, user: null, removeUser: jest.fn() };
   clearClientContext();
 });
 
@@ -63,18 +66,38 @@ describe('client-scoped nav targets', () => {
     expect(screen.getByRole('link', { name: /apply/i })).toHaveAttribute('href', '/apply');
   });
 
-  test('picks up a client stashed after this render, on the next navigation', () => {
-    renderBar('/applications');
+  test('scopes the nav as soon as a client is stashed, with no navigation at all', () => {
+    // The real entry point: an LO hard-loads /client-view/L1 from the suite console. ClientView
+    // stashes the client only when its fetch resolves — no route change, no remount. If the bar
+    // waited for a navigation, the LO's first Applications click would land on the global list,
+    // which is precisely the behavior this feature removes.
+    renderBar('/client-view/L1');
     expect(screen.queryByText(/working with/i)).not.toBeInTheDocument();
 
-    // ClientView writes the stash only after its fetch resolves — later than the TopBar render for
-    // that same navigation. Reading it once at mount would leave the bar permanently blind.
-    setClientContext({ borrowerId: 'B7', loanId: 'L1', name: 'Jane Doe' });
-    fireEvent.click(screen.getByRole('link', { name: /apply/i }));
+    act(() => {
+      setClientContext({ borrowerId: 'B7', loanId: 'L1', name: 'Jane Doe' });
+    });
 
     expect(screen.getByText(/working with jane doe/i)).toBeInTheDocument();
     expect(screen.getByRole('link', { name: /applications/i })).toHaveAttribute(
       'href', '/client/B7/applications',
+    );
+    expect(screen.getByRole('link', { name: /apply/i })).toHaveAttribute(
+      'href', '/client/B7/applications/new',
+    );
+  });
+
+  test('a borrower never gets a client-scoped nav, stash or not', () => {
+    // A leftover stash in a shared tab would otherwise put another person's name in the borrower's
+    // own header and point their Apply button at a staff route that just bounces them home.
+    mockRoles = { isAdmin: false, isStaff: false };
+    setClientContext({ borrowerId: 'B7', loanId: 'L1', name: 'Jane Doe' });
+    renderBar('/dashboard');
+
+    expect(screen.queryByText(/working with/i)).not.toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /apply/i })).toHaveAttribute('href', '/apply');
+    expect(screen.getByRole('link', { name: /applications/i })).toHaveAttribute(
+      'href', '/applications',
     );
   });
 
@@ -86,6 +109,24 @@ describe('client-scoped nav targets', () => {
       'href', '/applications',
     );
   });
+});
+
+test('signing out drops the client scope along with the session', async () => {
+  // sessionStorage survives the Cognito round trip, so without this the next person to sign in on
+  // this tab inherits the previous LO's client.
+  mockAuth = {
+    isLoading: false,
+    isAuthenticated: true,
+    user: { profile: { name: 'Sam Officer' } },
+    removeUser: jest.fn().mockResolvedValue(undefined),
+  };
+  setClientContext({ borrowerId: 'B7', loanId: 'L1', name: 'Jane Doe' });
+  renderBar('/client-view/L1');
+
+  fireEvent.click(screen.getByRole('button', { name: /settings/i }));
+  fireEvent.click(screen.getByRole('button', { name: /sign out/i }));
+
+  await waitFor(() => expect(getClientContext()).toBeNull());
 });
 
 describe('detectActive', () => {

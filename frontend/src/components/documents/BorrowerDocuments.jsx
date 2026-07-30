@@ -28,6 +28,21 @@ function fmtSize(bytes) {
   return `${(n / 1024 / 1024).toFixed(1)} MB`;
 }
 
+/**
+ * Date + time so staff reviewing a client's uploads can tell same-day files apart. Guards both
+ * an absent value (row mid-upload, or an older suite deploy that never populated it) and an
+ * unparseable one (`new Date()` on garbage input yields an Invalid Date, not a thrown error) —
+ * either way we render nothing rather than a bogus "Invalid Date" string.
+ */
+function fmtDateTime(value) {
+  if (!value) return '';
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return '';
+  return d.toLocaleString([], {
+    year: 'numeric', month: 'numeric', day: 'numeric', hour: 'numeric', minute: '2-digit',
+  });
+}
+
 /** One document row — shared between the "Your uploads" and "From your loan team" sections. */
 function DocRow({ doc, onDownload }) {
   const s = STATUS[doc.status] || { label: doc.status || '—', tone: 'muted' };
@@ -47,7 +62,7 @@ function DocRow({ doc, onDownload }) {
           {doc.fileName || 'Document'}
         </div>
         <div className="muted" style={{ fontSize: 12 }}>
-          {fmtSize(doc.fileSize)}{doc.uploadedAt ? ` · ${new Date(doc.uploadedAt).toLocaleDateString()}` : ''}
+          {fmtSize(doc.fileSize)}{fmtDateTime(doc.uploadedAt) ? ` · ${fmtDateTime(doc.uploadedAt)}` : ''}
         </div>
       </div>
       <Pill tone={s.tone}>{s.label}</Pill>

@@ -1,0 +1,88 @@
+/* Client applications — staff-side loan history for one borrower.
+   Restricted rows are deliberately muted: they exist to be recognized, not entered. */
+
+.cl-page { padding: 24px; max-width: 1000px; margin: 0 auto; }
+
+.cl-page-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 18px; }
+.cl-page-title { font-size: 22px; font-weight: 700; color: var(--ink-900, #16211c); margin: 0; }
+.cl-page-sub { font-size: 13px; color: var(--ink-500, #5b6660); margin: 4px 0 0; }
+
+.cl-truncation {
+  font-size: 12.5px;
+  color: var(--ink-700, #3a4640);
+  background: var(--bg-secondary, #f4f7f2);
+  border-left: 3px solid var(--copper, #b0703a);
+  border-radius: 0 6px 6px 0;
+  padding: 8px 12px;
+  margin: 0 0 12px;
+}
+
+.cl-rows { display: flex; flex-direction: column; gap: 10px; }
+
+.cl-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas: 'main actions' 'meta actions';
+  align-items: center;
+  gap: 4px 18px;
+}
+.cl-row-main { grid-area: main; min-width: 0; }
+.cl-row-meta { grid-area: meta; min-width: 0; }
+.cl-row-actions { grid-area: actions; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
+
+.cl-row-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.cl-loan-number { font-weight: 700; font-size: 14.5px; color: var(--ink-900, #16211c); }
+.cl-borrower { font-size: 13.5px; color: var(--ink-700, #3a4640); }
+.cl-row-sub { font-size: 12.5px; color: var(--ink-500, #5b6660); margin-top: 3px; }
+
+/* Provenance, not alarm — quiet enough to read as a footnote. */
+.cl-match-badge {
+  font-size: 10.5px;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  color: var(--ink-500, #5b6660);
+  border: 1px dashed var(--ink-line, #dde5dd);
+  border-radius: 999px;
+  padding: 2px 8px;
+  white-space: nowrap;
+}
+
+.cl-meta-line { font-size: 12.5px; color: var(--ink-700, #3a4640); }
+.cl-meta-dim { color: var(--ink-500, #5b6660); }
+.cl-inactive { color: var(--ink-500, #5b6660); font-style: italic; }
+
+/* ─── Restricted ──────────────────────────────────────────────────────── */
+.cl-row--restricted {
+  background: var(--bg-secondary, #f7f9f6);
+  border-style: dashed;
+}
+.cl-row--restricted .cl-loan-number,
+.cl-row--restricted .cl-borrower { color: var(--ink-500, #5b6660); }
+.cl-row--restricted .cl-row-main { opacity: .85; }
+
+.cl-row-actions--locked { max-width: 260px; }
+.cl-locked {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 12px;
+  line-height: 1.35;
+  color: var(--ink-500, #5b6660);
+  text-align: left;
+}
+.cl-locked svg { flex: 0 0 auto; }
+
+/* ─── States ──────────────────────────────────────────────────────────── */
+.cl-state { color: var(--ink-500, #5b6660); font-size: 13.5px; text-align: center; padding: 18px 0; }
+.cl-state-title { font-weight: 600; color: var(--ink-900, #16211c); margin: 0 0 4px; font-size: 14.5px; }
+.cl-state-sub { margin: 0; font-size: 12.5px; }
+.cl-state--error .cl-state-title { color: var(--danger, #b3261e); }
+
+@media (max-width: 720px) {
+  .cl-row {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas: 'main' 'meta' 'actions';
+  }
+  .cl-row-actions { justify-content: flex-start; margin-top: 8px; }
+  .cl-row-actions--locked { max-width: none; }
+}

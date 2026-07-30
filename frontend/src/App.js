@@ -19,6 +19,7 @@ import ApplicationDetails from './pages/ApplicationDetails';
 import LoanStatusCenter from './pages/statusCenter/LoanStatusCenter';
 import ClientView from './pages/clientView/ClientView';
 import ClientApplicationsPage from './pages/clientApplications/ClientApplicationsPage';
+import NewClientApplication from './pages/clientApplications/NewClientApplication';
 import LoanSuiteRedirect from './pages/LoanSuiteRedirect';
 import AdminHome from './pages/admin/AdminHome';
 import AppSettingsAdmin from './pages/admin/AppSettingsAdmin';
@@ -145,6 +146,12 @@ function App() {
             <Route
               path="/client/:borrowerId/applications"
               element={<RequireAuth><ClientApplicationsPage /></RequireAuth>}
+            />
+            {/* Confirm step before starting another loan for the client in context — the server
+                has no default loan purpose, so it has to be asked for. */}
+            <Route
+              path="/client/:borrowerId/applications/new"
+              element={<RequireAuth><NewClientApplication /></RequireAuth>}
             />
             {/* Retired LO loan dashboard → forwards to the suite console loan
                 workspace (the route param is already a suite loan id). */}

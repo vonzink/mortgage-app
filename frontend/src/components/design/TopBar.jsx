@@ -8,6 +8,7 @@ import useRoles from '../../hooks/useRoles';
 import mortgageService from '../../services/mortgageService';
 import { buildCognitoLogoutUrl } from '../../auth/cognitoConfig';
 import { clearSharedSessionCookie } from '../../auth/sharedSession';
+import { getClientContext } from '../../pages/clientView/clientContext';
 
 /**
  * Design-system TopBar — replaces the legacy Header. Preserves all auth +
@@ -16,9 +17,12 @@ import { clearSharedSessionCookie } from '../../auth/sharedSession';
  * Active-route detection drives the `.active` nav style; auto-detects from the
  * current URL so callers don't need to manage state.
  */
-function detectActive(pathname) {
-  if (pathname.startsWith('/apply')) return 'apply';
-  if (pathname.startsWith('/applications') || pathname.startsWith('/loan')) return 'applications';
+export function detectActive(pathname) {
+  // The /new test MUST come first: `/client/:id/applications/new` also matches the applications
+  // pattern, so testing applications first would leave Apply dark on its own page.
+  if (pathname.startsWith('/apply') || /^\/client\/[^/]+\/applications\/new/.test(pathname)) return 'apply';
+  if (pathname.startsWith('/applications') || pathname.startsWith('/loan')
+      || /^\/client\/[^/]+\/applications$/.test(pathname)) return 'applications';
   if (pathname.startsWith('/admin')) return 'admin';
   return null;
 }
@@ -36,6 +40,12 @@ export default function TopBar() {
   const { isAdmin, isStaff } = useRoles();
   const active = detectActive(location.pathname);
   const currentLoanId = useCurrentLoanId();
+
+  // With a client in context the nav acts on THAT client; with none it behaves exactly as before
+  // (Applications still lands on the list that bounces staff to the suite console).
+  const client = getClientContext();
+  const applicationsTo = client ? `/client/${client.borrowerId}/applications` : '/applications';
+  const applyTo = client ? `/client/${client.borrowerId}/applications/new` : '/apply';
 
   const [showSettings, setShowSettings] = useState(false);
   const [busyMismo, setBusyMismo] = useState(false);
@@ -124,10 +134,10 @@ export default function TopBar() {
       </Link>
 
       <nav className="topnav">
-        <Link to="/apply" className={active === 'apply' ? 'active' : ''}>
+        <Link to={applyTo} className={active === 'apply' ? 'active' : ''}>
           <Icon name="doc" size={14} /> Apply
         </Link>
-        <Link to="/applications" className={active === 'applications' ? 'active' : ''}>
+        <Link to={applicationsTo} className={active === 'applications' ? 'active' : ''}>
           <Icon name="folder" size={14} /> Applications
         </Link>
         {isAdmin && (

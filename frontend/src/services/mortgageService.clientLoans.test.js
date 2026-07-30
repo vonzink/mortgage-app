@@ -110,3 +110,32 @@ describe('mortgageService.getClientLoans (suite /borrowers/{id}/loans)', () => {
     ).rejects.toThrow('forbidden');
   });
 });
+
+describe('mortgageService.createLoanForClient (suite POST /borrowers/{id}/loans)', () => {
+  test('POSTs the right path with { loanPurpose } and returns the unwrapped result', async () => {
+    suiteClient.post.mockResolvedValue({
+      data: {
+        success: true,
+        data: { loanId: 'new-loan-uuid', loanNumber: 'LN-2026-0042' },
+      },
+    });
+
+    const result = await mortgageService.createLoanForClient('borrower-uuid-1', 'PURCHASE');
+
+    expect(suiteClient.post).toHaveBeenCalledWith(
+      '/borrowers/borrower-uuid-1/loans',
+      { loanPurpose: 'PURCHASE' },
+    );
+    expect(result).toEqual({ loanId: 'new-loan-uuid', loanNumber: 'LN-2026-0042' });
+  });
+
+  test('a rejected call propagates rather than resolving undefined', async () => {
+    const err = new Error('Staff cannot reach this client');
+    err.response = { data: { success: false, code: 'FORBIDDEN' } };
+    suiteClient.post.mockRejectedValue(err);
+
+    await expect(
+      mortgageService.createLoanForClient('borrower-uuid-4', 'PURCHASE'),
+    ).rejects.toThrow('Staff cannot reach this client');
+  });
+});

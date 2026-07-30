@@ -568,6 +568,19 @@ const mortgageService = {
     };
   },
 
+  /**
+   * Start a new loan for an existing client, via the purpose-built suite seam
+   * POST /api/borrowers/{borrowerId}/loans. The server copies the client's name/email/phones
+   * from the existing borrower party onto the new loan's primary borrower in one transaction
+   * (never SSN/DOB) — no client identity travels through the browser here.
+   * `loanPurpose` is a required argument, not defaulted: the confirm dialog collects it, and
+   * an omitted value should surface the server's 400 rather than silently becoming PURCHASE.
+   */
+  createLoanForClient: async (borrowerId, loanPurpose) => {
+    const { data } = await suiteClient.post(`/borrowers/${borrowerId}/loans`, { loanPurpose });
+    return unwrapEnvelope(data);
+  },
+
   // ────────────────── Documents (Phase 2B presigned URL flow) ──────────────────
 
   /**

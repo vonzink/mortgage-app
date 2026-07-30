@@ -33,8 +33,9 @@ const LOAN_STATUS_TONES = [
   ['CLOSING_DOCS_OUT', 'active'],
   ['CLOSED', 'active'],
   ['WAITING_FOR_B1_REIMBURSEMENT', 'review'],
-  ['HOLD', 'danger'],
-  ['HOLD_ON_COLLECTION', 'danger'],
+  // Recoverable and waiting on someone — amber, not the red reserved for loans that are over.
+  ['HOLD', 'warn'],
+  ['HOLD_ON_COLLECTION', 'warn'],
   ['NOT_ACTIVE_LOAN', 'danger'],
   ['DL_RESCINDED', 'danger'],
   ['DL_NOT_ACCEPTED', 'danger'],

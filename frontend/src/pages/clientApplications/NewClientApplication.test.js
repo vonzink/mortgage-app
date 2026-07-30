@@ -1,7 +1,7 @@
 import React from 'react';
 import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
 import { MemoryRouter, Routes, Route, useLocation } from 'react-router-dom';
-import NewClientApplication from './NewClientApplication';
+import NewClientApplication, { canStartApplication } from './NewClientApplication';
 import mortgageService from '../../services/mortgageService';
 import { setClientContext, clearClientContext } from '../clientView/clientContext';
 
@@ -49,6 +49,17 @@ it('degrades to "this client" when the context stash is absent', () => {
   clearClientContext();
   renderAt();
 
+  expect(screen.getByText(/start a new application for this client\?/i)).toBeInTheDocument();
+});
+
+it('never names a client the route disagrees with (stale stash)', () => {
+  // The real sequence: staff open client B while the stash still says A, so the nav href carries A
+  // and the stash then becomes B. The loan is created for the ROUTE's client, so affirming the
+  // stash's name here would tell staff the opposite of what the button does.
+  setClientContext({ borrowerId: 'B7', loanId: 'L1', name: 'Jane Doe' });
+  renderAt('B42');
+
+  expect(screen.queryByText(/jane doe/i)).not.toBeInTheDocument();
   expect(screen.getByText(/start a new application for this client\?/i)).toBeInTheDocument();
 });
 
@@ -140,4 +151,42 @@ it('redirects a non-staff session and never creates a loan', async () => {
   await waitFor(() => expect(screen.getByTestId('home')).toBeInTheDocument());
   expect(screen.queryByRole('button', { name: /start application/i })).not.toBeInTheDocument();
   expect(mortgageService.createLoanForClient).not.toHaveBeenCalled();
+});
+
+// The redirect test above proves the ROUTING, not the gate on the write: its
+// `not.toHaveBeenCalled()` passes trivially because no button ever rendered. The gate itself is
+// unreachable through the DOM — the redirect early-returns, so a non-staff render produces no
+// control, and the handler's copy of isStaff is captured at render time. So it is pinned directly,
+// where deleting any clause fails a test.
+describe('canStartApplication — the gate on the write', () => {
+  const ok = { isStaff: true, borrowerId: 'B7', purpose: 'PURCHASE', inFlight: false };
+
+  test('permits a staff session with a client and a purpose', () => {
+    expect(canStartApplication(ok)).toBe(true);
+  });
+
+  test('refuses a non-staff session', () => {
+    expect(canStartApplication({ ...ok, isStaff: false })).toBe(false);
+  });
+
+  test('refuses when a create is already in flight', () => {
+    expect(canStartApplication({ ...ok, inFlight: true })).toBe(false);
+  });
+
+  test('refuses without a purpose or a borrower', () => {
+    expect(canStartApplication({ ...ok, purpose: '' })).toBe(false);
+    expect(canStartApplication({ ...ok, borrowerId: undefined })).toBe(false);
+  });
+});
+
+it('treats a create that returns no loanId as a failure rather than navigating nowhere', async () => {
+  mortgageService.createLoanForClient = jest.fn().mockResolvedValue({ loanNumber: '9009' });
+  renderAt();
+
+  fireEvent.click(screen.getByLabelText(/purchase/i));
+  fireEvent.click(startButton());
+
+  expect(await screen.findByText(/couldn.t start/i)).toBeInTheDocument();
+  expect(screen.queryByTestId('apply-probe')).not.toBeInTheDocument();
+  expect(startButton()).not.toBeDisabled();
 });

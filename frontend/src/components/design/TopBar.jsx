@@ -8,7 +8,7 @@ import useRoles from '../../hooks/useRoles';
 import mortgageService from '../../services/mortgageService';
 import { buildCognitoLogoutUrl } from '../../auth/cognitoConfig';
 import { clearSharedSessionCookie } from '../../auth/sharedSession';
-import { getClientContext } from '../../pages/clientView/clientContext';
+import { getClientContext, clearClientContext } from '../../pages/clientView/clientContext';
 
 /**
  * Design-system TopBar — replaces the legacy Header. Preserves all auth +
@@ -43,9 +43,22 @@ export default function TopBar() {
 
   // With a client in context the nav acts on THAT client; with none it behaves exactly as before
   // (Applications still lands on the list that bounces staff to the suite console).
-  const client = getClientContext();
+  //
+  // Held in state, not read raw each render, for two reasons: the stash is written asynchronously
+  // by ClientView (so it must be re-read after navigation, not only on mount), and clearing it has
+  // to re-render this bar. It is a sessionStorage value, so nothing else can subscribe to it.
+  const [client, setClient] = useState(() => getClientContext());
+  useEffect(() => { setClient(getClientContext()); }, [location.pathname, location.search]);
+
   const applicationsTo = client ? `/client/${client.borrowerId}/applications` : '/applications';
   const applyTo = client ? `/client/${client.borrowerId}/applications/new` : '/apply';
+
+  // The way out. Without it the nav stays client-scoped for the whole tab session — /apply becomes
+  // unreachable and Applications never returns to the global list.
+  const handleExitClient = () => {
+    clearClientContext();
+    setClient(null);
+  };
 
   const [showSettings, setShowSettings] = useState(false);
   const [busyMismo, setBusyMismo] = useState(false);
@@ -146,6 +159,22 @@ export default function TopBar() {
           </Link>
         )}
       </nav>
+
+      {/* Who the nav is currently acting for. Invisible scoping on a surface that can WRITE is the
+          problem this chip exists to solve — it names the client and offers the way out. */}
+      {client && (
+        <div className="topbar-client">
+          <span className="topbar-client-name">{`Working with ${client.name || 'a client'}`}</span>
+          <button
+            type="button"
+            className="topbar-client-exit"
+            onClick={handleExitClient}
+            aria-label="Stop working with this client"
+          >
+            Exit
+          </button>
+        </div>
+      )}
 
       {/* Global typeahead — staff-only tool (find any loan). Hidden in the client/borrower view. */}
       {auth.isAuthenticated && isStaff && <LoanSearch />}

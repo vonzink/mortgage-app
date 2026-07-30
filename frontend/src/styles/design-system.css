@@ -153,6 +153,20 @@
   content: ""; width: 6px; height: 6px; border-radius: 50%; background: var(--green);
   box-shadow: 0 0 0 3px rgba(41, 194, 78, .25);
 }
+/* "Working with <client>" — names the client the nav is scoped to, with the way out. */
+.msfg .topbar-client {
+  display: inline-flex; align-items: center; gap: 8px; margin-left: 14px;
+  padding: 5px 6px 5px 12px; border-radius: 999px;
+  background: var(--forest-line); color: rgba(255, 255, 255, .85);
+  font-size: 12.5px; font-weight: 600; white-space: nowrap;
+}
+.msfg .topbar-client-exit {
+  border: 0; cursor: pointer; border-radius: 999px; padding: 3px 10px;
+  background: rgba(255, 255, 255, .12); color: rgba(255, 255, 255, .9);
+  font-size: 12px; font-weight: 700;
+}
+.msfg .topbar-client-exit:hover { background: rgba(255, 255, 255, .22); color: #fff; }
+
 .msfg .top-right { margin-left: auto; display: flex; gap: 10px; align-items: center; }
 .msfg .top-user {
   display: flex; align-items: center; gap: 10px;

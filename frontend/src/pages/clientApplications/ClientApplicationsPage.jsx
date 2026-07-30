@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { Navigate, useNavigate, useParams } from 'react-router-dom';
 
+import useRoles from '../../hooks/useRoles';
 import mortgageService from '../../services/mortgageService';
 import Card from '../../components/design/Card';
 import Button from '../../components/design/Button';
@@ -132,10 +133,14 @@ function RestrictedRow({ row }) {
 
 export default function ClientApplicationsPage() {
   const { borrowerId } = useParams();
+  const { isStaff } = useRoles();
   const [state, setState] = useState({ status: 'loading', data: null });
 
+  // The staff gate lives HERE, not only in the render below: the early return sits after the hooks
+  // (rules of hooks), so the effect would still fire for a borrower and leak a fetch for a
+  // borrowerId that isn't theirs. The server 403s it, but we should never ask.
   const load = useCallback(async () => {
-    if (!borrowerId) return;
+    if (!borrowerId || !isStaff) return;
     setState({ status: 'loading', data: null });
     try {
       const data = await mortgageService.getClientLoans(borrowerId);
@@ -144,17 +149,24 @@ export default function ClientApplicationsPage() {
       console.error('Failed to load client applications', err);
       setState({ status: 'error', data: null });
     }
-  }, [borrowerId]);
+  }, [borrowerId, isStaff]);
 
   useEffect(() => { load(); }, [load]);
 
-  const clientName = getClientContext()?.name;
   const accessible = state.data?.accessible || [];
   const restricted = state.data?.restricted || [];
   const shown = accessible.length + restricted.length;
   const totalMatched = state.data?.totalMatched ?? shown;
   // A silently truncated list would read as "no collision" when there is one. Say so out loud.
   const truncated = totalMatched > shown;
+  // The context stash is absent on a deep link or a refresh; fall back to the rows themselves so a
+  // bookmarked page still says whose loans these are.
+  const clientName = getClientContext()?.name
+    || accessible[0]?.primaryBorrowerName
+    || restricted[0]?.primaryBorrowerName;
+
+  // Staff surface — a borrower has their own /dashboard. Mirrors ClientView.jsx:56.
+  if (!isStaff) return <Navigate to="/" replace />;
 
   return (
     <div className="page cl-page">

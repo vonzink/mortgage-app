@@ -22,6 +22,7 @@ function renderAt(borrowerId = 'B7') {
         <Route path="/client/:borrowerId/applications" element={<ClientApplicationsPage />} />
         <Route path="/apply" element={<ApplyProbe />} />
         <Route path="/client-view/:loanId" element={<div data-testid="client-view-probe" />} />
+        <Route path="/" element={<div data-testid="home" />} />
       </Routes>
     </MemoryRouter>,
   );
@@ -117,10 +118,19 @@ it('names the owning officer on a restricted row and offers NO way in', async ()
     within(row).getByText(/This loan is assigned to another loan officer\./i),
   ).toBeInTheDocument();
 
-  // Absent, not merely disabled — a restricted loan 403s server-side.
-  expect(within(row).queryByRole('button', { name: /open application/i })).not.toBeInTheDocument();
-  expect(within(row).queryByRole('button', { name: /edit/i })).not.toBeInTheDocument();
+  // Absent, not merely disabled — a restricted loan 403s server-side. Both queries are
+  // deliberately UNNAMED: a future "Request access" control would slip past a name-scoped one.
+  expect(within(row).queryByRole('button')).not.toBeInTheDocument();
   expect(within(row).queryByRole('link')).not.toBeInTheDocument();
+});
+
+it('redirects a non-staff session and never asks the server for the loans', async () => {
+  mockRoles = { isStaff: false, isBorrower: true };
+  renderAt();
+
+  await waitFor(() => expect(screen.getByTestId('home')).toBeInTheDocument());
+  // The fetch firing at all is the part that matters — the borrowerId isn't theirs.
+  expect(mortgageService.getClientLoans).not.toHaveBeenCalled();
 });
 
 it('marks an inactive owning officer while still naming them', async () => {
@@ -143,6 +153,14 @@ it('badges a row matched by email rather than by linked account', async () => {
 
   const accountMatched = screen.getByTestId('client-loan-L1');
   expect(within(accountMatched).queryByText(/matched by email/i)).not.toBeInTheDocument();
+});
+
+it('names the client from the rows when the context stash is absent (deep link / refresh)', async () => {
+  sessionStorage.clear();
+  renderAt();
+
+  await screen.findByTestId('client-loan-L1');
+  expect(screen.getByText(/All loans on file for Ada Lovelace\./i)).toBeInTheDocument();
 });
 
 it('discloses truncation when totalMatched exceeds the rows returned', async () => {

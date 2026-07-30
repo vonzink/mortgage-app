@@ -547,6 +547,27 @@ const mortgageService = {
     return data;
   },
 
+  // ────────────────── Client loan history (staff, client-view nav) ──────────────────
+
+  /**
+   * A client's whole loan history, for the client-aware "Applications" nav item when staff
+   * are in client-view. Staff-only on the suite side (GET /api/borrowers/{id}/loans).
+   * `accessible` are loans this staff member can open; `restricted` belong to a different
+   * loan officer (shown read-only so two officers don't collide, but the server 403s any
+   * attempt to open them); `totalMatched` is the true match count (can exceed the returned
+   * rows). Missing/sparse fields default to a safe empty shape — callers .map() over the
+   * arrays, so `undefined` must never reach render.
+   */
+  getClientLoans: async (borrowerId) => {
+    const { data } = await suiteClient.get(`/borrowers/${borrowerId}/loans`);
+    const d = unwrapEnvelope(data) || {};
+    return {
+      accessible: Array.isArray(d.accessible) ? d.accessible : [],
+      restricted: Array.isArray(d.restricted) ? d.restricted : [],
+      totalMatched: d.totalMatched ?? 0,
+    };
+  },
+
   // ────────────────── Documents (Phase 2B presigned URL flow) ──────────────────
 
   /**

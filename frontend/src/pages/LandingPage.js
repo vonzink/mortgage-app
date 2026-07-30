@@ -3,15 +3,14 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from 'react-oidc-context';
 import Icon from '../components/design/Icon';
 import Button from '../components/design/Button';
-import { buildCognitoSignupUrl } from '../auth/cognitoConfig';
 import useRoles from '../hooks/useRoles';
 import { redirectStaffToConsole } from '../auth/consoleHandoff';
 import './LandingPage.design.css';
 
 /**
- * Public landing page at `/`. Two paths:
- *   - Sign in  → the first-class passwordless /signin page (no Hosted-UI redirect)
- *   - Create account → manual redirect to Cognito hosted UI /signup
+ * Public landing page at `/`. Two paths, both passwordless (no Hosted-UI redirect):
+ *   - Sign in        → /signin, back to /applications
+ *   - Create account → /signin, back to /apply (the OTP adapter provisions new emails)
  *
  * If the user is already authenticated, bounce them straight to /applications.
  */
@@ -32,9 +31,9 @@ export default function LandingPage() {
   };
 
   const handleSignUp = () => {
-    // Cognito's hosted UI signup tab — preserves the OAuth round-trip params
-    // so we still get a code grant back to /auth/callback.
-    window.location.href = buildCognitoSignupUrl();
+    // Same passwordless page as sign-in — the OTP adapter self-SignUps a brand-new
+    // email, so "create an account" is just "get a code" with a different landing.
+    navigate('/signin', { state: { returnTo: '/apply' } });
   };
 
   return (

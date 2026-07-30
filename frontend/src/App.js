@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 import { useAuth } from 'react-oidc-context';
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
@@ -36,25 +36,26 @@ import './App.css';
 
 /**
  * Listens for `auth:expired` events from {@link apiClient} (a 401 came back from the API).
- * Routes the user through Cognito sign-in again. The form drafts in sessionStorage survive
- * the round-trip, so anything they were typing is still there when they land back.
+ * Routes the user back through the passwordless sign-in page. The form drafts in
+ * sessionStorage survive the round-trip, so anything they were typing is still there
+ * when they land back.
  */
 function AuthExpiredListener() {
-  const auth = useAuth();
+  const navigate = useNavigate();
   useEffect(() => {
     const handler = () => {
       // Show a friendly toast so the user understands what's about to happen
       toast.warn('Session expired — signing you back in. Your work has been saved.', { autoClose: 4000 });
       // Save where the user is so we can return them after re-auth
       const returnTo = window.location.pathname + window.location.search;
-      // Brief delay so the toast renders before the redirect
+      // Brief delay so the toast renders before we move them
       setTimeout(() => {
-        auth.signinRedirect({ state: { returnTo } }).catch(() => {});
+        navigate('/signin', { state: { returnTo } });
       }, 500);
     };
     window.addEventListener('auth:expired', handler);
     return () => window.removeEventListener('auth:expired', handler);
-  }, [auth]);
+  }, [navigate]);
   return null;
 }
 

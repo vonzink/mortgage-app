@@ -102,7 +102,8 @@ export default function TopBar() {
     await runImport(file, false);
   };
 
-  const handleSignIn = () => auth.signinRedirect();
+  // Passwordless page, not the Hosted UI (same rule as RequireAuth/LandingPage).
+  const handleSignIn = () => navigate('/signin', { state: { returnTo: '/applications' } });
   const handleSignOut = async () => {
     clearSharedSessionCookie(); // kill the cross-app SSO cookie before the local session
     await auth.removeUser();

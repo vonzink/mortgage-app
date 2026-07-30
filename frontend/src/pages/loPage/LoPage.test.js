@@ -84,11 +84,14 @@ it('unknown slug (service null) → replace-navigates home', async () => {
   await waitFor(() => expect(mockNavigate).toHaveBeenCalledWith('/', { replace: true }));
 });
 
-it('Start (unauthenticated) stashes the normalized slug and goes to /signup', async () => {
+// A cold prospect off an LO's link must land on the PASSWORDLESS sign-in page
+// (email OTP; the adapter self-SignUps a brand-new address) — never the Cognito
+// Hosted-UI "create account" form, which asks a borrower for a username+password.
+it('Start (unauthenticated) stashes the normalized slug and goes to passwordless /signin', async () => {
   renderLoPage();
   fireEvent.click(await screen.findByRole('button', { name: /start your application/i }));
   expect(sessionStorage.getItem('loSlug')).toBe('zack-zink');
-  expect(mockNavigate).toHaveBeenCalledWith('/signup');
+  expect(mockNavigate).toHaveBeenCalledWith('/signin', { state: { returnTo: '/apply' } });
 });
 
 it('Start (authenticated) stashes the slug and goes straight to /apply', async () => {

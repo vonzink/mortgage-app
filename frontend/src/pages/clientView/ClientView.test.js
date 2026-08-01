@@ -3,6 +3,7 @@ import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
 import ClientView from './ClientView';
 import mortgageService from '../../services/mortgageService';
+import { getClientContext } from './clientContext';
 
 jest.mock('../../services/mortgageService');
 jest.mock('../statusCenter/LoanStatusCenter', () => ({ loanId }) => <div data-testid="status-center-stub">{loanId}</div>);
@@ -25,6 +26,7 @@ function renderAt(loanId) {
 
 beforeEach(() => {
   mockRoles = { isStaff: true, isBorrower: false };
+  sessionStorage.clear();
   mortgageService.getSuiteApplication = jest.fn().mockResolvedValue({
     loanNumber: '1001', borrower: { firstName: 'Ada', lastName: 'Lovelace' }, loan: {},
   });
@@ -53,4 +55,23 @@ it('switches to the Documents tab (BorrowerDocuments scoped to the loan)', async
   await screen.findByText(/Ada Lovelace/);
   fireEvent.click(screen.getByRole('tab', { name: /documents/i }));
   expect(screen.getByTestId('documents-stub')).toHaveTextContent('L1');
+});
+
+it('seeds the client context (borrowerId/loanId/name) once the application resolves', async () => {
+  mortgageService.getSuiteApplication = jest.fn().mockResolvedValue({
+    loanId: 'L9', loanNumber: '1001', borrowerId: 'B7', borrower: { firstName: 'Jane', lastName: 'Doe' },
+  });
+  renderAt('L9');
+  await waitFor(() =>
+    expect(getClientContext()).toEqual({ borrowerId: 'B7', loanId: 'L9', name: 'Jane Doe' }),
+  );
+});
+
+it('seeds nothing when the suite payload has no borrowerId (older-deploy fallback)', async () => {
+  mortgageService.getSuiteApplication = jest.fn().mockResolvedValue({
+    loanNumber: '1001', borrower: { firstName: 'Ada', lastName: 'Lovelace' }, loan: {},
+  });
+  renderAt('L1');
+  await screen.findByText(/Ada Lovelace/);
+  expect(getClientContext()).toBeNull();
 });

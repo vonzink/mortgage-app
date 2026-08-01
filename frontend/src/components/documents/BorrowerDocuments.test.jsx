@@ -128,3 +128,40 @@ test('the upload affordance is only present once and stays scoped to the own-upl
   const section = heading.closest('[data-testid="borrower-docs__team-section"]');
   expect(within(section).queryByRole('button', { name: /^upload/i })).not.toBeInTheDocument();
 });
+
+// Date-shaped: e.g. "5/1/2026" or "01/05/2026" — digits/digits/digits, locale-agnostic.
+const DATE_SHAPED = /\d{1,2}\/\d{1,2}\/\d{2,4}/;
+// Time-shaped: H:MM or HH:MM, optionally with AM/PM — locale-agnostic (12h vs 24h).
+const TIME_SHAPED = /\d{1,2}:\d{2}\s*([AP]M)?/i;
+
+test('a document row renders both a date and a clock time next to the file size', async () => {
+  mortgageService.getBorrowerDocuments.mockResolvedValue([OWN_DOC]);
+
+  render(<BorrowerDocuments suiteLoanId="loan-1" />);
+
+  const row = (await screen.findByText('paystub-may.pdf')).closest('[data-testid="borrower-doc-row"]');
+  expect(row.textContent).toMatch(DATE_SHAPED);
+  expect(row.textContent).toMatch(TIME_SHAPED);
+});
+
+test('a row with a missing timestamp renders the size with no crash and no timestamp text', async () => {
+  const noTimestampDoc = { ...OWN_DOC, docUuid: 'own-no-ts', fileName: 'no-timestamp.pdf', uploadedAt: undefined };
+  mortgageService.getBorrowerDocuments.mockResolvedValue([noTimestampDoc]);
+
+  render(<BorrowerDocuments suiteLoanId="loan-1" />);
+
+  const row = (await screen.findByText('no-timestamp.pdf')).closest('[data-testid="borrower-doc-row"]');
+  expect(row.textContent).not.toMatch(/invalid date/i);
+  expect(row.textContent).not.toMatch(TIME_SHAPED);
+  expect(row.textContent).not.toMatch(DATE_SHAPED);
+});
+
+test('a row with an unparseable timestamp renders the size with no crash and no bogus timestamp', async () => {
+  const badTimestampDoc = { ...OWN_DOC, docUuid: 'own-bad-ts', fileName: 'bad-timestamp.pdf', uploadedAt: 'not-a-real-date' };
+  mortgageService.getBorrowerDocuments.mockResolvedValue([badTimestampDoc]);
+
+  render(<BorrowerDocuments suiteLoanId="loan-1" />);
+
+  const row = (await screen.findByText('bad-timestamp.pdf')).closest('[data-testid="borrower-doc-row"]');
+  expect(row.textContent).not.toMatch(/invalid date/i);
+});

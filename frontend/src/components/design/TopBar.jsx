@@ -8,6 +8,9 @@ import useRoles from '../../hooks/useRoles';
 import mortgageService from '../../services/mortgageService';
 import { buildCognitoLogoutUrl } from '../../auth/cognitoConfig';
 import { clearSharedSessionCookie } from '../../auth/sharedSession';
+import {
+  getClientContext, clearClientContext, CLIENT_CONTEXT_EVENT,
+} from '../../pages/clientView/clientContext';
 
 /**
  * Design-system TopBar — replaces the legacy Header. Preserves all auth +
@@ -16,9 +19,12 @@ import { clearSharedSessionCookie } from '../../auth/sharedSession';
  * Active-route detection drives the `.active` nav style; auto-detects from the
  * current URL so callers don't need to manage state.
  */
-function detectActive(pathname) {
-  if (pathname.startsWith('/apply')) return 'apply';
-  if (pathname.startsWith('/applications') || pathname.startsWith('/loan')) return 'applications';
+export function detectActive(pathname) {
+  // The /new test MUST come first: `/client/:id/applications/new` also matches the applications
+  // pattern, so testing applications first would leave Apply dark on its own page.
+  if (pathname.startsWith('/apply') || /^\/client\/[^/]+\/applications\/new/.test(pathname)) return 'apply';
+  if (pathname.startsWith('/applications') || pathname.startsWith('/loan')
+      || /^\/client\/[^/]+\/applications$/.test(pathname)) return 'applications';
   if (pathname.startsWith('/admin')) return 'admin';
   return null;
 }
@@ -36,6 +42,31 @@ export default function TopBar() {
   const { isAdmin, isStaff } = useRoles();
   const active = detectActive(location.pathname);
   const currentLoanId = useCurrentLoanId();
+
+  // With a client in context the nav acts on THAT client; with none it behaves exactly as before
+  // (Applications still lands on the list that bounces staff to the suite console).
+  //
+  // Held in state and driven by the stash's own event, NOT by navigation: ClientView writes it
+  // after its fetch resolves, which is neither a render nor a route change. Re-reading on
+  // navigation alone would leave the bar un-scoped on /client-view/:loanId — the page the whole
+  // client-scoped nav exists for — until some unrelated navigation happened to shake it loose.
+  const [stashedClient, setStashedClient] = useState(() => getClientContext());
+  useEffect(() => {
+    const sync = () => setStashedClient(getClientContext());
+    window.addEventListener(CLIENT_CONTEXT_EVENT, sync);
+    return () => window.removeEventListener(CLIENT_CONTEXT_EVENT, sync);
+  }, []);
+
+  // Staff-only scoping, matching the three page surfaces. A borrower with a leftover stash would
+  // otherwise see another person's name in their own header and get an Apply link that only
+  // bounces them home.
+  const client = isStaff ? stashedClient : null;
+  const applicationsTo = client ? `/client/${client.borrowerId}/applications` : '/applications';
+  const applyTo = client ? `/client/${client.borrowerId}/applications/new` : '/apply';
+
+  // The way out. Without it the nav stays client-scoped for the whole tab session — /apply becomes
+  // unreachable and Applications never returns to the global list.
+  const handleExitClient = () => clearClientContext();
 
   const [showSettings, setShowSettings] = useState(false);
   const [busyMismo, setBusyMismo] = useState(false);
@@ -102,8 +133,12 @@ export default function TopBar() {
     await runImport(file, false);
   };
 
-  const handleSignIn = () => auth.signinRedirect();
+  // Passwordless page, not the Hosted UI (same rule as RequireAuth/LandingPage).
+  const handleSignIn = () => navigate('/signin', { state: { returnTo: '/applications' } });
   const handleSignOut = async () => {
+    // sessionStorage survives the Cognito round trip — without this the next person to sign in on
+    // this tab inherits the previous user's client scope.
+    clearClientContext();
     clearSharedSessionCookie(); // kill the cross-app SSO cookie before the local session
     await auth.removeUser();
     clearSharedSessionCookie(); // again post-removeUser: closes the silent-renew race window
@@ -123,10 +158,10 @@ export default function TopBar() {
       </Link>
 
       <nav className="topnav">
-        <Link to="/apply" className={active === 'apply' ? 'active' : ''}>
+        <Link to={applyTo} className={active === 'apply' ? 'active' : ''}>
           <Icon name="doc" size={14} /> Apply
         </Link>
-        <Link to="/applications" className={active === 'applications' ? 'active' : ''}>
+        <Link to={applicationsTo} className={active === 'applications' ? 'active' : ''}>
           <Icon name="folder" size={14} /> Applications
         </Link>
         {isAdmin && (
@@ -135,6 +170,22 @@ export default function TopBar() {
           </Link>
         )}
       </nav>
+
+      {/* Who the nav is currently acting for. Invisible scoping on a surface that can WRITE is the
+          problem this chip exists to solve — it names the client and offers the way out. */}
+      {client && (
+        <div className="topbar-client">
+          <span className="topbar-client-name">{`Working with ${client.name || 'a client'}`}</span>
+          <button
+            type="button"
+            className="topbar-client-exit"
+            onClick={handleExitClient}
+            aria-label="Stop working with this client"
+          >
+            Exit
+          </button>
+        </div>
+      )}
 
       {/* Global typeahead — staff-only tool (find any loan). Hidden in the client/borrower view. */}
       {auth.isAuthenticated && isStaff && <LoanSearch />}

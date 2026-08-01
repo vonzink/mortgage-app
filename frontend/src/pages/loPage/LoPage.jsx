@@ -75,7 +75,15 @@ export default function LoPage() {
     // Stash BEFORE navigating — the intake call sites (ContinuePage funnel tail +
     // ApplicationForm borrower self-materialize) read 'loSlug' from sessionStorage.
     sessionStorage.setItem('loSlug', normalizedSlug);
-    navigate(auth?.isAuthenticated ? '/apply' : '/signup');
+    if (auth?.isAuthenticated) {
+      navigate('/apply');
+      return;
+    }
+    // Cold prospect → the passwordless page (email OTP). CognitoOtpAdapter.start
+    // self-SignUps a never-seen address before InitiateAuth, so a first-time
+    // borrower needs nothing but their inbox. NEVER the Hosted-UI signup form:
+    // asking a borrower to invent a username+password is where they drop off.
+    navigate('/signin', { state: { returnTo: '/apply' } });
   };
 
   const metaLine = [lo.title, lo.nmlsId ? `NMLS #${lo.nmlsId}` : null]

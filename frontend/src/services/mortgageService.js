@@ -547,6 +547,40 @@ const mortgageService = {
     return data;
   },
 
+  // ────────────────── Client loan history (staff, client-view nav) ──────────────────
+
+  /**
+   * A client's whole loan history, for the client-aware "Applications" nav item when staff
+   * are in client-view. Staff-only on the suite side (GET /api/borrowers/{id}/loans).
+   * `accessible` are loans this staff member can open; `restricted` belong to a different
+   * loan officer (shown read-only so two officers don't collide, but the server 403s any
+   * attempt to open them); `totalMatched` is the true match count (can exceed the returned
+   * rows). Missing/sparse fields default to a safe empty shape — callers .map() over the
+   * arrays, so `undefined` must never reach render.
+   */
+  getClientLoans: async (borrowerId) => {
+    const { data } = await suiteClient.get(`/borrowers/${borrowerId}/loans`);
+    const d = unwrapEnvelope(data) || {};
+    return {
+      accessible: Array.isArray(d.accessible) ? d.accessible : [],
+      restricted: Array.isArray(d.restricted) ? d.restricted : [],
+      totalMatched: d.totalMatched ?? 0,
+    };
+  },
+
+  /**
+   * Start a new loan for an existing client, via the purpose-built suite seam
+   * POST /api/borrowers/{borrowerId}/loans. The server copies the client's name/email/phones
+   * from the existing borrower party onto the new loan's primary borrower in one transaction
+   * (never SSN/DOB) — no client identity travels through the browser here.
+   * `loanPurpose` is a required argument, not defaulted: the confirm dialog collects it, and
+   * an omitted value should surface the server's 400 rather than silently becoming PURCHASE.
+   */
+  createLoanForClient: async (borrowerId, loanPurpose) => {
+    const { data } = await suiteClient.post(`/borrowers/${borrowerId}/loans`, { loanPurpose });
+    return unwrapEnvelope(data);
+  },
+
   // ────────────────── Documents (Phase 2B presigned URL flow) ──────────────────
 
   /**

@@ -40,8 +40,8 @@ export const STATUS_LABELS = {
 };
 
 /**
- * Tone bucket for the status chip/pill colour. Greens for forward progress,
- * red for the failure terminals, amber for the in-flight/exception ones.
+ * Tone bucket for the status chip/pill colour. Greens for forward progress, red for the terminals
+ * a loan does not come back from, amber for the recoverable exceptions, muted for not-yet-started.
  */
 export const STATUS_TONE = {
   STARTED: 'muted',
@@ -56,6 +56,31 @@ export const STATUS_TONE = {
   CANCELLED: 'danger',
   DENIED: 'danger',
   SUSPENDED: 'danger',
+
+  // MSFG operational board — appended to LoanStatus after this map was written, so every one of
+  // them used to fall through to the 'muted' default. The dead and stuck ones especially: a loan
+  // that is rescinded or on collection hold read exactly like one that had merely just started.
+  NEW_LOAN: 'muted',
+  REGISTERED: 'muted',
+  NOT_READY_TO_SUBMIT: 'muted',
+  READY_TO_SUBMIT: 'review',
+  RESUBMITTED: 'review',
+  CONDITIONS_PENDING: 'review',
+  CONDITIONS_SENT: 'review',
+  BALANCED_FOR_CLOSING: 'active',
+  CLOSING_DOCS_OUT: 'active',
+  CLOSED: 'active',
+  WAITING_FOR_B1_REIMBURSEMENT: 'review',
+  // Stuck, not over. `danger` is this app's vocabulary for a loan that is finished — rescinded,
+  // not accepted, cancelled — while a hold is recoverable and usually waiting on someone, which is
+  // what `warn` means everywhere else (BorrowerDocuments uses it for NEEDS_BORROWER_ACTION). Same
+  // red on "needs a phone call" and "finished" is a worse signal than either.
+  HOLD: 'warn',
+  HOLD_ON_COLLECTION: 'warn',
+  NOT_ACTIVE_LOAN: 'danger',
+  DL_RESCINDED: 'danger',
+  DL_NOT_ACCEPTED: 'danger',
+  DL_INCOMPLETE: 'danger',
 };
 
 /** Map a suite LoanStatus → a Pill tone token (default 'muted' for unknowns). */

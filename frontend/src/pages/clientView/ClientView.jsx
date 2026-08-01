@@ -5,6 +5,7 @@ import mortgageService from '../../services/mortgageService';
 import LoanStatusCenter from '../statusCenter/LoanStatusCenter';
 import BorrowerDocuments from '../../components/documents/BorrowerDocuments';
 import ClientApplicationView from './ClientApplicationView';
+import { setClientContext } from './clientContext';
 import './ClientView.css';
 
 const TABS = [
@@ -19,6 +20,12 @@ const TABS = [
  * documents. Every call uses the LO's own staff token against borrower endpoints that already admit
  * staff (targeting the primary borrower); edits are attributed to the LO, never spoofed as the client.
  */
+// Shared by the effect (to seed the client context) and the banner render (to display it), so the
+// nav and the banner can never disagree about the client's name.
+function buildClientName(borrower) {
+  return borrower ? [borrower.firstName, borrower.lastName].filter(Boolean).join(' ') : '';
+}
+
 export default function ClientView() {
   const { loanId } = useParams();
   const { isStaff } = useRoles();
@@ -30,7 +37,17 @@ export default function ClientView() {
     let stale = false;
     (async () => {
       const app = await mortgageService.getSuiteApplication(loanId);
-      if (!stale) setApplication(app);
+      if (stale) return;
+      setApplication(app);
+      // Seed "the client I'm helping" so the TopBar's Applications/Apply become client-scoped.
+      // borrowerId comes straight off the suite payload (BorrowerApplicationResponse.borrowerId).
+      if (app?.borrowerId) {
+        setClientContext({
+          borrowerId: app.borrowerId,
+          loanId,
+          name: buildClientName(app.borrower),
+        });
+      }
     })();
     return () => { stale = true; };
   }, [isStaff, loanId]);
@@ -38,10 +55,7 @@ export default function ClientView() {
   // Client-view is a staff surface. A borrower has their own /dashboard; send non-staff home.
   if (!isStaff) return <Navigate to="/" replace />;
 
-  const clientName =
-    application && application.borrower
-      ? [application.borrower.firstName, application.borrower.lastName].filter(Boolean).join(' ')
-      : '';
+  const clientName = buildClientName(application?.borrower);
 
   return (
     <div className="client-view">

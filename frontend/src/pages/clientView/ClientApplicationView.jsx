@@ -1,5 +1,6 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
+import useRoles from '../../hooks/useRoles';
 import { suiteLoanUrl } from '../../services/suiteWeb';
 
 const money = (n) =>
@@ -18,10 +19,11 @@ const Row = ({ label, value }) => (
  * Read-only render of the client's 1003 (suite BorrowerApplicationResponse). NPI-safe by
  * construction — the payload carries no SSN, only hasSsn. Editing happens via "Fill out
  * application" (the /apply wizard in staff-loan mode, saving onto this loan under the
- * staff member's own name) or in the suite console ("Edit in console ↗").
+ * staff member's own name) or in the suite ("Edit in suite ↗", staff only).
  */
 export default function ClientApplicationView({ application, loanId }) {
   const navigate = useNavigate();
+  const { isStaff } = useRoles();
   if (!application) {
     return <p className="cv-empty">No application data for this loan yet.</p>;
   }
@@ -45,9 +47,12 @@ export default function ClientApplicationView({ application, loanId }) {
           >
             Fill out application
           </button>
-          {consoleUrl && (
+          {/* Suite users only. This shell is already staff-gated, but the link is gated on its
+              own terms rather than inheriting the parent's: it leaves for a system with separate
+              permissions, and a client or agent must never be shown a door they cannot open. */}
+          {isStaff && consoleUrl && (
             <a className="cv-console-link" href={consoleUrl} target="_blank" rel="noopener noreferrer">
-              Edit in console ↗
+              Edit in suite ↗
             </a>
           )}
         </div>

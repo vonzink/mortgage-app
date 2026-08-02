@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { useParams, Navigate } from 'react-router-dom';
+import { useParams, useSearchParams, Navigate } from 'react-router-dom';
 import useRoles from '../../hooks/useRoles';
 import mortgageService from '../../services/mortgageService';
 import LoanStatusCenter from '../statusCenter/LoanStatusCenter';
@@ -29,8 +29,16 @@ function buildClientName(borrower) {
 export default function ClientView() {
   const { loanId } = useParams();
   const { isStaff } = useRoles();
+  const [searchParams] = useSearchParams();
   const [application, setApplication] = useState(null);
-  const [tab, setTab] = useState('dashboard');
+  // `?tab=` makes each tab deep-linkable, so "open this client's application" can land on the
+  // application itself rather than the dashboard the reader then has to click past. Validated
+  // against TABS: an unknown or absent value falls back to dashboard rather than rendering a
+  // blank shell, so a stale or hand-edited link degrades to the normal landing.
+  const requestedTab = searchParams.get('tab');
+  const [tab, setTab] = useState(
+    TABS.some((t) => t.key === requestedTab) ? requestedTab : 'dashboard',
+  );
 
   useEffect(() => {
     if (!isStaff || !loanId) return undefined;

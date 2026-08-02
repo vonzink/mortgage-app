@@ -98,15 +98,66 @@ it('fetches with the borrowerId from the route', async () => {
   expect(mortgageService.getClientLoans).toHaveBeenCalledWith('B42');
 });
 
-it('opens an accessible loan in the /apply editor', async () => {
+// "Open application" shows the application AS THE CLIENT SEES IT — the client-view shell on its
+// Application tab — rather than dropping into the edit wizard. Staff read applications far more
+// often than they change them, and landing in a form makes it easy to edit a client's file when
+// you only meant to look at it.
+it('opens an accessible loan on the client-view application tab, not the editor', async () => {
   renderAt();
 
   const row = await screen.findByTestId('client-loan-L1');
-  fireEvent.click(within(row).getByRole('button', { name: /open application/i }));
-
-  await waitFor(() =>
-    expect(screen.getByTestId('apply-probe')).toHaveTextContent('/apply?loan=L1'),
+  expect(within(row).getByRole('link', { name: /open application/i })).toHaveAttribute(
+    'href',
+    '/client-view/L1?tab=application',
   );
+  // The editor is a deliberate second step from there, never this row's default.
+  expect(screen.queryByTestId('apply-probe')).not.toBeInTheDocument();
+});
+
+// The suite link is the one control here that leaves for a system with its own permissions.
+// Its href must be the loan's suite workspace, and it must open in a new tab with the
+// opener severed — this app stays put while the officer works over there.
+it('offers a suite deep link on an accessible loan', async () => {
+  const prev = process.env.REACT_APP_SUITE_WEB_URL;
+  process.env.REACT_APP_SUITE_WEB_URL = 'https://suite.example.com';
+  try {
+    renderAt();
+    const row = await screen.findByTestId('client-loan-L1');
+    const link = within(row).getByRole('link', { name: /edit in suite/i });
+    expect(link).toHaveAttribute('href', 'https://suite.example.com/loans/L1');
+    expect(link).toHaveAttribute('target', '_blank');
+    expect(link).toHaveAttribute('rel', expect.stringContaining('noopener'));
+  } finally {
+    process.env.REACT_APP_SUITE_WEB_URL = prev;
+  }
+});
+
+// A build with no suite origin configured must not render a dead link to nowhere.
+it('omits the suite link when no suite origin is configured', async () => {
+  const prev = process.env.REACT_APP_SUITE_WEB_URL;
+  delete process.env.REACT_APP_SUITE_WEB_URL;
+  try {
+    renderAt();
+    const row = await screen.findByTestId('client-loan-L1');
+    expect(within(row).queryByRole('link', { name: /edit in suite/i })).not.toBeInTheDocument();
+  } finally {
+    if (prev === undefined) delete process.env.REACT_APP_SUITE_WEB_URL;
+    else process.env.REACT_APP_SUITE_WEB_URL = prev;
+  }
+});
+
+// A restricted loan belongs to another officer — it gets no way in at all, and that must
+// include the suite link, which would otherwise be a working door around the lock.
+it('gives a restricted row no suite link either', async () => {
+  const prev = process.env.REACT_APP_SUITE_WEB_URL;
+  process.env.REACT_APP_SUITE_WEB_URL = 'https://suite.example.com';
+  try {
+    renderAt();
+    const row = await screen.findByTestId('client-loan-L2');
+    expect(within(row).queryByRole('link')).not.toBeInTheDocument();
+  } finally {
+    process.env.REACT_APP_SUITE_WEB_URL = prev;
+  }
 });
 
 it('links an accessible loan to its client-view dashboard', async () => {

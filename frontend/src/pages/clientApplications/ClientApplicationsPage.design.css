@@ -51,6 +51,11 @@
 .cl-meta-dim { color: var(--ink-500, #5b6660); }
 .cl-inactive { color: var(--ink-500, #5b6660); font-style: italic; }
 
+/* Leaves this app for the suite, so it reads as a link rather than a third button competing
+   with the two in-app actions beside it. Matches .cv-console-link in the client view. */
+.cl-suite-link { font-weight: 600; font-size: 13px; color: var(--green, #2f7d4f); text-decoration: none; white-space: nowrap; }
+.cl-suite-link:hover { text-decoration: underline; }
+
 /* ─── Restricted ──────────────────────────────────────────────────────── */
 .cl-row--restricted {
   background: var(--bg-secondary, #f7f9f6);

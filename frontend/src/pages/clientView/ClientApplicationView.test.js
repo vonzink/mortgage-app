@@ -12,8 +12,12 @@ jest.mock('react-router-dom', () => ({
   useNavigate: () => mockNavigate,
 }));
 
+let mockRoles = { isStaff: true };
+jest.mock('../../hooks/useRoles', () => () => mockRoles);
+
 beforeEach(() => {
   mockNavigate.mockClear();
+  mockRoles = { isStaff: true };
 });
 
 const application = {
@@ -30,10 +34,21 @@ it('renders the client 1003 read-only with borrower + property', () => {
   expect(screen.getByText(/Denver, CO/)).toBeInTheDocument();
 });
 
-it('links to the console loan workspace for editing', () => {
+it('links a suite user to the loan workspace for editing', () => {
   render(<ClientApplicationView application={application} loanId="L1" />);
-  const link = screen.getByRole('link', { name: /edit in console/i });
+  const link = screen.getByRole('link', { name: /edit in suite/i });
   expect(link).toHaveAttribute('href', 'https://suite.example/loans/L1');
+});
+
+// The suite has its own permissions: borrowers and agents have no account there. Showing them
+// the link would advertise a door that 401s on arrival, and this component is rendered inside a
+// shell whose own gate could be relaxed later — so it refuses on its own terms, not the parent's.
+it('hides the suite link from anyone who is not a suite user', () => {
+  mockRoles = { isStaff: false };
+  render(<ClientApplicationView application={application} loanId="L1" />);
+  expect(screen.queryByRole('link', { name: /edit in suite/i })).not.toBeInTheDocument();
+  // The in-app path is unaffected — it does not depend on suite access.
+  expect(screen.getByRole('button', { name: /fill out application/i })).toBeInTheDocument();
 });
 
 it('staff can jump to the wizard with Fill out application', () => {

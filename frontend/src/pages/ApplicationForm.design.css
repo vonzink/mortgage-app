@@ -22,7 +22,7 @@
 }
 .apply-hero-band-inner {
   position: relative; z-index: 1;
-  max-width: 1120px; margin: 0 auto; padding: 0 32px;
+  max-width: 1240px; margin: 0 auto; padding: 0 32px;
 }
 
 /* Subtle entrance — single play, respects reduced-motion (see bottom of file). */
@@ -181,7 +181,7 @@
 
 /* ── Progress strip — white card floating over the hero, adaptive steps ──── */
 .apply-progress-card {
-  max-width: 1240px;                /* match the new .apply-body width */
+  max-width: 1360px;                /* match the new .apply-body width */
   margin: -64px auto 0;             /* pull up to overlap the hero bottom */
   padding: 18px;
   position: relative; z-index: 3;
@@ -278,11 +278,11 @@
 
 /* Body: single full-width block holding the form card (sidebar removed).
    The stepper stays full-width ABOVE this block; both share the same
-   max-width (1240px) so the form card and the stepper card align edge-to-edge.
+   max-width (1360px) so the form card and the stepper card align edge-to-edge.
    The inner .apply-form / .apply-form-card own no narrow max-width of their own
    anymore — .apply-body governs the content width and the card fills it flush. */
 .apply-body {
-  max-width: 1240px;
+  max-width: 1360px;
   margin: 0 auto;
   padding: 0 32px;
 }

@@ -11,7 +11,7 @@
  * drift here corrupts loan data in the SoR.
  *
  * Shape (suite contract):
- *   { loan, borrower, income:{employments, otherIncome}, assets, liabilities, reo,
+ *   { loan, borrower, addresses, income:{employments, otherIncome}, assets, liabilities, reo,
  *     declarations:null, demographics:null }
  * A `null` section is SKIPPED by the suite; a present section is a FULL REPLACE.
  * Dates are ISO `YYYY-MM-DD`. `state`/`employerState` are 2-letter codes.
@@ -424,6 +424,109 @@ function buildIncomeSection(b) {
     : null;
 }
 
+// ── §1c/1d residence history ──────────────────────────────────────────────
+
+/** residencyType → suite AddressType. Absent/blank falls back to position (index 0 = present). */
+const RESIDENCE_ADDRESS_TYPE = { Current: 'PRESENT', Prior: 'PREVIOUS' };
+
+/** residencyBasis → suite OwnershipType. */
+const RESIDENCY_BASIS = { Own: 'OWN', Rent: 'RENT', LivingRentFree: 'LIVING_RENT_FREE' };
+
+/**
+ * Whole months between two ISO dates, or null if either is missing/unparseable.
+ *
+ * Deliberately strict: a prior address with a start but NO end date yields null rather than
+ * spanning to "today". The 2-year-history WARNING in formHelpers does use a now-fallback, but
+ * that's a display hint — writing an invented duration into the system of record is not the
+ * same thing, so an open-ended prior address stores no duration at all.
+ */
+function monthsBetween(startValue, endValue) {
+  const s = isoDate(startValue);
+  const e = isoDate(endValue);
+  if (!s || !e) return null;
+  const [sy, sm, sd] = s.split('-').map(Number);
+  const [ey, em, ed] = e.split('-').map(Number);
+  let months = (ey - sy) * 12 + (em - sm);
+  if (ed < sd) months -= 1;           // final month not yet complete
+  return months > 0 ? months : null;
+}
+
+/**
+ * A residence's time-at-address as {years, months}.
+ *
+ * The form carries this two different ways — a CURRENT residence has years + months inputs, a
+ * PRIOR one has start/end dates — but `borrower_address` has only years/months columns. Prior
+ * spans are therefore reduced to years+months here; the dates themselves have no wire home.
+ */
+function residenceDuration(r) {
+  if (r.residencyType === 'Prior') {
+    const m = monthsBetween(r.startDate, r.endDate);
+    if (m !== null) return { years: Math.floor(m / 12), months: m % 12 };
+    // Fall through deliberately. A prior address the USER authored has dates, but one
+    // REHYDRATED from the suite carries years+months and no dates (the dates have no
+    // column). Without this fallback a second save would drop the duration it just read.
+  }
+  const years = intOrNull(r.durationYears);
+  const monthsOnly = intOrNull(r.durationMonthsOnly);
+  if (years !== null || monthsOnly !== null) {
+    return { years: years || 0, months: monthsOnly || 0 };
+  }
+  // reset()-driven prefills can carry the rolled-up total without the split inputs.
+  const total = intOrNull(r.durationMonths);
+  return total === null || total <= 0
+    ? { years: null, months: null }
+    : { years: Math.floor(total / 12), months: total % 12 };
+}
+
+/**
+ * borrowers[i].residences[] (+ a separate mailingAddress) → suite AddressInfo[].
+ *
+ * Rows with no street line are dropped, so an untouched wizard yields [] → the caller sends null
+ * → the suite SKIPS the section. That matters: the section is a full REPLACE, so an empty list
+ * must never reach the SoR and wipe addresses the LO or an import put there.
+ */
+function buildAddresses(b) {
+  const rows = (b?.residences || [])
+    .map((r, index) => ({ r, index }))
+    .filter(({ r }) => r && hasValue(r.addressLine))
+    .map(({ r, index }) => {
+      const { years, months } = residenceDuration(r);
+      return {
+        addressType: RESIDENCE_ADDRESS_TYPE[r.residencyType]
+          || (index === 0 ? 'PRESENT' : 'PREVIOUS'),
+        addressLine1: str(r.addressLine),
+        addressLine2: null,
+        city: str(r.city),
+        state: usState(r.state),
+        postalCode: str(r.zipCode),
+        ownershipType: RESIDENCY_BASIS[r.residencyBasis] || null,
+        residencyDurationYears: years,
+        residencyDurationMonths: months,
+        rentAmount: num(r.monthlyRent),
+      };
+    });
+
+  // A dedicated mailing address exists ONLY when the borrower unticked "same as my present
+  // address" (the checkbox defaults true). Ticked = no MAILING row, which is correct: the
+  // present address IS the mailing address, and duplicating it would read as two addresses.
+  const m = b?.mailingAddress;
+  if (b?.mailingSameAsPresent === false && m && hasValue(m.addressLine)) {
+    rows.push({
+      addressType: 'MAILING',
+      addressLine1: str(m.addressLine),
+      addressLine2: null,
+      city: str(m.city),
+      state: usState(m.state),
+      postalCode: str(m.zipCode),
+      ownershipType: null,
+      residencyDurationYears: null,
+      residencyDurationMonths: null,
+      rentAmount: null,
+    });
+  }
+  return rows;
+}
+
 function buildReo(reoProperties) {
   return (reoProperties || [])
     .filter((r) => hasValue(r.addressLine))
@@ -463,8 +566,10 @@ function buildReo(reoProperties) {
  * on the primary path). Reuses the shared section builders, parameterized per borrower.
  */
 function buildCoBorrowerSection(b) {
+  const addresses = buildAddresses(b);
   return {
     borrower: buildBorrower(b),
+    addresses: addresses.length ? addresses : null,
     income: buildIncomeSection(b),
     assets: buildAssets(b?.assets),
     liabilities: buildLiabilities(b?.liabilities),
@@ -599,6 +704,9 @@ export function formToSuiteApplication(formData) {
   // Same shared income builder the co-borrowers use → primary output is unchanged.
   const income = buildIncomeSection(primary);
 
+  // §1c/1d residence history (present + prior + a separate mailing address when given).
+  const addresses = buildAddresses(primary);
+
   // Assets & liabilities live under borrowers[0] in the form model.
   const assets = buildAssets(primary?.assets);
   const liabilities = buildLiabilities(primary?.liabilities);
@@ -622,6 +730,7 @@ export function formToSuiteApplication(formData) {
   return {
     loan: loanHasData(loan) ? loan : null,
     borrower: borrowerHasData(primary) ? borrower : null,
+    addresses: addresses.length ? addresses : null,
     income,
     assets: assets.length ? assets : null,
     liabilities: liabilities.length ? liabilities : null,

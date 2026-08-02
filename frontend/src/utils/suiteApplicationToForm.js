@@ -6,14 +6,18 @@
  * the wizard" mode (Task 13) to prefill the form with the loan's EXISTING application.
  *
  * ⚠️ WHAT THE SUITE RETURNS TODAY (BorrowerApplicationResponse.java): ONLY
- * {loanId, loanNumber, borrowerId, loan, borrower} — the borrower carries hasSsn
- * (never the SSN), and LoanInfo does NOT include the four proposed*Monthly escrow
- * estimates. So in prod, TODAY, only the loan + borrower sections prefill. The other
- * seven section mappers here (income, assets, liabilities, reo, declarations,
+ * {loanId, loanNumber, borrowerId, loan, borrower, addresses} — the borrower carries
+ * hasSsn (never the SSN), and LoanInfo does NOT include the four proposed*Monthly escrow
+ * estimates. So in prod, TODAY, only the loan + borrower + addresses sections prefill. The
+ * other six section mappers here (income, assets, liabilities, reo, declarations,
  * demographics, coBorrowers) are future-proofing: they hydrate as plain wizard
  * defaults until the suite GET grows to the full request shape. That is SAFE — an
  * empty/default section forwards to null, and the suite SKIPS null sections on PUT,
  * so loading a partial response and resubmitting cannot wipe SoR data.
+ *
+ * `addresses` is returned precisely BECAUSE it is a full-replace section the wizard now
+ * writes: without hydration, reopening the wizard and resubmitting would replace the
+ * borrower's stored residence history with whatever single address was retyped.
  *
  * Pure functions only — no React, no HTTP. The invariant this file is tested against:
  *
@@ -29,7 +33,8 @@
  *
  * Known one-way (form → wire only) fields with NO wire home — untouched here, so the
  * wizard defaults stand: loanPurpose, yearBuilt, constructionType, downPaymentSource,
- * gift fields, residences[], mailingSameAsPresent, asset owner/usedForDownpayment,
+ * gift fields, residence start/end DATES (the span survives as years+months; the dates
+ * themselves have no column), asset owner/usedForDownpayment,
  * liability owner, REO owner/category/ownedFreeAndClear/associatedLiabilities,
  * declaration.hmdaEthnicityOrigin, declaration.applicationTakenMethod.
  * Known wire-only fields with NO form home — dropped here: borrower homePhone-as-its-own
@@ -43,6 +48,7 @@ import { hasValue } from './applicationPayload';
 import { formatSSN, formatPhone } from './format';
 import {
   createDefaultBorrower,
+  createDefaultResidence,
   createDefaultEmployment,
   createDefaultIncomeSource,
   createDefaultAsset,
@@ -195,6 +201,62 @@ function applyBorrowerInfo(target, b) {
   // to a staff-entered homePhone so the wizard still shows a reachable number.
   target.phone = hasValue(b.cellPhone) ? phoneOrBlank(b.cellPhone) : phoneOrBlank(b.homePhone);
   target.email = orBlank(b.email);
+}
+
+// Inverse of the payload builder's residence tables.
+const FORM_RESIDENCY_TYPE = { PRESENT: 'Current', PREVIOUS: 'Prior' };
+const FORM_RESIDENCY_BASIS = { OWN: 'Own', RENT: 'Rent', LIVING_RENT_FREE: 'LivingRentFree' };
+
+/**
+ * One wire address → form residences row (inverse of buildAddresses).
+ *
+ * Lossy in one direction by construction: a PRIOR residence was authored with start/end DATES,
+ * which the wire reduced to years+months (the table has no date columns). Re-hydrating puts the
+ * duration back on the Current-shaped inputs and leaves startDate/endDate blank — the span
+ * survives, the exact dates don't. That's why residenceDuration() falls back to durationMonths.
+ */
+function toFormResidence(a, index) {
+  const row = createDefaultResidence(
+    index + 1,
+    FORM_RESIDENCY_TYPE[a.addressType] || (index === 0 ? 'Current' : 'Prior'),
+  );
+  row.addressLine = orBlank(a.addressLine1);
+  row.city = orBlank(a.city);
+  row.state = orBlank(a.state);
+  row.zipCode = orBlank(a.postalCode);
+  row.residencyBasis = fromTable(FORM_RESIDENCY_BASIS, a.ownershipType, '');
+  row.monthlyRent = orBlank(a.rentAmount);
+  const years = Number(a.residencyDurationYears) || 0;
+  const months = Number(a.residencyDurationMonths) || 0;
+  if (years || months) {
+    row.durationYears = years;
+    row.durationMonthsOnly = months;
+    row.durationMonths = years * 12 + months;
+  }
+  return row;
+}
+
+/**
+ * addresses[] → residences[] + the separate mailingAddress slot.
+ *
+ * MAILING rows are pulled OUT of the residence list — the wizard models the mailing address as
+ * its own field behind the "same as my present address" checkbox, not as a residence tab. A
+ * MAILING row on the wire therefore means the borrower unticked that box, so it's unticked here.
+ */
+function applyAddresses(target, addresses) {
+  const residences = addresses.filter((a) => a && a.addressType !== 'MAILING');
+  const mailing = addresses.find((a) => a && a.addressType === 'MAILING');
+
+  if (residences.length) target.residences = residences.map(toFormResidence);
+  if (mailing) {
+    target.mailingSameAsPresent = false;
+    target.mailingAddress = {
+      addressLine: orBlank(mailing.addressLine1),
+      city: orBlank(mailing.city),
+      state: orBlank(mailing.state),
+      zipCode: orBlank(mailing.postalCode),
+    };
+  }
 }
 
 /** One wire employment → form employmentHistory row (inverse of buildEmployment). */
@@ -366,10 +428,11 @@ function toFormBorrower(sequenceNumber, sections) {
   // so the shape is stable whether or not a borrower section overrides it below.
   target.suffix = target.suffix || '';
   const {
-    borrower, income, assets, liabilities, reo, declarations, demographics,
+    borrower, addresses, income, assets, liabilities, reo, declarations, demographics,
   } = sections || {};
 
   if (borrower) applyBorrowerInfo(target, borrower);
+  if (Array.isArray(addresses) && addresses.length) applyAddresses(target, addresses);
   if (income) {
     const employments = Array.isArray(income.employments) ? income.employments : [];
     const otherIncome = Array.isArray(income.otherIncome) ? income.otherIncome : [];
@@ -413,6 +476,7 @@ export default function suiteApplicationToForm(app) {
   // Primary borrower = borrowers[0]; carries the application-level sections.
   form.borrowers.push(toFormBorrower(1, {
     borrower: app.borrower,
+    addresses: app.addresses,
     income: app.income,
     assets: app.assets,
     liabilities: app.liabilities,

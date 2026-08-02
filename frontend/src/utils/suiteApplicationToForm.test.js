@@ -81,7 +81,26 @@ const primaryBorrower = () => ({
     // many-to-one inverse: wire OTHER comes back as 'Other', re-emits OTHER.
     { incomeType: 'Rental', monthlyAmount: '900', description: 'duplex' },
   ],
-  residences: [],
+  // Present + prior residence, plus a separate mailing address. The prior one uses the
+  // Current-shaped duration inputs on purpose: start/end DATES have no wire home (they
+  // reduce to years+months), so a date-authored prior address is NOT round-trippable and
+  // would break wire equality here. Its lossiness is pinned by its own test below.
+  residences: [
+    {
+      sequenceNumber: 1, residencyType: 'Current',
+      addressLine: '10 Now St', city: 'Denver', state: 'CO', zipCode: '80202',
+      residencyBasis: 'Rent', monthlyRent: '2100',
+      durationYears: 2, durationMonthsOnly: 4, durationMonths: 28,
+    },
+    {
+      sequenceNumber: 2, residencyType: 'Prior',
+      addressLine: '5 Then Ave', city: 'Boulder', state: 'CO', zipCode: '80301',
+      residencyBasis: 'Own', monthlyRent: '',
+      durationYears: 3, durationMonthsOnly: 0, durationMonths: 36,
+    },
+  ],
+  mailingSameAsPresent: false,
+  mailingAddress: { addressLine: 'PO Box 9', city: 'Denver', state: 'CO', zipCode: '80202' },
   assets: [
     { assetType: 'Checking', bankName: 'First Bank', accountNumber: '1111', assetValue: '15000' },
     // 'IRA' forward-maps to RETIREMENT (collapse) — inverse picks 'Retirement401k'.
@@ -162,7 +181,15 @@ const coBorrower = () => ({
     },
   ],
   incomeSources: [],
-  residences: [],
+  // A co-borrower carries their own residence history through CoBorrowerSection.addresses.
+  residences: [
+    {
+      sequenceNumber: 1, residencyType: 'Current',
+      addressLine: '10 Now St', city: 'Denver', state: 'CO', zipCode: '80202',
+      residencyBasis: 'Rent', monthlyRent: '2100',
+      durationYears: 2, durationMonthsOnly: 4, durationMonths: 28,
+    },
+  ],
   assets: [
     { assetType: 'Savings', bankName: 'CU', accountNumber: '9999', assetValue: '22000' },
   ],
@@ -216,7 +243,7 @@ describe('round-trip: form → wire → form → wire', () => {
   const wire2 = formToSuiteApplication(form2);
 
   test.each([
-    'loan', 'borrower', 'income', 'assets', 'liabilities', 'reo',
+    'loan', 'borrower', 'addresses', 'income', 'assets', 'liabilities', 'reo',
     'declarations', 'demographics', 'coBorrowers',
   ])('section %s survives the loop', (section) => {
     expect(wire2[section]).toEqual(wire1[section]);
@@ -235,6 +262,93 @@ describe('round-trip: form → wire → form → wire', () => {
       borrower: { ...wire1.borrower, hasSsn: true },
     };
     expect(formToSuiteApplication(suiteApplicationToForm(withExtras))).toEqual(wire1);
+  });
+});
+
+// ── §1c/1d residence history ──────────────────────────────────────────────
+
+describe('addresses (residence history)', () => {
+  const residencesOf = (form) => form.borrowers[0].residences;
+
+  test('present/prior/mailing route to the right AddressType', () => {
+    const wire = formToSuiteApplication(fullFormFixture());
+    expect(wire.addresses.map((a) => a.addressType)).toEqual(['PRESENT', 'PREVIOUS', 'MAILING']);
+    expect(wire.addresses[0]).toMatchObject({
+      addressLine1: '10 Now St', city: 'Denver', state: 'CO', postalCode: '80202',
+      ownershipType: 'RENT', rentAmount: 2100,
+      residencyDurationYears: 2, residencyDurationMonths: 4,
+    });
+  });
+
+  test('a prior address authored with DATES reduces to years+months', () => {
+    const form = fullFormFixture();
+    form.borrowers[0].residences[1] = {
+      sequenceNumber: 2, residencyType: 'Prior', addressLine: '5 Then Ave',
+      city: 'Boulder', state: 'CO', zipCode: '80301', residencyBasis: 'Own',
+      startDate: '2016-01-15', endDate: '2019-07-14',   // 3 yrs 5 mos (14th < 15th → not a full month)
+      durationYears: '', durationMonthsOnly: '', durationMonths: 0,
+    };
+    const wire = formToSuiteApplication(form);
+    expect(wire.addresses[1]).toMatchObject({
+      addressType: 'PREVIOUS', residencyDurationYears: 3, residencyDurationMonths: 5,
+    });
+  });
+
+  test('an open-ended prior address stores no invented duration', () => {
+    const form = fullFormFixture();
+    form.borrowers[0].residences[1] = {
+      sequenceNumber: 2, residencyType: 'Prior', addressLine: '5 Then Ave',
+      startDate: '2016-01-15', endDate: '',
+      durationYears: '', durationMonthsOnly: '', durationMonths: 0,
+    };
+    const wire = formToSuiteApplication(form);
+    expect(wire.addresses[1].residencyDurationYears).toBeNull();
+    expect(wire.addresses[1].residencyDurationMonths).toBeNull();
+  });
+
+  test('a REHYDRATED prior address keeps its duration on the second save', () => {
+    // The regression this guards: hydrating gives a prior row years+months and NO dates,
+    // so a date-only duration path would silently drop it the next time the borrower saves.
+    const wire1b = formToSuiteApplication(fullFormFixture());
+    const form2b = suiteApplicationToForm(wire1b);
+    expect(residencesOf(form2b)[1]).toMatchObject({
+      residencyType: 'Prior', durationYears: 3, durationMonthsOnly: 0,
+    });
+    expect(formToSuiteApplication(form2b).addresses[1]).toMatchObject({
+      residencyDurationYears: 3, residencyDurationMonths: 0,
+    });
+  });
+
+  test('MAILING hydrates into the mailing slot, not a residence tab', () => {
+    const form = suiteApplicationToForm(formToSuiteApplication(fullFormFixture()));
+    expect(residencesOf(form)).toHaveLength(2);              // mailing is NOT a residence
+    expect(form.borrowers[0].mailingSameAsPresent).toBe(false);
+    expect(form.borrowers[0].mailingAddress).toMatchObject({ addressLine: 'PO Box 9' });
+  });
+
+  test('no MAILING row when the mailing address is the present address', () => {
+    const form = fullFormFixture();
+    form.borrowers[0].mailingSameAsPresent = true;
+    const wire = formToSuiteApplication(form);
+    expect(wire.addresses.map((a) => a.addressType)).toEqual(['PRESENT', 'PREVIOUS']);
+  });
+
+  test('an untouched residence list sends null so the suite SKIPS the replace', () => {
+    // The data-loss guard: addresses is a FULL REPLACE section, so a blank wizard must
+    // never send [] and wipe history an LO or a LendingPad/MISMO import already stored.
+    const form = fullFormFixture();
+    form.borrowers[0].residences = [
+      { sequenceNumber: 1, residencyType: 'Current', addressLine: '', city: '', state: '', zipCode: '' },
+    ];
+    form.borrowers[0].mailingSameAsPresent = true;
+    expect(formToSuiteApplication(form).addresses).toBeNull();
+  });
+
+  test('co-borrowers carry their own addresses section', () => {
+    const wire = formToSuiteApplication(fullFormFixture());
+    expect(wire.coBorrowers[0].addresses).toEqual([
+      expect.objectContaining({ addressType: 'PRESENT', addressLine1: '10 Now St' }),
+    ]);
   });
 });
 

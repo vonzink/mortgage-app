@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { Navigate, useNavigate, useParams } from 'react-router-dom';
+import { Navigate, useParams } from 'react-router-dom';
 
 import useRoles from '../../hooks/useRoles';
 import mortgageService from '../../services/mortgageService';
@@ -8,6 +8,7 @@ import Button from '../../components/design/Button';
 import Pill from '../../components/design/Pill';
 import Icon from '../../components/design/Icon';
 import { getClientContext } from '../clientView/clientContext';
+import { suiteLoanUrl } from '../../services/suiteWeb';
 // Shared with the LO dashboard and the global loan search — the tones are keyed on the suite's
 // LoanStatus enum, and the local copy this replaced was keyed on statuses that no longer exist
 // (CTC, DOCS_OUT, DISPOSITIONED, APPLICATION), so most real statuses fell through to one bucket.
@@ -81,9 +82,9 @@ function RowIdentity({ row }) {
   );
 }
 
-function AccessibleRow({ row }) {
-  const navigate = useNavigate();
+function AccessibleRow({ row, isStaff }) {
   const updated = formatUpdated(row.updatedAt);
+  const suiteUrl = suiteLoanUrl(row.loanId);
 
   return (
     <Card pad className="cl-row" data-testid={`client-loan-${row.loanId}`}>
@@ -93,12 +94,29 @@ function AccessibleRow({ row }) {
         {updated && <div className="cl-meta-line cl-meta-dim">{`Updated ${updated}`}</div>}
       </div>
       <div className="cl-row-actions">
-        <Button variant="primary" size="sm" onClick={() => navigate(`/apply?loan=${row.loanId}`)}>
-          <Icon name="edit" size={14} /> Open application
+        {/* Opening an application shows it AS THE CLIENT SEES IT — the client-view shell on its
+            Application tab — not the edit wizard. Staff read far more applications than they
+            edit, and dropping straight into a form makes it easy to change a client's file when
+            you only meant to look at it. Editing is a deliberate second step from there. */}
+        <Button variant="primary" size="sm" to={`/client-view/${row.loanId}?tab=application`}>
+          <Icon name="doc" size={14} /> Open application
         </Button>
         <Button variant="ghost" size="sm" to={`/client-view/${row.loanId}`}>
           View dashboard
         </Button>
+        {/* Suite users only. The page is already staff-gated, but this link is gated on its own
+            terms: it is the one control here that leaves for a system with its own permissions,
+            and a client or agent must never be shown a door they cannot open. */}
+        {isStaff && suiteUrl && (
+          <a
+            className="cl-suite-link"
+            href={suiteUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            Edit in suite ↗
+          </a>
+        )}
       </div>
     </Card>
   );
@@ -207,7 +225,9 @@ export default function ClientApplicationsPage() {
             </p>
           )}
           <div className="cl-rows">
-            {accessible.map((row) => <AccessibleRow key={row.loanId} row={row} />)}
+            {accessible.map((row) => (
+              <AccessibleRow key={row.loanId} row={row} isStaff={isStaff} />
+            ))}
             {restricted.map((row) => <RestrictedRow key={row.loanId} row={row} />)}
           </div>
         </>

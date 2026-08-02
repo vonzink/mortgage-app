@@ -13,9 +13,9 @@ jest.mock('../../components/documents/BorrowerDocuments', () => ({ suiteLoanId }
 let mockRoles = { isStaff: true, isBorrower: false };
 jest.mock('../../hooks/useRoles', () => () => mockRoles);
 
-function renderAt(loanId) {
+function renderAt(loanId, search = '') {
   return render(
-    <MemoryRouter initialEntries={[`/client-view/${loanId}`]}>
+    <MemoryRouter initialEntries={[`/client-view/${loanId}${search}`]}>
       <Routes>
         <Route path="/client-view/:loanId" element={<ClientView />} />
         <Route path="/" element={<div data-testid="home" />} />
@@ -23,6 +23,10 @@ function renderAt(loanId) {
     </MemoryRouter>,
   );
 }
+
+/** Which tab the shell is showing, read from the tablist's selected state. */
+const selectedTab = () =>
+  screen.getAllByRole('tab').find((t) => t.getAttribute('aria-selected') === 'true')?.textContent;
 
 beforeEach(() => {
   mockRoles = { isStaff: true, isBorrower: false };
@@ -36,6 +40,24 @@ it('redirects a non-staff user away from client-view', async () => {
   mockRoles = { isStaff: false, isBorrower: true };
   renderAt('L1');
   await waitFor(() => expect(screen.getByTestId('home')).toBeInTheDocument());
+});
+
+// `?tab=` lets "open this client's application" land ON the application instead of the dashboard
+// the reader then has to click past. It is the link the Applications list uses.
+it('opens on the tab named in the query string', async () => {
+  renderAt('L1', '?tab=application');
+  await waitFor(() => expect(selectedTab()).toBe('Application'));
+});
+
+it('defaults to the dashboard with no tab requested', async () => {
+  renderAt('L1');
+  await waitFor(() => expect(selectedTab()).toBe('Dashboard'));
+});
+
+// A stale or hand-edited link must degrade to the normal landing, never a blank shell.
+it('falls back to the dashboard when the requested tab is not real', async () => {
+  renderAt('L1', '?tab=nonsense');
+  await waitFor(() => expect(selectedTab()).toBe('Dashboard'));
 });
 
 it('shows the client-view banner with the client name + the edit-capability notice', async () => {

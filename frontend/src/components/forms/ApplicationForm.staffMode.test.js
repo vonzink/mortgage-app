@@ -122,6 +122,7 @@ beforeEach(() => {
   jest.clearAllMocks();
   mockRoles = { isStaff: true, isBorrower: false };
   mortgageService.getSuiteApplication = jest.fn().mockResolvedValue(suiteApp);
+  mortgageService.getSuiteApplicationListVersion = jest.fn().mockResolvedValue(null);
   mortgageService.createLoanFromIntake = jest.fn();
   suiteClient.put.mockResolvedValue({ data: { success: true, data: {} } });
 });
@@ -230,6 +231,248 @@ it('staff mode ignores carryOverData and keys drafts by the loan', async () => {
   expect(toast.info).not.toHaveBeenCalledWith('All data loaded from previous application');
   // …and step/draft state keys by the staff loan.
   expect(sessionStorage.getItem('draft:staff:L9:steps')).not.toBeNull();
+});
+
+// ---------------------------------------------------------------------------------------
+// Borrower-list version guard (X-Borrower-List-Version). The suite PUT matches
+// co-borrowers by position; the header makes it refuse (409 BORROWER_LIST_CHANGED)
+// when staff added/deleted/reordered borrowers since this form loaded.
+// ---------------------------------------------------------------------------------------
+const HEADER = 'X-Borrower-List-Version';
+const headerOf = (call) => call[2]?.headers?.[HEADER];
+const listChanged = () => Object.assign(new Error('Request failed with status code 409'), {
+  response: {
+    status: 409,
+    data: {
+      success: false,
+      code: 'BORROWER_LIST_CHANGED',
+      message: 'The borrowers on this loan have changed. Reload the application and try again.',
+    },
+  },
+});
+const BORROWER_409_MSG = 'Your loan officer updated who is on this application. Nothing was saved — please contact your loan officer before submitting.';
+
+describe('borrower-list version — staff-loan mode', () => {
+  it('captures the version from the application GET and sends it on the PUT', async () => {
+    mortgageService.getSuiteApplication.mockResolvedValue({ ...suiteApp, borrowerListVersion: 'v-get' });
+    sessionStorage.setItem('draft:staff:L9:steps', STEPS_AT_REVIEW);
+    renderApply('?loan=L9');
+    await waitFor(() => expect(toast.info).toHaveBeenCalledWith("Loaded this loan's current application"));
+
+    fireEvent.click(screen.getByRole('button', { name: /save to loan/i }));
+
+    await waitFor(() => expect(suiteClient.put).toHaveBeenCalledTimes(1));
+    expect(headerOf(suiteClient.put.mock.calls[0])).toBe('v-get');
+    // The full GET already carried it — no extra version GET.
+    expect(mortgageService.getSuiteApplicationListVersion).not.toHaveBeenCalled();
+  });
+
+  it('omits the header when no version is known', async () => {
+    sessionStorage.setItem('draft:staff:L9:steps', STEPS_AT_REVIEW);
+    renderApply('?loan=L9');
+    await waitFor(() => expect(toast.info).toHaveBeenCalledWith("Loaded this loan's current application"));
+
+    fireEvent.click(screen.getByRole('button', { name: /save to loan/i }));
+
+    await waitFor(() => expect(suiteClient.put).toHaveBeenCalledTimes(1));
+    expect(suiteClient.put.mock.calls[0]).toHaveLength(2);
+  });
+
+  it('replaces the version with the one in each successful PUT response', async () => {
+    mortgageService.getSuiteApplication.mockResolvedValue({ ...suiteApp, borrowerListVersion: 'v-get' });
+    suiteClient.put
+      .mockResolvedValueOnce({ data: { success: true, data: { borrowerListVersion: 'v-put1' } } })
+      .mockResolvedValueOnce({ data: { success: true, data: { borrowerListVersion: 'v-put2' } } });
+    sessionStorage.setItem('draft:staff:L9:steps', STEPS_AT_REVIEW);
+    renderApply('?loan=L9');
+    await waitFor(() => expect(toast.info).toHaveBeenCalledWith("Loaded this loan's current application"));
+
+    fireEvent.click(screen.getByRole('button', { name: /save to loan/i }));
+    await waitFor(() => expect(toast.success).toHaveBeenCalledTimes(1));
+    fireEvent.click(screen.getByRole('button', { name: /save to loan/i }));
+    await waitFor(() => expect(suiteClient.put).toHaveBeenCalledTimes(2));
+
+    expect(headerOf(suiteClient.put.mock.calls[0])).toBe('v-get');
+    expect(headerOf(suiteClient.put.mock.calls[1])).toBe('v-put1');
+    // Success clears the draft, and the version stored with it.
+    expect(sessionStorage.getItem('draft:staff:L9:listVersion')).toBeNull();
+  });
+
+  it('a restored draft sends the version it started with (no version GET)', async () => {
+    sessionStorage.setItem('draft:staff:L9', JSON.stringify({ borrowers: [{ firstName: 'Draftina' }] }));
+    sessionStorage.setItem('draft:staff:L9:listVersion', JSON.stringify({ loanId: 'L9', version: 'v-draft' }));
+    sessionStorage.setItem('draft:staff:L9:steps', STEPS_AT_REVIEW);
+    renderApply('?loan=L9');
+    await waitFor(() =>
+      expect(toast.info).toHaveBeenCalledWith('Restored your in-progress draft for this loan'));
+
+    fireEvent.click(screen.getByRole('button', { name: /save to loan/i }));
+
+    await waitFor(() => expect(suiteClient.put).toHaveBeenCalledTimes(1));
+    expect(headerOf(suiteClient.put.mock.calls[0])).toBe('v-draft');
+    expect(mortgageService.getSuiteApplicationListVersion).not.toHaveBeenCalled();
+    expect(mortgageService.getSuiteApplication).not.toHaveBeenCalled();
+  });
+
+  it('an older draft with no stored version captures the current version at open without overwriting the form', async () => {
+    mortgageService.getSuiteApplicationListVersion.mockResolvedValue('v-open');
+    sessionStorage.setItem('draft:staff:L9', JSON.stringify({ borrowers: [{ firstName: 'Draftina' }] }));
+    sessionStorage.setItem('draft:staff:L9:steps', STEPS_AT_REVIEW);
+    renderApply('?loan=L9');
+    await waitFor(() => expect(mortgageService.getSuiteApplicationListVersion).toHaveBeenCalledWith('L9'));
+    await waitFor(() =>
+      expect(JSON.parse(sessionStorage.getItem('draft:staff:L9:listVersion'))).toEqual({ loanId: 'L9', version: 'v-open' }));
+    expect(mortgageService.getSuiteApplication).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole('button', { name: /save to loan/i }));
+
+    await waitFor(() => expect(suiteClient.put).toHaveBeenCalledTimes(1));
+    expect(headerOf(suiteClient.put.mock.calls[0])).toBe('v-open');
+    expect(suiteClient.put.mock.calls[0][1].borrower.firstName).toBe('Draftina');
+  });
+
+  it('409 BORROWER_LIST_CHANGED: nothing saved, draft kept, explains + offers Reload', async () => {
+    const draft = JSON.stringify({ borrowers: [{ firstName: 'Draftina' }] });
+    sessionStorage.setItem('draft:staff:L9', draft);
+    sessionStorage.setItem('draft:staff:L9:listVersion', JSON.stringify({ loanId: 'L9', version: 'v-old' }));
+    sessionStorage.setItem('draft:staff:L9:steps', STEPS_AT_REVIEW);
+    suiteClient.put.mockRejectedValue(listChanged());
+    renderApply('?loan=L9');
+    await waitFor(() =>
+      expect(toast.info).toHaveBeenCalledWith('Restored your in-progress draft for this loan'));
+
+    fireEvent.click(screen.getByRole('button', { name: /save to loan/i }));
+
+    await waitFor(() => expect(toast.error).toHaveBeenCalledTimes(1));
+    expect(toast.success).not.toHaveBeenCalled();
+    expect(sessionStorage.getItem('draft:staff:L9')).toContain('Draftina');
+    expect(sessionStorage.getItem('draft:staff:L9:listVersion')).not.toBeNull();
+
+    // The toast content explains the refusal and carries a Reload action.
+    const [content] = toast.error.mock.calls[0];
+    expect(typeof content).not.toBe('string');
+    render(content);
+    expect(screen.getByText(/nothing was saved/i)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /reload/i })).toBeInTheDocument();
+  });
+
+  it('Reload discards the draft and its version and loads fresh from the suite', async () => {
+    sessionStorage.setItem('draft:staff:L9', JSON.stringify({ borrowers: [{ firstName: 'Draftina' }] }));
+    sessionStorage.setItem('draft:staff:L9:listVersion', JSON.stringify({ loanId: 'L9', version: 'v-old' }));
+    sessionStorage.setItem('draft:staff:L9:steps', STEPS_AT_REVIEW);
+    suiteClient.put.mockRejectedValueOnce(listChanged());
+    mortgageService.getSuiteApplication.mockResolvedValue({ ...suiteApp, borrowerListVersion: 'v-new' });
+    renderApply('?loan=L9');
+    await waitFor(() =>
+      expect(toast.info).toHaveBeenCalledWith('Restored your in-progress draft for this loan'));
+
+    fireEvent.click(screen.getByRole('button', { name: /save to loan/i }));
+    await waitFor(() => expect(toast.error).toHaveBeenCalledTimes(1));
+    expect(suiteClient.put.mock.calls[0][1].borrower.firstName).toBe('Draftina');
+
+    const { unmount } = render(toast.error.mock.calls[0][0]);
+    fireEvent.click(screen.getByRole('button', { name: /reload/i }));
+    unmount();
+    // Draft and its stored version are discarded straight away.
+    expect(sessionStorage.getItem('draft:staff:L9')).toBeNull();
+
+    await waitFor(() => expect(mortgageService.getSuiteApplication).toHaveBeenCalledWith('L9'));
+    await waitFor(() => expect(toast.info).toHaveBeenCalledWith("Loaded this loan's current application"));
+    expect(JSON.parse(sessionStorage.getItem('draft:staff:L9:listVersion'))).toEqual({ loanId: 'L9', version: 'v-new' });
+
+    // The next save carries the fresh suite data and the fresh version.
+    fireEvent.click(screen.getByRole('button', { name: /save to loan/i }));
+    await waitFor(() => expect(suiteClient.put).toHaveBeenCalledTimes(2));
+    expect(headerOf(suiteClient.put.mock.calls[1])).toBe('v-new');
+    expect(suiteClient.put.mock.calls[1][1].borrower.firstName).toBe('Ada');
+  });
+
+  it('other errors behave as before (server message wins)', async () => {
+    sessionStorage.setItem('draft:staff:L9:steps', STEPS_AT_REVIEW);
+    suiteClient.put.mockRejectedValue(Object.assign(new Error('409'), {
+      response: { status: 409, data: { success: false, code: 'CONFLICT', message: 'Conflicting resource state' } },
+    }));
+    renderApply('?loan=L9');
+    await waitFor(() => expect(toast.info).toHaveBeenCalledWith("Loaded this loan's current application"));
+
+    fireEvent.click(screen.getByRole('button', { name: /save to loan/i }));
+
+    await waitFor(() =>
+      expect(toast.error).toHaveBeenCalledWith('Conflicting resource state', { autoClose: 5000 }));
+  });
+});
+
+describe('borrower-list version — borrower self-submit', () => {
+  beforeEach(() => {
+    mockRoles = { isStaff: false, isBorrower: true };
+  });
+
+  it('continuing a loan: one version GET at open (no prefill) and the PUT sends it', async () => {
+    mortgageService.getSuiteApplicationListVersion.mockResolvedValue('v-open');
+    sessionStorage.setItem('suiteLoanId', 'SL1');
+    sessionStorage.setItem('draft:new:steps', STEPS_AT_REVIEW);
+    renderApply('');
+    await waitFor(() =>
+      expect(mortgageService.getSuiteApplicationListVersion).toHaveBeenCalledWith('SL1'));
+    await waitFor(() => expect(sessionStorage.getItem('draft:new:listVersion')).not.toBeNull());
+
+    fireEvent.click(screen.getByRole('button', { name: /submit application/i }));
+
+    await waitFor(() => expect(suiteClient.put).toHaveBeenCalledTimes(1));
+    expect(headerOf(suiteClient.put.mock.calls[0])).toBe('v-open');
+    expect(mortgageService.getSuiteApplicationListVersion).toHaveBeenCalledTimes(1);
+    expect(mortgageService.getSuiteApplication).not.toHaveBeenCalled();
+  });
+
+  it('a restored borrower draft keeps the version it started with', async () => {
+    mortgageService.getSuiteApplicationListVersion.mockResolvedValue('v-now');
+    sessionStorage.setItem('suiteLoanId', 'SL1');
+    sessionStorage.setItem('draft:new', JSON.stringify({ borrowers: [{ firstName: 'Bo' }] }));
+    sessionStorage.setItem('draft:new:listVersion', JSON.stringify({ loanId: 'SL1', version: 'v-draft' }));
+    sessionStorage.setItem('draft:new:steps', STEPS_AT_REVIEW);
+    renderApply('');
+
+    fireEvent.click(await screen.findByRole('button', { name: /submit application/i }));
+
+    await waitFor(() => expect(suiteClient.put).toHaveBeenCalledTimes(1));
+    expect(headerOf(suiteClient.put.mock.calls[0])).toBe('v-draft');
+    expect(mortgageService.getSuiteApplicationListVersion).not.toHaveBeenCalled();
+  });
+
+  it('a new loan (created by intake) sends no header on its first PUT', async () => {
+    mortgageService.createLoanFromIntake.mockResolvedValue({ loanId: 'NEW1' });
+    // A version stored for some OTHER loan must never be sent against the new one.
+    sessionStorage.setItem('draft:new:listVersion', JSON.stringify({ loanId: 'OLD', version: 'v-old' }));
+    sessionStorage.setItem('draft:new:steps', STEPS_AT_REVIEW);
+    renderApply('');
+
+    fireEvent.click(await screen.findByRole('button', { name: /submit application/i }));
+
+    await waitFor(() => expect(suiteClient.put).toHaveBeenCalledTimes(1));
+    expect(suiteClient.put.mock.calls[0][0]).toBe('/loans/NEW1/application');
+    expect(suiteClient.put.mock.calls[0]).toHaveLength(2);
+    expect(mortgageService.getSuiteApplicationListVersion).not.toHaveBeenCalled();
+  });
+
+  it('409 BORROWER_LIST_CHANGED: tells the borrower to contact their LO; nothing cleared', async () => {
+    mortgageService.getSuiteApplicationListVersion.mockResolvedValue('v-open');
+    suiteClient.put.mockRejectedValue(listChanged());
+    const draft = JSON.stringify({ borrowers: [{ firstName: 'Bo' }] });
+    sessionStorage.setItem('suiteLoanId', 'SL1');
+    sessionStorage.setItem('draft:new', draft);
+    sessionStorage.setItem('draft:new:steps', STEPS_AT_REVIEW);
+    renderApply('');
+    await waitFor(() => expect(sessionStorage.getItem('draft:new:listVersion')).not.toBeNull());
+
+    fireEvent.click(screen.getByRole('button', { name: /submit application/i }));
+
+    await waitFor(() => expect(toast.error).toHaveBeenCalledTimes(1));
+    expect(toast.error.mock.calls[0][0]).toBe(BORROWER_409_MSG);
+    expect(toast.success).not.toHaveBeenCalled();
+    expect(sessionStorage.getItem('draft:new')).toContain('"Bo"');
+    expect(sessionStorage.getItem('draft:new:listVersion')).not.toBeNull();
+    expect(sessionStorage.getItem('suiteLoanId')).toBe('SL1');
+  });
 });
 
 it('borrower self-submit path is untouched: PUTs to the stashed suite loan and lands on /application-submitted', async () => {

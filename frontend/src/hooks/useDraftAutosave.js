@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react';
+import { listVersionKey } from '../utils/borrowerListVersion';
 
 /**
  * Persist react-hook-form values to sessionStorage so an unexpected redirect (e.g. session
@@ -36,8 +37,8 @@ export function useDraftAutosave({ watch, getValues, reset, storageKey, enabled 
         reset(draft);
       }
     } catch (e) {
-      // Corrupt draft — toss it
-      sessionStorage.removeItem(storageKey);
+      // Corrupt draft — toss it (and the list version stored with it)
+      clearDraft(storageKey);
     }
   }, [enabled, storageKey, reset]);
 
@@ -64,7 +65,24 @@ export function useDraftAutosave({ watch, getValues, reset, storageKey, enabled 
   }, [enabled, watch, getValues, storageKey, debounceMs]);
 }
 
-/** Clear a draft after successful submit, or when the user navigates away on purpose. */
+/**
+ * Clear a draft after successful submit, or when the user navigates away on purpose.
+ * Also clears the borrower-list version stored with it (utils/borrowerListVersion).
+ */
 export function clearDraft(storageKey) {
-  try { sessionStorage.removeItem(storageKey); } catch { /* ignore */ }
+  try {
+    sessionStorage.removeItem(storageKey);
+    sessionStorage.removeItem(listVersionKey(storageKey));
+  } catch { /* ignore */ }
+}
+
+/** True when a restorable (parseable object) draft exists at storageKey. */
+export function hasDraft(storageKey) {
+  try {
+    const raw = sessionStorage.getItem(storageKey);
+    const draft = raw ? JSON.parse(raw) : null;
+    return !!draft && typeof draft === 'object';
+  } catch {
+    return false;
+  }
 }

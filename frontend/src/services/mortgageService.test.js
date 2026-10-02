@@ -26,6 +26,40 @@ describe('getSuiteApplication', () => {
   });
 });
 
+describe('getSuiteApplication borrowerListVersion', () => {
+  beforeEach(() => jest.clearAllMocks());
+
+  it('keeps the borrowerListVersion on the unwrapped application', async () => {
+    suiteClient.get.mockResolvedValueOnce({
+      data: { success: true, data: { loanId: 'L1', borrowerListVersion: 'v1' } },
+    });
+    const app = await mortgageService.getSuiteApplication('L1');
+    expect(app.borrowerListVersion).toBe('v1');
+  });
+});
+
+describe('getSuiteApplicationListVersion', () => {
+  beforeEach(() => jest.clearAllMocks());
+
+  it('GETs /loans/{id}/application and returns only the borrowerListVersion', async () => {
+    suiteClient.get.mockResolvedValueOnce({
+      data: { success: true, data: { loanId: 'L1', borrowerListVersion: 'v7', borrower: { firstName: 'Ada' } } },
+    });
+    await expect(mortgageService.getSuiteApplicationListVersion('L1')).resolves.toBe('v7');
+    expect(suiteClient.get).toHaveBeenCalledWith('/loans/L1/application');
+  });
+
+  it('returns null when the response has no version', async () => {
+    suiteClient.get.mockResolvedValueOnce({ data: { success: true, data: { loanId: 'L1' } } });
+    await expect(mortgageService.getSuiteApplicationListVersion('L1')).resolves.toBeNull();
+  });
+
+  it('returns null on error (never throws)', async () => {
+    suiteClient.get.mockRejectedValueOnce(new Error('403'));
+    await expect(mortgageService.getSuiteApplicationListVersion('L1')).resolves.toBeNull();
+  });
+});
+
 describe('getPublicLoPage', () => {
   beforeEach(() => jest.clearAllMocks());
 

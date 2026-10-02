@@ -425,6 +425,21 @@ const mortgageService = {
   },
 
   /**
+   * Only the application's `borrowerListVersion` (same GET as getSuiteApplication) — for
+   * forms that need the version without prefilling from the suite (a restored draft, a
+   * borrower continuing a loan). Swallows failures → null (version unknown = no guard).
+   */
+  getSuiteApplicationListVersion: async (loanId) => {
+    try {
+      const { data } = await suiteClient.get(`/loans/${loanId}/application`);
+      const version = (unwrapEnvelope(data) || {}).borrowerListVersion;
+      return typeof version === 'string' && version ? version : null;
+    } catch {
+      return null;
+    }
+  },
+
+  /**
    * Public LO vanity page (suite GET /api/public/lo-pages/{slug}, NO auth required).
    * Display fields only: { slug, displayName, title, nmlsId, phone, email, photoUrl }.
    * Unknown/disabled slugs 404 → null. Returns null on ANY failure (the /lo/:slug

@@ -2,7 +2,7 @@
  * Main Application Form Component
  * Orchestrates all form steps and handles submission
  */
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useForm } from 'react-hook-form';
 import { toast } from 'react-toastify';
 import { useNavigate, useSearchParams } from 'react-router-dom';
@@ -44,7 +44,14 @@ import { suiteClient } from '../../services/apiClient';
 // Utils
 import { createDefaultBorrower } from '../../utils/fieldArrayHelpers';
 import { focusFirstInvalidField } from '../../utils/formErrorHelpers';
-import { useDraftAutosave, clearDraft } from '../../hooks/useDraftAutosave';
+import { useDraftAutosave, clearDraft, hasDraft } from '../../hooks/useDraftAutosave';
+import {
+  readStoredListVersion,
+  storeListVersion,
+  listVersionRequestConfig,
+  listVersionFromResponse,
+  isBorrowerListChanged,
+} from '../../utils/borrowerListVersion';
 import { formToApplicationPayload } from '../../utils/applicationPayload';
 import { formToSuiteApplication, formToSuiteIntake } from '../../utils/suiteApplicationPayload';
 import suiteApplicationToForm from '../../utils/suiteApplicationToForm';
@@ -58,6 +65,36 @@ import useRoles from '../../hooks/useRoles';
 // suite SKIPS null sections (no 400) — those two map from the stash and land as a
 // tested fast-follow. The legacy POST /loan-applications path 403s for borrowers.
 const SUITE_SELF_SUBMIT_ENABLED = true;
+
+// How long a submit waits for the in-flight open-time borrower-list-version GET.
+const PENDING_VERSION_WAIT_MS = 3000;
+
+// 409 BORROWER_LIST_CHANGED copy (see utils/borrowerListVersion.js): staff changed who is
+// on the loan since this form loaded, so the suite refused the save — nothing was written.
+const BORROWER_LIST_CHANGED_BORROWER_MESSAGE =
+  'Your loan officer updated who is on this application. Nothing was saved — please contact your loan officer before submitting.';
+const BORROWER_LIST_CHANGED_STAFF_MESSAGE =
+  'The borrowers on this loan were added, removed or reordered since this form was loaded. Nothing was saved. ' +
+  'Reload to start from the current application — the changes in this form will be discarded.';
+
+/** Toast body for staff: the explanation plus a Reload action (closeToast is injected by react-toastify). */
+function BorrowerListChangedNotice({ onReload, closeToast }) {
+  return (
+    <div>
+      <p style={{ margin: '0 0 8px' }}>{BORROWER_LIST_CHANGED_STAFF_MESSAGE}</p>
+      <button
+        type="button"
+        className="btn btn-primary btn-sm"
+        onClick={() => {
+          if (closeToast) closeToast();
+          onReload();
+        }}
+      >
+        Reload
+      </button>
+    </div>
+  );
+}
 
 const ApplicationForm = () => {
   const navigate = useNavigate();
@@ -105,6 +142,79 @@ const ApplicationForm = () => {
     storageKey: draftKey,
     enabled: !isViewing,
   });
+
+  // BORROWER-LIST VERSION (utils/borrowerListVersion.js): the suite version this form's
+  // co-borrower positions were captured against, sent on the PUT as X-Borrower-List-Version
+  // so the suite refuses a save after staff added/deleted/reordered borrowers. Held in a ref
+  // ({ loanId, version }) and mirrored next to the draft so a restored draft keeps the
+  // version it started with; clearDraft() drops the stored copy with the draft.
+  const listVersionRef = useRef(null);
+  const rememberListVersion = (loanId, version) => {
+    listVersionRef.current = version ? { loanId, version } : null;
+    storeListVersion(draftKey, loanId, version);
+  };
+  const knownListVersion = (loanId) => {
+    const known = listVersionRef.current;
+    return known && known.loanId === loanId ? known.version : null;
+  };
+  // Adopt the version stored with a restored draft; returns it (null when none).
+  const adoptStoredListVersion = (loanId) => {
+    const version = readStoredListVersion(draftKey, loanId);
+    if (version) listVersionRef.current = { loanId, version };
+    return version;
+  };
+  // RACES: an open-time GET can answer AFTER a save. saveSeqRef bumps on every successful
+  // PUT; a GET that started before a save is stale and must neither overwrite the newer
+  // version nor (staff load) reset the just-saved form. pendingVersionRef holds the
+  // in-flight open-time GET so a submit right after open waits briefly for it.
+  const saveSeqRef = useRef(0);
+  const pendingVersionRef = useRef(null);
+  const mountedRef = useRef(true);
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => { mountedRef.current = false; };
+  }, []);
+  const trackPendingVersion = (promise) => {
+    pendingVersionRef.current = promise;
+    promise.finally(() => {
+      if (pendingVersionRef.current === promise) pendingVersionRef.current = null;
+    });
+    return promise;
+  };
+  // Best-effort version-only GET (never touches the form's values).
+  const captureListVersion = (loanId, isStale) => {
+    const startSeq = saveSeqRef.current;
+    return trackPendingVersion((async () => {
+      try {
+        const version = await mortgageService.getSuiteApplicationListVersion(loanId);
+        if (!isStale() && version && saveSeqRef.current === startSeq && !listVersionRef.current) {
+          rememberListVersion(loanId, version);
+        }
+      } catch { /* unknown version = no guard, as before */ }
+    })());
+  };
+  // PUT the application, with the version header only when a version is known. Waits up to
+  // PENDING_VERSION_WAIT_MS for an in-flight open-time GET before deciding.
+  const putSuiteApplication = async (loanId, body) => {
+    const pending = pendingVersionRef.current;
+    if (pending) {
+      let timer;
+      await Promise.race([
+        pending,
+        new Promise((resolve) => { timer = setTimeout(resolve, PENDING_VERSION_WAIT_MS); }),
+      ]);
+      clearTimeout(timer);
+    }
+    const config = listVersionRequestConfig(knownListVersion(loanId));
+    return config
+      ? suiteClient.put(`/loans/${loanId}/application`, body, config)
+      : suiteClient.put(`/loans/${loanId}/application`, body);
+  };
+  // After a successful PUT: its version replaces the known one, and older GETs go stale.
+  const recordSavedListVersion = (loanId, resp) => {
+    saveSeqRef.current += 1;
+    rememberListVersion(loanId, listVersionFromResponse(resp));
+  };
 
   // Mirror the autosave for the "Auto-saved N sec ago" pill in the hero. We debounce
   // on the same cadence as the hook so the pill updates roughly in sync with each
@@ -170,43 +280,75 @@ const ApplicationForm = () => {
   // they left). The restore runs before this effect (its hook is registered first, and
   // it purges corrupt drafts), so a valid entry at draftKey here means "restored".
   // The presence check mirrors the hook's own restore predicate.
+  //
+  // LIST VERSION: a fresh load takes the version from this same GET. A restored draft keeps
+  // the version stored with it; an older draft with none gets a version-only GET (the
+  // draft still wins — the form is not overwritten).
+  // A load that started before a successful save is stale (never reset over a saved form).
+  const loadStaffApplication = (isStale = () => false) => {
+    const startSeq = saveSeqRef.current;
+    const stale = () => isStale() || saveSeqRef.current !== startSeq;
+    return trackPendingVersion(loadStaffApplicationOnce(stale));
+  };
+  const loadStaffApplicationOnce = async (isStale) => {
+    try {
+      const app = await mortgageService.getSuiteApplication(staffLoanId);
+      if (isStale()) return;
+      rememberListVersion(staffLoanId, listVersionFromResponse(app));
+      const formData = suiteApplicationToForm(app);
+      if (formData) {
+        reset(formData);
+        // Mirror edit-mode: an existing application unlocks free step navigation.
+        setVisitedSteps(new Set([1, 2, 3, 4, 5, 6, 7]));
+        toast.info("Loaded this loan's current application");
+      } else {
+        // getSuiteApplication swallows fetch errors to null, so a null here is EITHER
+        // "no application yet" or a failed fetch — we can't distinguish. Say so
+        // neutrally and STAY on the blank wizard (blank-start is a valid staff flow).
+        toast.warn('Could not load an existing application — starting blank');
+      }
+    } catch (error) {
+      console.error('Error loading suite application:', error);
+      if (!isStale()) toast.warn('Could not load an existing application — starting blank');
+    }
+  };
+
   useEffect(() => {
     if (!isStaffLoanMode) return undefined;
-    let hasDraft = false;
-    try {
-      const raw = sessionStorage.getItem(draftKey);
-      const draft = raw ? JSON.parse(raw) : null;
-      hasDraft = !!draft && typeof draft === 'object';
-    } catch { hasDraft = false; }
-    if (hasDraft) {
-      toast.info('Restored your in-progress draft for this loan');
-      return undefined;
-    }
     let stale = false;
-    (async () => {
-      try {
-        const app = await mortgageService.getSuiteApplication(staffLoanId);
-        if (stale) return;
-        const formData = suiteApplicationToForm(app);
-        if (formData) {
-          reset(formData);
-          // Mirror edit-mode: an existing application unlocks free step navigation.
-          setVisitedSteps(new Set([1, 2, 3, 4, 5, 6, 7]));
-          toast.info("Loaded this loan's current application");
-        } else {
-          // getSuiteApplication swallows fetch errors to null, so a null here is EITHER
-          // "no application yet" or a failed fetch — we can't distinguish. Say so
-          // neutrally and STAY on the blank wizard (blank-start is a valid staff flow).
-          toast.warn('Could not load an existing application — starting blank');
-        }
-      } catch (error) {
-        console.error('Error loading suite application:', error);
-        if (!stale) toast.warn('Could not load an existing application — starting blank');
-      }
-    })();
+    const isStale = () => stale;
+    if (hasDraft(draftKey)) {
+      toast.info('Restored your in-progress draft for this loan');
+      if (!adoptStoredListVersion(staffLoanId)) captureListVersion(staffLoanId, isStale);
+    } else {
+      loadStaffApplication(isStale);
+    }
     return () => { stale = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isStaffLoanMode, staffLoanId]);
+
+  // BORROWER CONTINUING A LOAN (funnel stashed suiteLoanId): one version-only GET at open so
+  // the self-submit PUT is guarded. Prefill is unchanged. A restored draft keeps the version
+  // stored with it. A brand-new loan (intake-created at submit) has no version until its
+  // first PUT answers.
+  useEffect(() => {
+    if (!SUITE_SELF_SUBMIT_ENABLED || isStaffLoanMode || editId || isViewing) return undefined;
+    const loanId = sessionStorage.getItem('suiteLoanId');
+    if (!loanId) return undefined;
+    if (hasDraft(draftKey) && adoptStoredListVersion(loanId)) return undefined;
+    let stale = false;
+    captureListVersion(loanId, () => stale);
+    return () => { stale = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isStaffLoanMode, editId, isViewing]);
+
+  // Staff "Reload" after a 409 BORROWER_LIST_CHANGED: discard the draft (and the version
+  // stored with it) and take the normal non-draft load path.
+  const reloadFromSuite = () => {
+    clearDraft(draftKey);
+    listVersionRef.current = null;
+    loadStaffApplication(() => !mountedRef.current);
+  };
 
   // Load application data if editing
   useEffect(() => {
@@ -445,10 +587,12 @@ const ApplicationForm = () => {
       if (isStaffLoanMode) {
         debug('STAFF-LOAN MODE: saving to suite loan', staffLoanId);
         const suiteBody = formToSuiteApplication(data);
-        const { data: resp } = await suiteClient.put(`/loans/${staffLoanId}/application`, suiteBody);
+        const { data: resp } = await putSuiteApplication(staffLoanId, suiteBody);
         if (resp && resp.success === false) {
           throw new Error(resp.message || 'Application could not be saved.');
         }
+        // The save may have changed the list version — the response carries the new one.
+        recordSavedListVersion(staffLoanId, resp);
         clearDraft(draftKey);
         clearDraft(`${draftKey}:steps`);
         toast.success('Application saved to the loan!');
@@ -488,13 +632,16 @@ const ApplicationForm = () => {
         const suiteBody = formToSuiteApplication(data);
         debug('Suite application body:', JSON.stringify(suiteBody, null, 2));
 
-        const { data: resp } = await suiteClient.put(`/loans/${suiteLoanId}/application`, suiteBody);
+        // X-Borrower-List-Version only when known (never for a just-intake-created loan).
+        const { data: resp } = await putSuiteApplication(suiteLoanId, suiteBody);
         // Suite wraps responses in { success, message, data }. Treat an explicit
         // success:false as a failure even on HTTP 200.
         if (resp && resp.success === false) {
           throw new Error(resp.message || 'Application could not be saved.');
         }
         debug('Suite save succeeded! Response:', resp);
+        // Adding a co-borrower changes the list version — keep the one this save returned.
+        recordSavedListVersion(suiteLoanId, resp);
 
         // Self-submit consumed the stashed loan id; clear it + the autosaved draft.
         // The LO-attribution slug is consumed too — the loan is created + attributed
@@ -557,6 +704,25 @@ const ApplicationForm = () => {
       // Show specific error message. Suite wraps errors as ApiResponse
       // ({ success:false, message }); a denied borrower write is 403, an
       // optimistic-lock/dup conflict is 409 — surface those clearly.
+      // 409 BORROWER_LIST_CHANGED (checked BEFORE the server-message branch): the suite
+      // refused the save because staff changed who is on the loan since this form loaded.
+      // Nothing was written; the draft and its version are kept.
+      if (isBorrowerListChanged(error)) {
+        if (isStaffLoanMode) {
+          toast.error(<BorrowerListChangedNotice onReload={reloadFromSuite} />, {
+            toastId: 'borrower-list-changed',
+            autoClose: false,
+            closeOnClick: false,
+          });
+        } else {
+          toast.error(BORROWER_LIST_CHANGED_BORROWER_MESSAGE, {
+            toastId: 'borrower-list-changed',
+            autoClose: false,
+          });
+        }
+        return;
+      }
+
       let errorMessage = 'Failed to submit application. Please try again.';
       const status = error.response?.status;
       if (error.response?.data?.message) {

@@ -66,6 +66,9 @@ import useRoles from '../../hooks/useRoles';
 // tested fast-follow. The legacy POST /loan-applications path 403s for borrowers.
 const SUITE_SELF_SUBMIT_ENABLED = true;
 
+// How long a submit waits for the in-flight open-time borrower-list-version GET.
+const PENDING_VERSION_WAIT_MS = 3000;
+
 // 409 BORROWER_LIST_CHANGED copy (see utils/borrowerListVersion.js): staff changed who is
 // on the loan since this form loaded, so the suite refused the save — nothing was written.
 const BORROWER_LIST_CHANGED_BORROWER_MESSAGE =
@@ -160,19 +163,57 @@ const ApplicationForm = () => {
     if (version) listVersionRef.current = { loanId, version };
     return version;
   };
-  // Best-effort version-only GET (never touches the form's values).
-  const captureListVersion = async (loanId, isStale) => {
-    try {
-      const version = await mortgageService.getSuiteApplicationListVersion(loanId);
-      if (!isStale() && version) rememberListVersion(loanId, version);
-    } catch { /* unknown version = no guard, as before */ }
+  // RACES: an open-time GET can answer AFTER a save. saveSeqRef bumps on every successful
+  // PUT; a GET that started before a save is stale and must neither overwrite the newer
+  // version nor (staff load) reset the just-saved form. pendingVersionRef holds the
+  // in-flight open-time GET so a submit right after open waits briefly for it.
+  const saveSeqRef = useRef(0);
+  const pendingVersionRef = useRef(null);
+  const mountedRef = useRef(true);
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => { mountedRef.current = false; };
+  }, []);
+  const trackPendingVersion = (promise) => {
+    pendingVersionRef.current = promise;
+    promise.finally(() => {
+      if (pendingVersionRef.current === promise) pendingVersionRef.current = null;
+    });
+    return promise;
   };
-  // PUT the application, with the version header only when a version is known.
-  const putSuiteApplication = (loanId, body) => {
+  // Best-effort version-only GET (never touches the form's values).
+  const captureListVersion = (loanId, isStale) => {
+    const startSeq = saveSeqRef.current;
+    return trackPendingVersion((async () => {
+      try {
+        const version = await mortgageService.getSuiteApplicationListVersion(loanId);
+        if (!isStale() && version && saveSeqRef.current === startSeq && !listVersionRef.current) {
+          rememberListVersion(loanId, version);
+        }
+      } catch { /* unknown version = no guard, as before */ }
+    })());
+  };
+  // PUT the application, with the version header only when a version is known. Waits up to
+  // PENDING_VERSION_WAIT_MS for an in-flight open-time GET before deciding.
+  const putSuiteApplication = async (loanId, body) => {
+    const pending = pendingVersionRef.current;
+    if (pending) {
+      let timer;
+      await Promise.race([
+        pending,
+        new Promise((resolve) => { timer = setTimeout(resolve, PENDING_VERSION_WAIT_MS); }),
+      ]);
+      clearTimeout(timer);
+    }
     const config = listVersionRequestConfig(knownListVersion(loanId));
     return config
       ? suiteClient.put(`/loans/${loanId}/application`, body, config)
       : suiteClient.put(`/loans/${loanId}/application`, body);
+  };
+  // After a successful PUT: its version replaces the known one, and older GETs go stale.
+  const recordSavedListVersion = (loanId, resp) => {
+    saveSeqRef.current += 1;
+    rememberListVersion(loanId, listVersionFromResponse(resp));
   };
 
   // Mirror the autosave for the "Auto-saved N sec ago" pill in the hero. We debounce
@@ -243,7 +284,13 @@ const ApplicationForm = () => {
   // LIST VERSION: a fresh load takes the version from this same GET. A restored draft keeps
   // the version stored with it; an older draft with none gets a version-only GET (the
   // draft still wins — the form is not overwritten).
-  const loadStaffApplication = async (isStale = () => false) => {
+  // A load that started before a successful save is stale (never reset over a saved form).
+  const loadStaffApplication = (isStale = () => false) => {
+    const startSeq = saveSeqRef.current;
+    const stale = () => isStale() || saveSeqRef.current !== startSeq;
+    return trackPendingVersion(loadStaffApplicationOnce(stale));
+  };
+  const loadStaffApplicationOnce = async (isStale) => {
     try {
       const app = await mortgageService.getSuiteApplication(staffLoanId);
       if (isStale()) return;
@@ -300,7 +347,7 @@ const ApplicationForm = () => {
   const reloadFromSuite = () => {
     clearDraft(draftKey);
     listVersionRef.current = null;
-    loadStaffApplication();
+    loadStaffApplication(() => !mountedRef.current);
   };
 
   // Load application data if editing
@@ -545,7 +592,7 @@ const ApplicationForm = () => {
           throw new Error(resp.message || 'Application could not be saved.');
         }
         // The save may have changed the list version — the response carries the new one.
-        rememberListVersion(staffLoanId, listVersionFromResponse(resp));
+        recordSavedListVersion(staffLoanId, resp);
         clearDraft(draftKey);
         clearDraft(`${draftKey}:steps`);
         toast.success('Application saved to the loan!');
@@ -594,7 +641,7 @@ const ApplicationForm = () => {
         }
         debug('Suite save succeeded! Response:', resp);
         // Adding a co-borrower changes the list version — keep the one this save returned.
-        rememberListVersion(suiteLoanId, listVersionFromResponse(resp));
+        recordSavedListVersion(suiteLoanId, resp);
 
         // Self-submit consumed the stashed loan id; clear it + the autosaved draft.
         // The LO-attribution slug is consumed too — the loan is created + attributed

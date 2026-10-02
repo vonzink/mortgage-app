@@ -495,7 +495,7 @@ function buildAddresses(b) {
         addressType: RESIDENCE_ADDRESS_TYPE[r.residencyType]
           || (index === 0 ? 'PRESENT' : 'PREVIOUS'),
         addressLine1: str(r.addressLine),
-        addressLine2: null,
+        addressLine2: str(r.addressLine2),
         city: str(r.city),
         state: usState(r.state),
         postalCode: str(r.zipCode),
@@ -514,7 +514,7 @@ function buildAddresses(b) {
     rows.push({
       addressType: 'MAILING',
       addressLine1: str(m.addressLine),
-      addressLine2: null,
+      addressLine2: str(m.addressLine2),
       city: str(m.city),
       state: usState(m.state),
       postalCode: str(m.zipCode),
@@ -523,6 +523,15 @@ function buildAddresses(b) {
       residencyDurationMonths: null,
       rentAmount: null,
     });
+  }
+
+  // Rows the wizard can't edit (tax-filing addresses, extra mailing rows) were hydrated into
+  // suitePassthroughAddresses; send them back verbatim so the full replace keeps them. Only
+  // when this save writes the section at all — an otherwise-empty list stays null/skipped.
+  if (rows.length && Array.isArray(b?.suitePassthroughAddresses)) {
+    b.suitePassthroughAddresses
+      .filter((a) => a && a.addressType)
+      .forEach((a) => rows.push({ ...a }));
   }
   return rows;
 }

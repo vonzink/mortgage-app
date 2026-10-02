@@ -344,6 +344,26 @@ describe('addresses (residence history)', () => {
     expect(formToSuiteApplication(form).addresses).toBeNull();
   });
 
+  test('staff-entered rows the wizard cannot edit survive the full-replace resubmit', () => {
+    // Tax-filing addresses and line 2 have no wizard input; dropping them on save would
+    // delete them from the suite, and folding TAX_FILING into residences[] would rewrite
+    // it as a prior residence.
+    const wire1 = formToSuiteApplication(fullFormFixture());
+    wire1.addresses[0].addressLine2 = 'Apt 7';
+    wire1.addresses.push({
+      addressType: 'TAX_FILING_CURRENT', addressLine1: '9 Tax Way', addressLine2: null,
+      city: 'Denver', state: 'CO', postalCode: '80202', ownershipType: null,
+      residencyDurationYears: null, residencyDurationMonths: null, rentAmount: null,
+    });
+    const form2 = suiteApplicationToForm(wire1);
+    expect(residencesOf(form2)).toHaveLength(2);
+    const wire2 = formToSuiteApplication(form2);
+    expect(wire2.addresses.map((a) => a.addressType))
+      .toEqual(['PRESENT', 'PREVIOUS', 'MAILING', 'TAX_FILING_CURRENT']);
+    expect(wire2.addresses[0].addressLine2).toBe('Apt 7');
+    expect(wire2.addresses[3]).toMatchObject({ addressLine1: '9 Tax Way', postalCode: '80202' });
+  });
+
   test('co-borrowers carry their own addresses section', () => {
     const wire = formToSuiteApplication(fullFormFixture());
     expect(wire.coBorrowers[0].addresses).toEqual([

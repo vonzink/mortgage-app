@@ -215,12 +215,32 @@ const FORM_RESIDENCY_BASIS = { OWN: 'Own', RENT: 'Rent', LIVING_RENT_FREE: 'Livi
  * duration back on the Current-shaped inputs and leaves startDate/endDate blank — the span
  * survives, the exact dates don't. That's why residenceDuration() falls back to durationMonths.
  */
+const RESIDENCE_TYPES = new Set(['PRESENT', 'PREVIOUS']);
+
+/** A wire address the wizard can't edit, kept in its wire (AddressInfo) shape. */
+function toPassthroughAddress(a) {
+  return {
+    addressType: a.addressType,
+    addressLine1: a.addressLine1 ?? null,
+    addressLine2: a.addressLine2 ?? null,
+    city: a.city ?? null,
+    state: a.state ?? null,
+    postalCode: a.postalCode ?? null,
+    ownershipType: a.ownershipType ?? null,
+    residencyDurationYears: a.residencyDurationYears ?? null,
+    residencyDurationMonths: a.residencyDurationMonths ?? null,
+    rentAmount: a.rentAmount ?? null,
+  };
+}
+
 function toFormResidence(a, index) {
   const row = createDefaultResidence(
     index + 1,
     FORM_RESIDENCY_TYPE[a.addressType] || (index === 0 ? 'Current' : 'Prior'),
   );
   row.addressLine = orBlank(a.addressLine1);
+  // No wizard input for line 2, but it must survive the full-replace save.
+  row.addressLine2 = orBlank(a.addressLine2);
   row.city = orBlank(a.city);
   row.state = orBlank(a.state);
   row.zipCode = orBlank(a.postalCode);
@@ -244,14 +264,21 @@ function toFormResidence(a, index) {
  * MAILING row on the wire therefore means the borrower unticked that box, so it's unticked here.
  */
 function applyAddresses(target, addresses) {
-  const residences = addresses.filter((a) => a && a.addressType !== 'MAILING');
+  const residences = addresses.filter((a) => a && RESIDENCE_TYPES.has(a.addressType));
   const mailing = addresses.find((a) => a && a.addressType === 'MAILING');
+  // Types the wizard has no UI for (TAX_FILING_CURRENT / TAX_FILING_PREVIOUS, extra MAILING
+  // rows) ride along untouched. The addresses section is a full REPLACE on save, so anything
+  // not carried back here would be deleted — and folding them into residences[] would rewrite
+  // a tax-filing address as a prior residence.
+  const passthrough = addresses.filter((a) => a && !RESIDENCE_TYPES.has(a.addressType) && a !== mailing);
 
   if (residences.length) target.residences = residences.map(toFormResidence);
+  if (passthrough.length) target.suitePassthroughAddresses = passthrough.map(toPassthroughAddress);
   if (mailing) {
     target.mailingSameAsPresent = false;
     target.mailingAddress = {
       addressLine: orBlank(mailing.addressLine1),
+      addressLine2: orBlank(mailing.addressLine2),
       city: orBlank(mailing.city),
       state: orBlank(mailing.state),
       zipCode: orBlank(mailing.postalCode),

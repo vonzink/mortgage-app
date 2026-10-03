@@ -181,7 +181,7 @@ const coBorrower = () => ({
     },
   ],
   incomeSources: [],
-  // A co-borrower carries their own residence history through CoBorrowerSection.addresses.
+  // Co-borrower residence history is in the form but deliberately NOT sent (see buildCoBorrowerSection).
   residences: [
     {
       sequenceNumber: 1, residencyType: 'Current',
@@ -364,11 +364,15 @@ describe('addresses (residence history)', () => {
     expect(wire2.addresses[3]).toMatchObject({ addressLine1: '9 Tax Way', postalCode: '80202' });
   });
 
-  test('co-borrowers carry their own addresses section', () => {
-    const wire = formToSuiteApplication(fullFormFixture());
-    expect(wire.coBorrowers[0].addresses).toEqual([
-      expect.objectContaining({ addressType: 'PRESENT', addressLine1: '10 Now St' }),
-    ]);
+  test('co-borrowers send NO addresses even with residences in the form', () => {
+    // The suite doesn't return co-borrower addresses yet, so they can't hydrate; sending the
+    // form's rows would full-replace whatever staff entered. null = suite skips the section.
+    const form = fullFormFixture();
+    expect(form.borrowers[1].residences[0].addressLine).toBe('10 Now St');
+    const wire = formToSuiteApplication(form);
+    expect(wire.coBorrowers[0].addresses).toBeNull();
+    // The primary still sends its history.
+    expect(wire.addresses.length).toBeGreaterThan(0);
   });
 });
 

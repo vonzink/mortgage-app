@@ -575,10 +575,14 @@ function buildReo(reoProperties) {
  * on the primary path). Reuses the shared section builders, parameterized per borrower.
  */
 function buildCoBorrowerSection(b) {
-  const addresses = buildAddresses(b);
   return {
     borrower: buildBorrower(b),
-    addresses: addresses.length ? addresses : null,
+    // Deliberately NOT sent yet. The /application response only returns the PRIMARY
+    // borrower's addresses, so a co-borrower's stored history never hydrates into the form;
+    // sending the form's rows would full-replace (and lose) addresses staff entered in the
+    // suite. null = the suite skips the section. Re-enable once the response carries
+    // co-borrower addresses and suiteApplicationToForm hydrates them.
+    addresses: null,
     income: buildIncomeSection(b),
     assets: buildAssets(b?.assets),
     liabilities: buildLiabilities(b?.liabilities),

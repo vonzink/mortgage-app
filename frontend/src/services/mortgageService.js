@@ -424,6 +424,46 @@ const mortgageService = {
     }
   },
 
+  /*
+   * Per-borrower 1003 history sections the /application response does NOT carry
+   * (BorrowerApplicationResponse is loan §4 + the borrower row only). Each is its own suite
+   * module endpoint, all readable with a staff token on a loan the LO owns:
+   *   employments  GET /loans/{id}/borrowers/{bid}/employments  (ordinal asc)
+   *   addresses    GET /loans/{id}/borrowers/{bid}/addresses    (addressType then ordinal)
+   *   income       GET /loans/{id}/borrowers/{bid}/income       (employment rows carry employmentId)
+   * All swallow failures → [] so the client-view Application tab degrades to "None on file"
+   * rather than blanking the page.
+   */
+  getSuiteEmployments: async (loanId, borrowerId) => {
+    try {
+      const { data } = await suiteClient.get(`/loans/${loanId}/borrowers/${borrowerId}/employments`);
+      const items = unwrapEnvelope(data);
+      return Array.isArray(items) ? items : [];
+    } catch {
+      return [];
+    }
+  },
+
+  getSuiteBorrowerAddresses: async (loanId, borrowerId) => {
+    try {
+      const { data } = await suiteClient.get(`/loans/${loanId}/borrowers/${borrowerId}/addresses`);
+      const items = unwrapEnvelope(data);
+      return Array.isArray(items) ? items : [];
+    } catch {
+      return [];
+    }
+  },
+
+  getSuiteIncome: async (loanId, borrowerId) => {
+    try {
+      const { data } = await suiteClient.get(`/loans/${loanId}/borrowers/${borrowerId}/income`);
+      const items = unwrapEnvelope(data);
+      return Array.isArray(items) ? items : [];
+    } catch {
+      return [];
+    }
+  },
+
   /**
    * Only the application's `borrowerListVersion` (same GET as getSuiteApplication) — for
    * forms that need the version without prefilling from the suite (a restored draft, a
